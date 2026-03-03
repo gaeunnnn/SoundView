@@ -95,8 +95,3 @@
 
 ---
 
-### 🔗 관련 키워드
-
-`MySQL`, `Stored Procedure`, `PreparedStatement`, `Connection Pool`, `Soft Parsing`, `Semi-structured Data`
-
----
