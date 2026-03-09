@@ -35,3 +35,7 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# ignore env configs
+src/main/resources/application.yaml
+src/main/resources/application*.properties
