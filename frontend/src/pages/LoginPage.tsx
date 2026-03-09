@@ -1,35 +1,40 @@
+// 로그인 페이지 전체 레이아웃을 조립하는 페이지 파일
 import Logo from "../components/Common/Logo";
-import LoginHero from "../components/Login/LoginHero";
+import HelpButton from "../components/Common/HelpButton";
 import FeatureGrid from "../components/Login/FeatureGrid";
+import LoginHero from "../components/Login/LoginHero";
 import LoginInfoCard from "../components/Login/LoginInfoCard";
 import ScrollProgressBar from "../components/Login/ScrollProgressBar";
+import useScrollProgress from "../hooks/useScrollProgress";
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen bg-[#f5f7fb] relative overflow-hidden">
+  const { scrollProgress, rotationDeg, isAfterActive } = useScrollProgress();
 
-      {/* 상단 로고 */}
-      <div className="absolute top-8 left-10">
+  return (
+    <div className="relative h-screen w-full overflow-hidden bg-[#F7F8FC]">
+      <div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6 lg:left-12 lg:top-8">
         <Logo />
       </div>
 
-      <div className="flex w-full h-screen">
-
-        {/* 왼쪽 히어로 영역 */}
-        <div className="w-1/2 flex items-center justify-center">
-          <LoginHero />
+      <div className="mx-auto flex h-full w-full max-w-[1440px] flex-col justify-center gap-8 px-4 pb-8 pt-24 md:px-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-12 lg:pb-16 lg:pt-24">
+        <div className="flex min-h-0 flex-1 items-center justify-center">
+          <LoginHero
+            rotationDeg={rotationDeg}
+            isAfterActive={isAfterActive}
+          />
         </div>
 
-        {/* 오른쪽 설명 영역 */}
-        <div className="w-1/2 flex flex-col items-center justify-center gap-10">
+        <div className="mx-auto flex w-full max-w-[430px] flex-col gap-4 lg:mx-0 lg:w-[430px] lg:gap-6">
           <FeatureGrid />
           <LoginInfoCard />
         </div>
-
       </div>
 
-      <ScrollProgressBar />
+      <div className="absolute bottom-4 right-4 z-20 sm:bottom-5 sm:right-5 lg:bottom-6 lg:right-6">
+        <HelpButton />
+      </div>
 
+      <ScrollProgressBar progress={scrollProgress} />
     </div>
   );
 }

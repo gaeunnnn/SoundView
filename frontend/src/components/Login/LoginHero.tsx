@@ -3,14 +3,27 @@ import BeforeAfterToggle from "./BeforeAfterToggle";
 import LaptopShowcase from "./LaptopShowcase";
 import ScrollIndicator from "./ScrollIndicator";
 
-export default function LoginHero() {
+type LoginHeroProps = {
+  rotationDeg: number;
+  isAfterActive: boolean;
+};
+
+export default function LoginHero({
+  rotationDeg,
+  isAfterActive,
+}: LoginHeroProps) {
   return (
-    <section className="flex flex-col items-center">
-      <BeforeAfterToggle isAfterActive={false} />
-      <div className="mt-8">
-        <LaptopShowcase isAfterActive={false} rotationDeg={0} />
+    <section className="flex w-full flex-col items-center">
+      <BeforeAfterToggle isAfterActive={isAfterActive} />
+
+      <div className="mt-6 w-full sm:mt-8">
+        <LaptopShowcase
+          rotationDeg={rotationDeg}
+          isAfterActive={isAfterActive}
+        />
       </div>
-      <div className="mt-10">
+
+      <div className="mt-6 sm:mt-8 lg:mt-10">
         <ScrollIndicator />
       </div>
     </section>
