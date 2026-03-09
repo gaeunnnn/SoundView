@@ -1,4 +1,4 @@
-package com.example.Sound;
+package com.example.sound;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
