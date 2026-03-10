@@ -16,11 +16,8 @@ public class UserController {
 
     @GetMapping("/api/users/me")
     public UserMeResponse me(Authentication authentication) {
-
         Long userId = (Long) authentication.getPrincipal();
-
         User user = userService.getById(userId);
-
         return UserMeResponse.from(user);
     }
 }

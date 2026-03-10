@@ -26,31 +26,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
-        String token = resolveToken(request);
+        String accessToken = resolveToken(request);
 
-        if (token != null && jwtTokenProvider.validateToken(token)) {
+        if (accessToken != null && jwtTokenProvider.validateToken(accessToken)) {
+            if ("access".equals(jwtTokenProvider.getTokenType(accessToken))) {
+                Long userId = jwtTokenProvider.getUserId(accessToken);
 
-            Long userId = jwtTokenProvider.getUserId(token);
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userId, null, null);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId, null, null);
-
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
-
         filterChain.doFilter(request, response);
     }
 
     private String resolveToken(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
 
-        if (request.getCookies() == null) return null;
+        if (cookies == null) return null;
 
-        for (Cookie cookie : request.getCookies()) {
+        for (Cookie cookie : cookies) {
             if ("access_token".equals(cookie.getName())) {
                 return cookie.getValue();
             }
         }
-
         return null;
     }
 }
