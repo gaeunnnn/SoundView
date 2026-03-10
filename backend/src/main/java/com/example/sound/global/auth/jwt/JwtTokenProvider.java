@@ -24,6 +24,9 @@ public class JwtTokenProvider {
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
 
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
+
     private Key key;
 
     @PostConstruct
@@ -38,8 +41,23 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .setSubject(String.valueOf(userId))
                 .claim("userId", userId)
+                .claim("tokenType","access")
                 .setIssuedAt(now)
                 .setExpiration(expiry)
+                .signWith(key, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    public String createRefreshToken(Long userId) {
+        Date now = new Date();
+        Date expiredAt = new Date(now.getTime() + refreshTokenExpiration);
+
+        return Jwts.builder()
+                .setSubject(String.valueOf(userId))
+                .claim("userId", userId)
+                .claim("tokenType","refresh")
+                .setIssuedAt(now)
+                .setExpiration(expiredAt)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
@@ -54,15 +72,24 @@ public class JwtTokenProvider {
         return claims.get("userId", Long.class);
     }
 
+    public String getTokenType(String token) {
+        return getClaims(token).get("tokenType", String.class);
+    }
+
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token);
+            getClaims(token);
             return true;
-        } catch (Exception e) {
+        } catch (Exception exception) {
             return false;
         }
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 }

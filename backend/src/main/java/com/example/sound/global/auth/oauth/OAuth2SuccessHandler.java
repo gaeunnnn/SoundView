@@ -1,6 +1,8 @@
 package com.example.sound.global.auth.oauth;
 
+import com.example.sound.domain.auth.service.RefreshTokenService;
 import com.example.sound.global.auth.jwt.JwtTokenProvider;
+import com.example.sound.global.util.CookieUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +20,11 @@ import java.io.IOException;
 public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final RefreshTokenService refreshTokenService;
+    private final CookieUtil cookieUtil;
+
+    @Value("${jwt.refresh-token-expiration}")
+    private long refreshTokenExpiration;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -27,14 +34,17 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                                         HttpServletResponse response,
                                         Authentication authentication) throws IOException, ServletException{
 
-        CustomUserPrincipal principal = (CustomUserPrincipal) authentication.getPrincipal();
-        String accessToken = jwtTokenProvider.createAccessToken(principal.getUserId());
+        CustomUserPrincipal customUserPrincipal  = (CustomUserPrincipal) authentication.getPrincipal();
 
-        Cookie cookie = new Cookie("access_token", accessToken);
-        cookie.setHttpOnly(true);
-        cookie.setPath("/");
-        cookie.setMaxAge(60*30);
-        response.addCookie(cookie);
+        Long userId = customUserPrincipal.getUserId();
+
+        String accessToken = jwtTokenProvider.createAccessToken(userId);
+        String refreshToken = jwtTokenProvider.createRefreshToken(userId);
+
+        refreshTokenService.save(userId,refreshToken,refreshTokenExpiration/1000);
+
+        cookieUtil.addCookie(response,"access_token", accessToken, 60*30);
+        cookieUtil.addCookie(response,"refresh_token", refreshToken, 60*60*24*14);
 
         response.sendRedirect(frontendUrl);
     }
