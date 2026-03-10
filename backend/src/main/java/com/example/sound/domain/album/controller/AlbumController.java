@@ -2,9 +2,11 @@ package com.example.sound.domain.album.controller;
 
 import com.example.sound.domain.album.dto.AlbumResponse;
 import com.example.sound.domain.album.service.AlbumService;
+import com.example.sound.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,9 +19,11 @@ public class AlbumController {
 
     private final AlbumService albumService;
 
-    @Operation(summary = "앨범 목록 조회", description = "사용자가 속한 앨범 목록을 조회합니다.")
+    @Operation(summary = "앨범 목록 조회", description = "로그인 사용자가 속한 앨범 목록을 조회합니다.")
     @GetMapping
-    public List<AlbumResponse> getAlbums(@RequestParam Long userId) {
-        return albumService.getUserAlbums(userId);
+    public List<AlbumResponse> getAlbums(
+            @AuthenticationPrincipal User user
+    ) {
+        return albumService.getUserAlbums(user.getId());
     }
 }
