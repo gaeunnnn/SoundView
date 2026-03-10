@@ -1,5 +1,7 @@
 package com.example.sound.global.auth.jwt;
 
+import com.example.sound.domain.user.entity.User;
+import com.example.sound.domain.user.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
@@ -18,6 +20,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(
@@ -29,15 +32,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String accessToken = resolveToken(request);
 
         if (accessToken != null && jwtTokenProvider.validateToken(accessToken)) {
+
             if ("access".equals(jwtTokenProvider.getTokenType(accessToken))) {
+
                 Long userId = jwtTokenProvider.getUserId(accessToken);
 
+                User user = userRepository.findById(userId)
+                        .orElseThrow(() -> new RuntimeException("User not found"));
+
                 UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(userId, null, null);
+                        new UsernamePasswordAuthenticationToken(user, null, null);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
+
         filterChain.doFilter(request, response);
     }
 

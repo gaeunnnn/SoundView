@@ -1,5 +1,6 @@
 package com.example.sound.global.config;
 
+import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.global.auth.jwt.JwtAuthenticationFilter;
 import com.example.sound.global.auth.jwt.JwtTokenProvider;
 import com.example.sound.global.auth.oauth.CustomOAuth2UserService;
@@ -21,6 +22,7 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -29,9 +31,11 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
+
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/",
@@ -43,17 +47,23 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+
+                        // 로그인 사용자 정보 조회
                         .requestMatchers("/api/users/me").authenticated()
-                        .anyRequest().permitAll()
+
+                        // 나머지 모든 API 로그인 필요
+                        .anyRequest().authenticated()
                 )
+
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo ->
                                 userInfo.userService(customOAuth2UserService)
                         )
                         .successHandler(oAuth2SuccessHandler)
                 )
+
                 .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtTokenProvider),
+                        new JwtAuthenticationFilter(jwtTokenProvider, userRepository),
                         UsernamePasswordAuthenticationFilter.class
                 );
 
