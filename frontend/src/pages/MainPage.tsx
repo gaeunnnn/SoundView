@@ -1,24 +1,23 @@
 // 메인 페이지 전체 레이아웃을 조립하는 페이지 파일
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import MainHeader from "../components/Main/Header/MainHeader";
 import MainSidebar from "../components/Main/Sidebar/MainSidebar";
 import MainContent from "../components/Main/Video/MainContent";
-import FriendSearchModal from "../components/Main/Sidebar/FriendSearchModal";
 import CreateSharedAlbumModal from "../components/Main/Sidebar/CreateSharedAlbumModal";
 import RenameSharedAlbumModal from "../components/Main/Sidebar/RenameSharedAlbumModal";
 import SharedAlbumContent from "../components/Main/SharedAlbum/SharedAlbumContent";
 import ConfirmModal from "../components/Main/Video/ConfirmModal";
 import { MY_ALBUMS, SHARED_ALBUMS } from "../constants/mainSidebar";
 import { SHARED_ALBUM_DETAILS } from "../constants/sharedAlbums";
-import { VIDEO_LIST } from "../constants/videos";
 import type { SharedAlbumItem } from "../types/sidebar";
 import type { SharedAlbumDetail } from "../types/sharedAlbum";
 
 const ME = { id: 0, name: "박민준", avatarColor: "#8B5CF6", isMe: true };
 
 export default function MainPage() {
+  const navigate = useNavigate();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isFriendSearchOpen, setIsFriendSearchOpen] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [sharedAlbums, setSharedAlbums] = useState<SharedAlbumItem[]>(SHARED_ALBUMS);
   const [sharedAlbumDetails, setSharedAlbumDetails] = useState<SharedAlbumDetail[]>(SHARED_ALBUM_DETAILS);
@@ -65,7 +64,7 @@ export default function MainPage() {
     <div className="h-screen flex flex-col bg-[#FAFBFD] overflow-hidden">
       <MainHeader
         userName="박민준"
-        onClickLogo={() => console.log("로고 클릭")}
+        onClickLogo={() => navigate("/")}
         onClickHelp={() => console.log("도움말 클릭")}
         onClickNotification={() => console.log("알림 클릭")}
         onClickProfile={() => console.log("프로필 클릭")}
@@ -84,20 +83,21 @@ export default function MainPage() {
           onClickSharedAlbumRename={(albumId) => setRenameTargetId(albumId)}
           onClickSharedAlbumLeave={(albumId) => setLeaveTargetId(albumId)}
           onClickCreateSharedAlbum={() => setIsCreateAlbumOpen(true)}
-          onClickFriendSearch={() => setIsFriendSearchOpen(true)}
         />
 
-        {activeSharedAlbum ? (
-          <SharedAlbumContent album={activeSharedAlbum} />
-        ) : (
-          <MainContent videos={VIDEO_LIST} sharedAlbums={sharedAlbums} />
-        )}
+        <div className={activeSharedAlbumId === null ? "flex flex-1 overflow-hidden" : "hidden"}>
+          <MainContent sharedAlbums={sharedAlbums} />
+        </div>
+        {sharedAlbumDetails.map((albumDetail) => (
+          <div
+            key={albumDetail.id}
+            className={activeSharedAlbumId === albumDetail.id ? "flex flex-1 overflow-hidden" : "hidden"}
+          >
+            <SharedAlbumContent album={albumDetail} />
+          </div>
+        ))}
       </div>
 
-      <FriendSearchModal
-        isOpen={isFriendSearchOpen}
-        onClose={() => setIsFriendSearchOpen(false)}
-      />
       <CreateSharedAlbumModal
         isOpen={isCreateAlbumOpen}
         onClose={() => setIsCreateAlbumOpen(false)}

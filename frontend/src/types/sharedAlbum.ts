@@ -4,6 +4,7 @@ export type Participant = {
   name: string;
   avatarColor: string;
   isMe?: boolean;
+  code?: string;
 };
 
 export type EmojiReaction = {

@@ -1,22 +1,22 @@
 // 메인 페이지 우측 콘텐츠 영역 전체를 조립하는 컴포넌트 파일
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { SortOption, VideoItem } from "../../../types/video";
+import type { SortOption } from "../../../types/video";
 import type { SharedAlbumItem } from "../../../types/sidebar";
 import ConfirmModal from "./ConfirmModal";
 import VideoGrid from "./VideoGrid";
 import VideoSectionHeader from "./VideoSectionHeader";
 import VideoToolbar from "./VideoToolbar";
 import ShareToAlbumModal from "./ShareToAlbumModal";
+import { useVideos } from "../../../context/VideosContext";
 
 type MainContentProps = {
-  videos: VideoItem[];
   sharedAlbums: SharedAlbumItem[];
 };
 
-export default function MainContent({ videos: initialVideos, sharedAlbums }: MainContentProps) {
+export default function MainContent({ sharedAlbums }: MainContentProps) {
   const navigate = useNavigate();
-  const [videos, setVideos] = useState<VideoItem[]>(initialVideos);
+  const { videos, removeVideo, renameVideo } = useVideos();
   const [openedMenuId, setOpenedMenuId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [shareTargetId, setShareTargetId] = useState<number | null>(null);
@@ -48,14 +48,13 @@ export default function MainContent({ videos: initialVideos, sharedAlbums }: Mai
   };
 
   const handleRenameTitle = (videoId: number, newTitle: string) => {
-    setVideos((prev) =>
-      prev.map((v) => (v.id === videoId ? { ...v, title: newTitle } : v))
-    );
+    renameVideo(videoId, newTitle);
   };
 
   const handleEdit = (videoId: number) => {
     setOpenedMenuId(null);
-    console.log("편집 클릭", videoId);
+    const video = videos.find((v) => v.id === videoId);
+    navigate("/edit", { state: { video } });
   };
 
   const handleShare = (videoId: number) => {
@@ -73,7 +72,7 @@ export default function MainContent({ videos: initialVideos, sharedAlbums }: Mai
   };
 
   const handleConfirmDelete = () => {
-    setVideos((prev) => prev.filter((v) => v.id !== deleteTargetId));
+    if (deleteTargetId !== null) removeVideo(deleteTargetId);
     setDeleteTargetId(null);
   };
 
@@ -88,7 +87,7 @@ export default function MainContent({ videos: initialVideos, sharedAlbums }: Mai
     videos.find((video) => video.id === shareTargetId)?.title ?? "";
 
   return (
-    <>
+    <div className="flex flex-1 flex-col overflow-hidden">
       <section className="flex-1 overflow-y-auto bg-[#FAFBFD] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="mx-auto max-w-[1280px] space-y-8 lg:space-y-10">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -138,6 +137,6 @@ export default function MainContent({ videos: initialVideos, sharedAlbums }: Mai
         onClose={() => setShareTargetId(null)}
         onConfirm={handleConfirmShare}
       />
-    </>
+    </div>
   );
 }

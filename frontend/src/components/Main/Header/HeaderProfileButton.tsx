@@ -4,14 +4,12 @@ import { ChevronDown, Copy, Settings, LogOut, Check } from "lucide-react";
 
 type HeaderProfileButtonProps = {
   userName: string;
-  userEmail?: string;
   userCode?: string;
   onClick?: () => void;
 };
 
 export default function HeaderProfileButton({
   userName,
-  userEmail = "minj@example.com",
   userCode = "MJ2026",
 }: HeaderProfileButtonProps) {
   const initial = userName.slice(0, 1);
@@ -56,21 +54,10 @@ export default function HeaderProfileButton({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-[#E8EDF4] bg-white py-2 shadow-xl">
+        <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-[#E8EDF4] bg-white py-2 shadow-xl">
           {/* 프로필 정보 */}
           <div className="px-4 py-3">
             <p className="text-sm font-bold text-[#1E293B]">{userName}</p>
-            <div className="mt-0.5 flex items-center justify-between">
-              <p className="text-xs text-[#94A3B8]">{userEmail}</p>
-              <button
-                type="button"
-                onClick={() => navigator.clipboard.writeText(userEmail)}
-                className="text-[#CBD5E1] transition-colors hover:text-[#94A3B8]"
-                title="이메일 복사"
-              >
-                <Copy size={12} />
-              </button>
-            </div>
 
             {/* 개인 코드 */}
             <div className="mt-2 flex items-center justify-between rounded-lg bg-[#F8FAFC] px-2.5 py-1.5">

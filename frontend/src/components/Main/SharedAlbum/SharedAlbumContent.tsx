@@ -1,6 +1,6 @@
 // 공유 앨범 콘텐츠 영역 컴포넌트
 import { useEffect, useRef, useState } from "react";
-import { Search, SlidersHorizontal, Users, Upload } from "lucide-react";
+import { Search, SlidersHorizontal, Users, Upload, Copy, Check } from "lucide-react";
 import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAlbum";
 import type { VideoItem } from "../../../types/video";
 import SharedVideoCard from "./SharedVideoCard";
@@ -19,6 +19,7 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
   const participantRef = useRef<HTMLDivElement>(null);
 
   // album이 바뀌면 videos 초기화
@@ -102,7 +103,7 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
   });
 
   return (
-    <>
+    <div className="flex flex-1 flex-col overflow-hidden">
     <section className="flex-1 overflow-y-auto bg-[#FAFBFD] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <div className="mx-auto max-w-[1280px] space-y-6">
         {/* 헤더 */}
@@ -142,11 +143,33 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
                           <span className="text-sm font-medium text-[#1E293B]">
                             {p.name}
                           </span>
-                          {p.isMe && (
+                          {p.isMe ? (
                             <span className="ml-auto rounded-full bg-[#EEF4FF] px-2 py-0.5 text-[10px] font-semibold text-[#2563EB]">
                               나
                             </span>
-                          )}
+                          ) : p.code ? (
+                            <div className="ml-auto flex items-center gap-1">
+                              <span className="text-[11px] font-semibold text-[#2563EB]">
+                                # {p.code}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(p.code!);
+                                  setCopiedId(p.id);
+                                  setTimeout(() => setCopiedId(null), 1500);
+                                }}
+                                className="text-[#CBD5E1] transition-colors hover:text-[#2563EB]"
+                                title="코드 복사"
+                              >
+                                {copiedId === p.id ? (
+                                  <Check size={12} className="text-[#10B981]" />
+                                ) : (
+                                  <Copy size={12} />
+                                )}
+                              </button>
+                            </div>
+                          ) : null}
                         </li>
                       ))}
                     </ul>
@@ -248,6 +271,6 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
       onClose={() => setShowImport(false)}
       onConfirm={handleImport}
     />
-    </>
+    </div>
   );
 }

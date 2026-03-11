@@ -5,7 +5,7 @@ import { ArrowLeft, CloudUpload, CheckCircle2, Loader2 } from "lucide-react";
 import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUpload } from "../context/UploadContext";
-import { DUMMY_EDIT_VIDEO } from "../constants/soundEdit";
+import { DUMMY_EDIT_VIDEO } from "../constants/edit";
 
 const STAGES = [
   { minProgress: 0,  maxProgress: 20,  label: "영상을 업로드하는 중입니다...",          sub: "파일을 서버로 전송하고 있습니다" },
@@ -24,7 +24,7 @@ function getStage(progress: number) {
 
 export default function UploadPage() {
   const navigate = useNavigate();
-  const { status, progress, fileName, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
+  const { status, progress, fileName, setUploadedVideo, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -37,7 +37,7 @@ export default function UploadPage() {
     if (status === "done") {
       const timer = setTimeout(() => {
         resetUpload();
-        navigate("/sound-edit");
+        navigate("/edit");
       }, 1200);
       return () => clearTimeout(timer);
     }
@@ -52,7 +52,9 @@ export default function UploadPage() {
 
   const handleFile = (file: File) => {
     setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+    setUploadedVideo(url, file.type);
   };
 
   // 개발용: 더미 파일로 바로 선택 상태 진입
@@ -61,6 +63,7 @@ export default function UploadPage() {
     const dummyFile = new File([blob], "자연_다큐멘터리_Vol.1.mp4", { type: "video/mp4" });
     setSelectedFile(dummyFile);
     setPreviewUrl(DUMMY_EDIT_VIDEO.thumbnail);
+    setUploadedVideo(DUMMY_EDIT_VIDEO.thumbnail, "image");
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -126,12 +129,16 @@ export default function UploadPage() {
       {/* 헤더 */}
       <div className="flex h-18 shrink-0 items-center justify-between border-b border-[#E8EDF4] bg-white px-5">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">
               <span className="text-xs font-bold text-white">S</span>
             </div>
             <span className="text-base font-bold text-[#111827]">SoundSee</span>
-          </div>
+          </button>
           <div className="h-4 w-px bg-[#E8EDF4]" />
           <button
             type="button"
@@ -139,7 +146,7 @@ export default function UploadPage() {
             className="flex items-center gap-1.5 text-sm font-medium text-[#64748B] transition-colors hover:text-[#111827]"
           >
             <ArrowLeft size={15} strokeWidth={2} />
-            대시보드로 돌아가기
+            뒤로가기
           </button>
         </div>
         <div className="flex items-center gap-3">

@@ -1,9 +1,9 @@
 // 공유 앨범 더미 데이터 파일
 import type { SharedAlbumDetail } from "../types/sharedAlbum";
 
-const ME = { id: 0, name: "박민준", avatarColor: "#8B5CF6", isMe: true };
-const JIEUN = { id: 1, name: "김지은", avatarColor: "#14B8A6" };
-const JUNHO = { id: 2, name: "박준호", avatarColor: "#3B82F6" };
+const ME = { id: 0, name: "박민준", avatarColor: "#8B5CF6", isMe: true, code: "MJ2026AA" };
+const JIEUN = { id: 1, name: "김지은", avatarColor: "#14B8A6", code: "JE11AB22" };
+const JUNHO = { id: 2, name: "박준호", avatarColor: "#3B82F6", code: "JH33CD44" };
 
 export const SHARED_ALBUM_DETAILS: SharedAlbumDetail[] = [
   {

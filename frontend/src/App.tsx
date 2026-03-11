@@ -4,22 +4,25 @@ import LoginPage from "./pages/LoginPage";
 import MainPage from "./pages/MainPage";
 import ViewerPage from "./pages/ViewerPage";
 import UploadPage from "./pages/UploadPage";
-import SoundEditPage from "./pages/SoundEditPage";
+import EditPage from "./pages/EditPage";
 import { UploadProvider } from "./context/UploadContext";
+import { VideosProvider } from "./context/VideosContext";
 import UploadProgressPip from "./components/Upload/UploadProgressPip";
 
 export default function App() {
   return (
-    <UploadProvider>
-      <Routes>
-        <Route path="/" element={<MainPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/viewer" element={<ViewerPage />} />
-        <Route path="/upload" element={<UploadPage />} />
-        <Route path="/sound-edit" element={<SoundEditPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <UploadProgressPip />
-    </UploadProvider>
+    <VideosProvider>
+      <UploadProvider>
+        <Routes>
+          <Route path="/" element={<MainPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/viewer" element={<ViewerPage />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/edit" element={<EditPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <UploadProgressPip />
+      </UploadProvider>
+    </VideosProvider>
   );
 }

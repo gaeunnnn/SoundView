@@ -23,5 +23,4 @@ export type MainSidebarProps = {
   onClickSharedAlbumRename?: (albumId: number) => void;
   onClickSharedAlbumLeave?: (albumId: number) => void;
   onClickCreateSharedAlbum?: () => void;
-  onClickFriendSearch?: () => void;
 };

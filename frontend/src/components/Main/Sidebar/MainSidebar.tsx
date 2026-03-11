@@ -1,5 +1,5 @@
 // 메인 페이지 좌측 사이드바 전체 레이아웃을 조립하는 컴포넌트 파일
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { MainSidebarProps } from "../../../types/sidebar";
 import SidebarAlbumItem from "./SidebarAlbumItem";
 import SidebarCollapseButton from "./SidebarCollapseButton";
@@ -18,7 +18,6 @@ export default function MainSidebar({
   onClickSharedAlbumRename,
   onClickSharedAlbumLeave,
   onClickCreateSharedAlbum,
-  onClickFriendSearch,
 }: MainSidebarProps) {
   return (
     <aside
@@ -87,24 +86,6 @@ export default function MainSidebar({
           </SidebarSection>
         </div>
 
-        <div className="pt-3">
-          <button
-            type="button"
-            onClick={onClickFriendSearch}
-            title={isCollapsed ? "친구 찾기" : undefined}
-            className={[
-              "flex items-center border border-[#D9E2EC] bg-white text-[#64748B] transition-colors hover:bg-[#F8FAFC]",
-              isCollapsed
-                ? "h-10 w-10 justify-center rounded-xl"
-                : "h-10 w-full justify-center gap-2 rounded-[12px] px-4",
-            ].join(" ")}
-          >
-            <Search size={16} strokeWidth={2} className="text-[#94A3B8]" />
-            {!isCollapsed && (
-              <span className="text-sm font-medium leading-none">친구 찾기</span>
-            )}
-          </button>
-        </div>
       </div>
     </aside>
   );

@@ -1,5 +1,7 @@
 // 프로그레스 바와 재생 컨트롤 버튼 영역 컴포넌트 파일
-import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Vibrate } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Vibrate, Settings } from "lucide-react";
+import type { SoundEvent } from "../../constants/edit";
 
 type PlayerControlsProps = {
   isPlaying: boolean;
@@ -13,7 +15,8 @@ type PlayerControlsProps = {
   subtitleOn: boolean;
   emojiOn: boolean;
   vibrateOn: boolean;
-  progressRef: React.RefObject<HTMLDivElement>;
+  soundEvents?: SoundEvent[];
+  progressRef: React.RefObject<HTMLDivElement | null>;
   onProgressClick: (e: React.MouseEvent<HTMLDivElement>) => void;
   onPlayPause: () => void;
   onSkip: (sec: number) => void;
@@ -38,6 +41,7 @@ function formatTime(sec: number): string {
 export default function PlayerControls({
   isPlaying,
   currentSec,
+  totalSec,
   duration,
   progress,
   volume,
@@ -46,6 +50,7 @@ export default function PlayerControls({
   subtitleOn,
   emojiOn,
   vibrateOn,
+  soundEvents = [],
   progressRef,
   onProgressClick,
   onPlayPause,
@@ -61,7 +66,22 @@ export default function PlayerControls({
   isFullscreen,
   onFullscreen,
 }: PlayerControlsProps) {
+  const [hoveredDotId, setHoveredDotId] = useState<number | null>(null);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const shortcutsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showShortcuts) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shortcutsRef.current && !shortcutsRef.current.contains(e.target as Node)) {
+        setShowShortcuts(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showShortcuts]);
   const effectiveVolume = isMuted ? 0 : volume;
+  const enabledEvents = emojiOn ? soundEvents.filter((e) => e.enabled) : [];
 
   const hidden = isFullscreen && !showControls;
 
@@ -73,12 +93,35 @@ export default function PlayerControls({
       {/* 프로그레스 바 */}
       <div
         ref={progressRef}
-        className="group mb-3 h-1.5 w-full cursor-pointer rounded-full bg-white/20 hover:h-2.5 transition-all"
+        className="group relative mb-3 h-1.5 w-full cursor-pointer rounded-full bg-white/20 hover:h-2.5 transition-all"
         onClick={onProgressClick}
       >
         <div className="h-full rounded-full bg-[#2563EB] relative" style={{ width: `${progress}%` }}>
           <div className="absolute right-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-white opacity-0 group-hover:opacity-100 shadow" />
         </div>
+
+        {/* 이모지 도트 */}
+        {enabledEvents.map((ev) => {
+          const leftPct = totalSec > 0 ? (ev.timeSec / totalSec) * 100 : 0;
+          return (
+            <div
+              key={ev.id}
+              className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${leftPct}%` }}
+              onMouseEnter={() => setHoveredDotId(ev.id)}
+              onMouseLeave={() => setHoveredDotId(null)}
+            >
+              <div className="h-2.5 w-2.5 rounded-full border-2 border-white/70 bg-[#F59E0B] transition-transform hover:scale-125" />
+              {hoveredDotId === ev.id && (
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-0.5 whitespace-nowrap rounded-xl bg-black/90 px-3 py-2 shadow-xl pointer-events-none">
+                  <span className="text-lg leading-none">{ev.emoji}</span>
+                  <span className="text-[11px] text-white">{ev.description}</span>
+                  <span className="text-[10px] text-white/50">{ev.timeLabel}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* 버튼 행 */}
@@ -186,14 +229,44 @@ export default function PlayerControls({
             <Vibrate size={16} />
           </button>
           <div className="w-px h-3.5 bg-white/20" />
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-xs hover:text-white transition-colors"
-            title="처음으로"
-          >
-            처음
-          </button>
+          <div ref={shortcutsRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setShowShortcuts((p) => !p)}
+              className={[
+                "flex items-center justify-center rounded-md p-1.5 transition-all",
+                showShortcuts ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/10 hover:text-white",
+              ].join(" ")}
+              title="단축키"
+            >
+              <Settings size={16} />
+            </button>
+            {showShortcuts && (
+              <div
+                className="absolute bottom-9 right-0 z-50 w-52 rounded-xl p-3 text-xs text-white shadow-xl"
+                style={{
+                  background: "rgba(15,23,42,0.92)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                }}
+              >
+                <p className="mb-2 font-semibold text-white/50 uppercase tracking-wide text-[10px]">단축키</p>
+                <div className="space-y-1.5">
+                  {[
+                    ["Space / K", "재생 / 정지"],
+                    ["← →", "5초 이동"],
+                    ["↑ ↓", "볼륨 조절"],
+                    ["F", "전체화면 전환"],
+                    ["C", "자막 패널 (전체화면)"],
+                  ].map(([key, desc]) => (
+                    <div key={key} className="flex items-center justify-between gap-3">
+                      <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white/80">{key}</kbd>
+                      <span className="text-white/60">{desc}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={onFullscreen}

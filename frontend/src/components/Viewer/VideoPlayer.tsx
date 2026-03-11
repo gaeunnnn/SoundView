@@ -1,6 +1,8 @@
 // 영상 플레이어 패널 전체를 관리하는 컴포넌트 파일 (재생 상태, 컨트롤 포함)
 import { useState, useRef, useEffect, useCallback } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ViewerVideo, EmojiReaction } from "../../types/viewer";
+import { DUMMY_SOUND_EVENTS } from "../../constants/edit";
 import VideoMeta from "./VideoMeta";
 import PlayerOverlay from "./PlayerOverlay";
 import PlayerControls from "./PlayerControls";
@@ -28,7 +30,7 @@ type VideoPlayerProps = {
 export default function VideoPlayer({ video }: VideoPlayerProps) {
   const totalSec = parseDuration(video.duration);
 
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [currentSec, setCurrentSec] = useState(0);
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
@@ -40,6 +42,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [showSidePanel, setShowSidePanel] = useState(true);
 
   const progressRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
@@ -79,9 +82,54 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   }, []);
 
   const handleMouseMove = useCallback(() => {
-    resetOverlayTimer();
     if (isFullscreen) resetControlsTimer();
-  }, [isFullscreen, resetOverlayTimer, resetControlsTimer]);
+  }, [isFullscreen, resetControlsTimer]);
+
+  // 키보드 단축키
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      switch (e.key) {
+        case " ":
+        case "k":
+          e.preventDefault();
+          setIsPlaying((p) => !p);
+          resetOverlayTimer();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          setCurrentSec((prev) => Math.min(totalSec, prev + 5));
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          setCurrentSec((prev) => Math.max(0, prev - 5));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setVolume((prev) => { const next = Math.min(100, prev + 5); setIsMuted(false); return next; });
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          setVolume((prev) => { const next = Math.max(0, prev - 5); if (next === 0) setIsMuted(true); return next; });
+          break;
+        case "f":
+        case "F":
+          e.preventDefault();
+          handleFullscreen();
+          break;
+        case "c":
+        case "C":
+          if (isFullscreen) {
+            e.preventDefault();
+            setShowSidePanel((p) => !p);
+          }
+          break;
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [totalSec, resetOverlayTimer, isFullscreen]);
 
   // 타이머 재생
   useEffect(() => {
@@ -100,6 +148,13 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isPlaying, totalSec]);
+
+  // 진동: 활성화된 이벤트 타이밍에 vibrate 호출
+  useEffect(() => {
+    if (!vibrateOn || !("vibrate" in navigator)) return;
+    const triggered = DUMMY_SOUND_EVENTS.filter((ev) => ev.enabled && currentSec === ev.timeSec);
+    if (triggered.length > 0) navigator.vibrate(200);
+  }, [currentSec, vibrateOn]);
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current) return;
@@ -157,6 +212,66 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           onToggle={handlePlayPause}
         />
 
+        {/* 전체화면 전용 읽기 전용 소리 패널 */}
+        {isFullscreen && (
+          <div
+            className={[
+              "absolute right-0 top-0 bottom-0 z-30 flex transition-all duration-300 ease-in-out",
+              showSidePanel ? "w-64" : "w-0",
+              (showControls || showSidePanel) ? "opacity-100" : "opacity-0 pointer-events-none",
+            ].join(" ")}
+          >
+            {/* 토글 탭 */}
+            <button
+              type="button"
+              onClick={() => setShowSidePanel((p) => !p)}
+              className="absolute left-0 top-1/2 z-40 flex h-14 w-6 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-xl transition-colors"
+              style={{
+                background: "rgba(255,255,255,0.12)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRight: "none",
+              }}
+            >
+              {showSidePanel
+                ? <ChevronRight size={14} className="text-white/80" />
+                : <ChevronLeft size={14} className="text-white/80" />}
+            </button>
+
+            {/* 패널 본체 */}
+            <div
+              className="flex flex-1 flex-col overflow-hidden"
+              style={{
+                background: "rgba(15,23,42,0.75)",
+                backdropFilter: "blur(24px) saturate(160%)",
+                WebkitBackdropFilter: "blur(24px) saturate(160%)",
+                borderLeft: "1px solid rgba(255,255,255,0.12)",
+              }}
+            >
+              <div
+                className="flex shrink-0 items-center gap-2 px-4 py-3"
+                style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}
+              >
+                <div className="h-2 w-2 rounded-full bg-[#10B981]" />
+                <span className="text-sm font-semibold text-white">인식된 소리</span>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {DUMMY_SOUND_EVENTS.filter((ev) => ev.enabled).map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="flex items-center gap-3 px-4 py-2.5"
+                  >
+                    <span className="w-10 shrink-0 font-mono text-xs text-[#60A5FA]">{ev.timeLabel}</span>
+                    <span className="text-base leading-none">{ev.emoji}</span>
+                    <span className="truncate text-sm text-white/90">{ev.description}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <PlayerControls
           isPlaying={isPlaying}
           currentSec={currentSec}
@@ -177,6 +292,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           onVolumeChange={(v) => { setVolume(v); setIsMuted(v === 0); }}
           onShowVolumeChange={setShowVolume}
           onReset={() => setCurrentSec(0)}
+          soundEvents={DUMMY_SOUND_EVENTS}
           onSubtitleToggle={() => setSubtitleOn((v) => !v)}
           onEmojiToggle={() => setEmojiOn((v) => !v)}
           onVibrateToggle={() => setVibrateOn((v) => !v)}

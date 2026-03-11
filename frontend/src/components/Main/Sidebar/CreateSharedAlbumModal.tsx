@@ -5,16 +5,16 @@ import { X, FolderPlus, Users } from "lucide-react";
 type Friend = {
   id: number;
   name: string;
-  email: string;
+  code: string;
   avatarColor: string;
 };
 
 // 더미 친구 목록 (추후 API 연동)
 const DUMMY_FRIENDS: Friend[] = [
-  { id: 1, name: "김지은", email: "jieun@example.com", avatarColor: "#8B5CF6" },
-  { id: 2, name: "박준호", email: "junho@example.com", avatarColor: "#3B82F6" },
-  { id: 3, name: "이서연", email: "seoyeon@example.com", avatarColor: "#EC4899" },
-  { id: 4, name: "최윤서", email: "yoonseo@example.com", avatarColor: "#F59E0B" },
+  { id: 1, name: "김지은", code: "JE11AB22", avatarColor: "#8B5CF6" },
+  { id: 2, name: "박준호", code: "JH33CD44", avatarColor: "#3B82F6" },
+  { id: 3, name: "이서연", code: "SY55EF66", avatarColor: "#EC4899" },
+  { id: 4, name: "최윤서", code: "YS77GH88", avatarColor: "#F59E0B" },
 ];
 
 type CreateSharedAlbumModalProps = {
@@ -51,7 +51,7 @@ export default function CreateSharedAlbumModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={handleClose}
     >
       <div
@@ -103,13 +103,13 @@ export default function CreateSharedAlbumModal({
                   >
                     {friend.name[0]}
                   </div>
-                  {/* 이름/이메일 */}
+                  {/* 이름/코드 */}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#1E293B]">
                       {friend.name}
                     </p>
                     <p className="truncate text-xs text-[#94A3B8]">
-                      {friend.email}
+                      # {friend.code}
                     </p>
                   </div>
                   {/* 체크박스 */}

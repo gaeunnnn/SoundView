@@ -7,6 +7,9 @@ type UploadContextValue = {
   status: UploadStatus;
   progress: number;
   fileName: string;
+  uploadedVideoUrl: string | null;
+  uploadedFileType: string;
+  setUploadedVideo: (url: string, fileType: string) => void;
   startUpload: (fileName: string) => void;
   updateProgress: (progress: number) => void;
   finishUpload: () => void;
@@ -19,6 +22,13 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [progress, setProgress] = useState(0);
   const [fileName, setFileName] = useState("");
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
+  const [uploadedFileType, setUploadedFileType] = useState("");
+
+  const setUploadedVideo = (url: string, fileType: string) => {
+    setUploadedVideoUrl(url);
+    setUploadedFileType(fileType);
+  };
 
   const startUpload = (name: string) => {
     setFileName(name);
@@ -41,7 +51,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <UploadContext.Provider
-      value={{ status, progress, fileName, startUpload, updateProgress, finishUpload, resetUpload }}
+      value={{ status, progress, fileName, uploadedVideoUrl, uploadedFileType, setUploadedVideo, startUpload, updateProgress, finishUpload, resetUpload }}
     >
       {children}
     </UploadContext.Provider>
