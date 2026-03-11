@@ -1,6 +1,7 @@
 package com.example.sound.domain.user.service;
 
 import com.example.sound.domain.album.service.AlbumService;
+import com.example.sound.domain.user.dto.UserSearchResponse;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.global.util.UserCodeGenerator;
@@ -53,5 +54,18 @@ public class UserService {
             code = userCodeGenerator.generate();
         } while (userRepository.existsByUserCode(code));
         return code;
+    }
+
+    public UserSearchResponse searchUserByCode(String userCode){
+
+        User user = userRepository.findByUserCode(userCode)
+                .orElseThrow(()-> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        return UserSearchResponse.builder()
+                .userId(user.getId())
+                .nickname(user.getNickname())
+                .profileImageUrl(user.getProfileImageUrl())
+                .userCode(user.getUserCode())
+                .build();
     }
 }
