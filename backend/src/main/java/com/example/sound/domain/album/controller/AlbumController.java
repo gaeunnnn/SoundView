@@ -32,9 +32,17 @@ public class AlbumController {
 
     @PostMapping
     public AlbumCreateResponse createAlbum(
-            @AuthenticationPrincipal  User user,
+            @AuthenticationPrincipal User user,
             @RequestBody AlbumCreateRequest request
-    ){
-        return albumService.createAlbum(user.getId(),request);
+    ) {
+        return albumService.createAlbum(user.getId(), request);
+    }
+
+    @DeleteMapping("/{albumId}/leave")
+    public void leaveAlbum(
+            @PathVariable Long albumId,
+            @AuthenticationPrincipal User user
+    ) {
+        albumService.leaveAlbum(albumId, user.getId());
     }
 }

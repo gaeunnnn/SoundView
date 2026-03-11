@@ -28,4 +28,6 @@ public interface AlbumVideoRepository extends JpaRepository<AlbumVideo, Long> {
         GROUP BY v.id
     """)
     List<AlbumVideoResponse> findVideosByAlbumId(Long albumId);
+
+    void deleteByAlbum_Id(Long albumId);
 }

@@ -7,9 +7,11 @@ import com.example.sound.domain.album.entity.Album;
 import com.example.sound.domain.album.entity.AlbumUser;
 import com.example.sound.domain.album.repository.AlbumRepository;
 import com.example.sound.domain.album.repository.AlbumUserRepository;
+import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
-import com.example.sound.domain.user.service.UserService;
+import com.example.sound.domain.video.repository.VideoCommentRepository;
+import com.example.sound.domain.video.repository.VideoReactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,9 @@ public class AlbumService {
     private final AlbumRepository albumRepository;
     private final AlbumUserRepository albumUserRepository;
     private final UserRepository userRepository;
+    private final VideoReactionRepository videoReactionRepository;
+    private final VideoCommentRepository videoCommentRepository;
+    private final AlbumVideoRepository albumVideoRepository;
 
     public List<AlbumResponse> getUserAlbums(Long userId) {
         return albumRepository.findAlbumsByUserId(userId);
@@ -86,5 +91,30 @@ public class AlbumService {
                 .name(album.getName())
                 .memberCount(members.size())
                 .build();
+    }
+
+    @Transactional
+    public void leaveAlbum(Long albumId, Long userId) {
+
+        AlbumUser albumUser = albumUserRepository
+                .findByAlbumIdAndUserId(albumId,userId)
+                .orElseThrow(() -> new IllegalArgumentException("앨범 멤버가 아닙니다."));
+
+        albumUserRepository.delete(albumUser);
+
+        long memberCount = albumUserRepository.countByAlbumId(albumId);
+
+        if(memberCount == 0){
+
+            videoReactionRepository.deleteByAlbumId(albumId);
+            videoCommentRepository.deleteByAlbumId(albumId);
+
+            albumVideoRepository.deleteByAlbum_Id(albumId);
+
+            // albumUser 정리
+            albumUserRepository.deleteAllByAlbumId(albumId);
+
+            albumRepository.deleteById(albumId);
+        }
     }
 }

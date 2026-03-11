@@ -1,0 +1,18 @@
+package com.example.sound.domain.video.repository;
+
+import com.example.sound.domain.video.entity.VideoReaction;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+
+public interface VideoReactionRepository extends JpaRepository<VideoReaction, Long> {
+
+    @Modifying
+    @Query("""
+        delete from VideoReaction vr
+        where vr.albumVideo.id in (
+            select av.id from AlbumVideo av where av.album.id = :albumId
+        )
+    """)
+    void deleteByAlbumId(Long albumId);
+}
