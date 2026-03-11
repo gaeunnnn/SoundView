@@ -1,19 +1,22 @@
 package com.example.sound.domain.album.controller;
 
+import com.example.sound.domain.album.dto.AlbumCreateRequest;
+import com.example.sound.domain.album.dto.AlbumCreateResponse;
 import com.example.sound.domain.album.dto.AlbumResponse;
 import com.example.sound.domain.album.service.AlbumService;
 import com.example.sound.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/albums")
 @RequiredArgsConstructor
+@RequestMapping("/api/albums")
 @Tag(name = "Album", description = "앨범 API")
 public class AlbumController {
 
@@ -25,5 +28,13 @@ public class AlbumController {
             @AuthenticationPrincipal User user
     ) {
         return albumService.getUserAlbums(user.getId());
+    }
+
+    @PostMapping
+    public AlbumCreateResponse createAlbum(
+            @AuthenticationPrincipal  User user,
+            @RequestBody AlbumCreateRequest request
+    ){
+        return albumService.createAlbum(user.getId(),request);
     }
 }
