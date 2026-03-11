@@ -5,6 +5,7 @@ import com.example.sound.global.auth.jwt.JwtAuthenticationFilter;
 import com.example.sound.global.auth.jwt.JwtTokenProvider;
 import com.example.sound.global.auth.oauth.CustomOAuth2UserService;
 import com.example.sound.global.auth.oauth.OAuth2SuccessHandler;
+import com.example.sound.global.auth.oauth.OAuthCookieRepository; // 보관함 추가
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,7 @@ public class SecurityConfig {
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final OAuthCookieRepository oAuthCookieRepository; // 보관함 주입
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -48,14 +50,17 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // 로그인 사용자 정보 조회
                         .requestMatchers("/api/users/me").authenticated()
 
-                        // 나머지 모든 API 로그인 필요
                         .anyRequest().authenticated()
                 )
 
                 .oauth2Login(oauth2 -> oauth2
+                        // [보관소 설정] : 세션 대신 쿠키 보관소를 사용하도록 설정합니다.
+                        .authorizationEndpoint(auth -> auth
+                                .baseUri("/oauth2/authorization")
+                                .authorizationRequestRepository(oAuthCookieRepository)
+                        )
                         .userInfoEndpoint(userInfo ->
                                 userInfo.userService(customOAuth2UserService)
                         )
