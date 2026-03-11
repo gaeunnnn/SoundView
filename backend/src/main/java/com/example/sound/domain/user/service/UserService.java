@@ -1,5 +1,6 @@
 package com.example.sound.domain.user.service;
 
+import com.example.sound.domain.album.service.AlbumService;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.global.util.UserCodeGenerator;
@@ -14,6 +15,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserCodeGenerator userCodeGenerator;
+    private final AlbumService albumService;
 
     @Transactional
     public User findOrCreateKakaoUser(Long kakaoId, String nickname, String profileImageUrl) {
@@ -22,14 +24,22 @@ public class UserService {
                     user.updateProfile(nickname, profileImageUrl);
                     return user;
                 })
-                .orElseGet(() -> userRepository.save(
-                        User.builder()
-                                .kakaoId(kakaoId)
-                                .userCode(generateUniqueUserCode())
-                                .nickname(nickname)
-                                .profileImageUrl(profileImageUrl)
-                                .build()
-                ));
+                .orElseGet(() -> {
+
+                    User newUser = userRepository.save(
+                            User.builder()
+                                    .kakaoId(kakaoId)
+                                    .userCode(generateUniqueUserCode())
+                                    .nickname(nickname)
+                                    .profileImageUrl(profileImageUrl)
+                                    .build()
+                    );
+
+                    // 기본 앨범 생성
+                    albumService.createDefaultAlbum(newUser);
+
+                    return newUser;
+                });
     }
 
     public User getById(Long userId) {
