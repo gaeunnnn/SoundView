@@ -14,8 +14,8 @@ export default function App() {
     <VideosProvider>
       <UploadProvider>
         <Routes>
-          <Route path="/" element={<MainPage />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<LoginPage />} />
+          <Route path="/main" element={<MainPage />} />
           <Route path="/viewer" element={<ViewerPage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/edit" element={<EditPage />} />
