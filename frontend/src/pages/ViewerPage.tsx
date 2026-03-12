@@ -10,7 +10,7 @@ export default function ViewerPage() {
   const navigate = useNavigate();
   const video = location.state?.video as ViewerVideo | undefined;
 
-  if (!video) { navigate("/", { replace: true }); return null; }
+  if (!video) { navigate("/main", { replace: true }); return null; }
 
   return (
     <div className="flex h-screen flex-col bg-[#FAFBFD] overflow-hidden">

@@ -1,7 +1,9 @@
 // 로그인 페이지 오른쪽 설명 박스와 카카오 시작 버튼을 보여주는 컴포넌트 파일
+import { kakaoLogin } from "../../api/auth";
+
 export default function LoginInfoCard() {
   const handleKakaoLogin = () => {
-    alert("카카오 로그인 화면으로 이동 예정입니다.");
+    kakaoLogin();
   };
 
   return (

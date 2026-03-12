@@ -131,7 +131,7 @@ export default function UploadPage() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/main")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">

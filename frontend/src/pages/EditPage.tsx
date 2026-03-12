@@ -298,7 +298,7 @@ export default function EditPage() {
     setTimeout(() => {
       setSaveSuccess(false);
       setShowSaveModal(false);
-      navigate("/");
+      navigate("/main");
     }, 1500);
   };
 
@@ -331,7 +331,7 @@ export default function EditPage() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/main")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">

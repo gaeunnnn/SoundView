@@ -64,7 +64,7 @@ export default function MainPage() {
     <div className="h-screen flex flex-col bg-[#FAFBFD] overflow-hidden">
       <MainHeader
         userName="박민준"
-        onClickLogo={() => navigate("/")}
+        onClickLogo={() => navigate("/main")}
         onClickHelp={() => console.log("도움말 클릭")}
         onClickNotification={() => console.log("알림 클릭")}
         onClickProfile={() => console.log("프로필 클릭")}
