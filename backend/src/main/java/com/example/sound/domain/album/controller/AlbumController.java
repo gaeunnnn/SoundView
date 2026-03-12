@@ -1,13 +1,12 @@
 package com.example.sound.domain.album.controller;
 
-import com.example.sound.domain.album.dto.AlbumCreateRequest;
-import com.example.sound.domain.album.dto.AlbumCreateResponse;
-import com.example.sound.domain.album.dto.AlbumResponse;
+import com.example.sound.domain.album.dto.*;
 import com.example.sound.domain.album.service.AlbumService;
 import com.example.sound.domain.user.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -44,5 +43,18 @@ public class AlbumController {
             @AuthenticationPrincipal User user
     ) {
         albumService.leaveAlbum(albumId, user.getId());
+    }
+
+    @PatchMapping("/{albumId}")
+    public ResponseEntity<AlbumUpdateResponse> updateAlbum(
+            @PathVariable Long albumId,
+            @RequestBody AlbumUpdateRequest request,
+            @AuthenticationPrincipal User user
+    ){
+
+        AlbumUpdateResponse response =
+                albumService.updateAlbum(albumId, user.getId(), request);
+
+        return ResponseEntity.ok(response);
     }
 }

@@ -43,4 +43,10 @@ public class Album {
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void updateName(String name){
+        this.name = name;
+    }
+
+
 }

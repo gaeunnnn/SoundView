@@ -1,8 +1,6 @@
 package com.example.sound.domain.album.service;
 
-import com.example.sound.domain.album.dto.AlbumCreateRequest;
-import com.example.sound.domain.album.dto.AlbumCreateResponse;
-import com.example.sound.domain.album.dto.AlbumResponse;
+import com.example.sound.domain.album.dto.*;
 import com.example.sound.domain.album.entity.Album;
 import com.example.sound.domain.album.entity.AlbumUser;
 import com.example.sound.domain.album.repository.AlbumRepository;
@@ -116,5 +114,28 @@ public class AlbumService {
 
             albumRepository.deleteById(albumId);
         }
+    }
+
+    @Transactional
+    public AlbumUpdateResponse updateAlbum(Long albumId, Long userId, AlbumUpdateRequest request){
+
+        Album album = albumRepository.findById(albumId)
+                .orElseThrow(() -> new IllegalArgumentException("앨범이 존재하지 않습니다."));
+
+        // 내 앨범 수정 금지
+        if(album.getName().equals("내 앨범")){
+            throw new IllegalArgumentException("내 앨범은 이름을 수정할 수 없습니다.");
+        }
+
+        // 앨범 멤버인지 확인
+        albumUserRepository.findByAlbumIdAndUserId(albumId, userId)
+                .orElseThrow(() -> new IllegalArgumentException("앨범 멤버가 아닙니다."));
+
+        album.updateName(request.getName());
+
+        return AlbumUpdateResponse.builder()
+                .albumId(album.getId())
+                .name(album.getName())
+                .build();
     }
 }
