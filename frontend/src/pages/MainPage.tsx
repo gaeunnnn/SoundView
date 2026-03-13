@@ -26,10 +26,6 @@ export default function MainPage() {
   const [renameTargetId, setRenameTargetId] = useState<number | null>(null);
   const [leaveTargetId, setLeaveTargetId] = useState<number | null>(null);
 
-  const activeSharedAlbum = activeSharedAlbumId !== null
-    ? sharedAlbumDetails.find((d) => d.id === activeSharedAlbumId) ?? null
-    : null;
-
   const renameTargetName = sharedAlbums.find((a) => a.id === renameTargetId)?.name ?? "";
   const leaveTargetName = sharedAlbums.find((a) => a.id === leaveTargetId)?.name ?? "";
 

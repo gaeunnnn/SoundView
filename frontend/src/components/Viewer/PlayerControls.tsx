@@ -58,7 +58,6 @@ export default function PlayerControls({
   onMuteToggle,
   onVolumeChange,
   onShowVolumeChange,
-  onReset,
   onSubtitleToggle,
   onEmojiToggle,
   onVibrateToggle,

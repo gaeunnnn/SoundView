@@ -84,7 +84,6 @@ export default function EditPage() {
 
   // 업로드된 파일이 있으면 그것을 사용, 없으면 더미 데이터
   const isRealFile = !!uploadedVideoUrl && uploadedFileType.startsWith("video/");
-  const isRealImage = !!uploadedVideoUrl && uploadedFileType.startsWith("image/");
   const mediaUrl = uploadedVideoUrl ?? DUMMY_EDIT_VIDEO.thumbnail;
   const mediaTitle = uploadedFileName
     ? uploadedFileName.replace(/\.[^/.]+$/, "") // 확장자 제거

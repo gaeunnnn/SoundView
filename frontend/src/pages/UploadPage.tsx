@@ -24,7 +24,7 @@ function getStage(progress: number) {
 
 export default function UploadPage() {
   const navigate = useNavigate();
-  const { status, progress, fileName, setUploadedVideo, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
+  const { status, progress, setUploadedVideo, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
