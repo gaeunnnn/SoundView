@@ -7,9 +7,14 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # AI 서비스 설정 (예시)
-    OPENAI_API_KEY: Optional[str] = None
-    GEMINI_API_KEY: Optional[str] = None
+    # MinIO 설정
+    MINIO_ENDPOINT: str = "localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_SECURE: bool = False
+    
+    # Spring Boot 설정
+    SPRING_BOOT_API_URL: str = "http://localhost:8080"
     
     model_config = SettingsConfigDict(
         env_file=".env",
