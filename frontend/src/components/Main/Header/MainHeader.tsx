@@ -6,6 +6,7 @@ import HeaderProfileButton from "./HeaderProfileButton";
 
 export default function MainHeader({
   userName,
+  userCode,
   onClickLogo,
   onClickHelp,
   onClickNotification,
@@ -20,7 +21,7 @@ export default function MainHeader({
           onClickHelp={onClickHelp}
           onClickNotification={onClickNotification}
         />
-        <HeaderProfileButton userName={userName} onClick={onClickProfile} />
+        <HeaderProfileButton userName={userName} userCode={userCode} onClick={onClickProfile} />
       </div>
     </header>
   );

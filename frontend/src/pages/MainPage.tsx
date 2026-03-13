@@ -1,6 +1,8 @@
 // 메인 페이지 전체 레이아웃을 조립하는 페이지 파일
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getMyProfile } from "../api/user";
+import type { UserProfile } from "../api/user";
 import MainHeader from "../components/Main/Header/MainHeader";
 import MainSidebar from "../components/Main/Sidebar/MainSidebar";
 import MainContent from "../components/Main/Video/MainContent";
@@ -13,11 +15,14 @@ import { SHARED_ALBUM_DETAILS } from "../constants/sharedAlbums";
 import type { SharedAlbumItem } from "../types/sidebar";
 import type { SharedAlbumDetail } from "../types/sharedAlbum";
 
-const ME = { id: 0, name: "박민준", avatarColor: "#8B5CF6", isMe: true };
-
 export default function MainPage() {
   const navigate = useNavigate();
+  const [me, setMe] = useState<UserProfile | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    getMyProfile().then(setMe).catch(() => {});
+  }, []);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [sharedAlbums, setSharedAlbums] = useState<SharedAlbumItem[]>(SHARED_ALBUMS);
   const [sharedAlbumDetails, setSharedAlbumDetails] = useState<SharedAlbumDetail[]>(SHARED_ALBUM_DETAILS);
@@ -59,7 +64,8 @@ export default function MainPage() {
   return (
     <div className="h-screen flex flex-col bg-[#FAFBFD] overflow-hidden">
       <MainHeader
-        userName="박민준"
+        userName={me?.nickname ?? ""}
+        userCode={me?.userCode}
         onClickLogo={() => navigate("/main")}
         onClickHelp={() => console.log("도움말 클릭")}
         onClickNotification={() => console.log("알림 클릭")}
@@ -106,7 +112,7 @@ export default function MainPage() {
             id: newId,
             name: albumName,
             participants: [
-              ME,
+              { id: me?.id ?? 0, name: me?.nickname ?? "", avatarColor: "#8B5CF6", isMe: true },
               ...friends.map((f) => ({
                 id: f.id,
                 name: f.name,
