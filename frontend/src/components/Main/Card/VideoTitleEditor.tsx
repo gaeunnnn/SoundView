@@ -51,7 +51,6 @@ export default function VideoTitleEditor({
         className="w-full rounded-lg border px-2 py-0.5 text-sm font-bold text-[#111827] outline-none ring-2"
         style={{
           borderColor: accentColor,
-          ringColor: `${accentColor}33`,
         }}
       />
     );

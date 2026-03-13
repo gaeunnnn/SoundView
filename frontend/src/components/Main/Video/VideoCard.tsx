@@ -1,5 +1,5 @@
 // 내 앨범 영상 카드 컴포넌트
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Ellipsis } from "lucide-react";
 import type { VideoItem } from "../../../types/video";
