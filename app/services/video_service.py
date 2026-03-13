@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional
 from app.services.storage_service import StorageService
 from app.services.callback_service import CallbackService
 from app.services.ai.tasks.video_processing.model_handler import SubtitleModel, VibrationModel
@@ -27,7 +27,7 @@ class VideoService:
         
         두 AI 모델 중 하나라도 실패하면 전체가 실패합니다.
         """
-        temp_path: str | None = None
+        temp_path: Optional[str] = None
         try:
             # 1. 전처리 — MinIO에서 영상 다운로드
             temp_path = await self.storage.download_video(video_url)
