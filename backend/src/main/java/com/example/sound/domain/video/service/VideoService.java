@@ -3,6 +3,7 @@ package com.example.sound.domain.video.service;
 import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
+import com.example.sound.domain.video.dto.VideoResponse;
 import com.example.sound.domain.video.dto.VideoUpdateRequest;
 import com.example.sound.domain.video.dto.VideoUpdateResponse;
 import com.example.sound.domain.video.entity.Video;
@@ -12,6 +13,8 @@ import com.example.sound.domain.video.repository.VideoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -84,5 +87,16 @@ public class VideoService {
         video.updateTitle(request.getTitle());
 
         return new VideoUpdateResponse(video.getId(), video.getTitle());
+    }
+
+    // 공유앨범에서 내가 업로드한 영상 조회
+    public List<VideoResponse> getMyVideosInAlbum(Long albumId, Long userId) {
+
+        List<Video> videos =
+                videoRepository.findMyVideosInAlbum(albumId, userId);
+
+        return videos.stream()
+                .map(VideoResponse::from)
+                .toList();
     }
 }

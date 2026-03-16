@@ -1,12 +1,15 @@
 package com.example.sound.domain.video.controller;
 
 import com.example.sound.domain.user.entity.User;
+import com.example.sound.domain.video.dto.VideoResponse;
 import com.example.sound.domain.video.dto.VideoUpdateRequest;
 import com.example.sound.domain.video.dto.VideoUpdateResponse;
 import com.example.sound.domain.video.service.VideoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -41,5 +44,14 @@ public class VideoController {
             @RequestBody VideoUpdateRequest request
     ){
         return videoService.updateVideoTitle(videoId,user.getId(),request);
+    }
+
+    // 공유 앨범에서 내가 만든 영상 조회
+    @GetMapping("/albums/{albumId}/videos/my")
+    public List<VideoResponse> getMyVideosInAlbum(
+            @PathVariable Long albumId,
+            @AuthenticationPrincipal User user
+    ) {
+        return videoService.getMyVideosInAlbum(albumId, user.getId());
     }
 }
