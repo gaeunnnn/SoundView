@@ -82,30 +82,27 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         self._is_initialized = True
         print("[SubtitleModel] 초기화 완벽히 완료되었습니다.")
 
-    def _sync_predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
-        """
-        [동기/Blocking 연산]
-        실제 CPU/GPU를 점유하여 모델을 구동하는 핵심 로직입니다.
-        이 함수가 이벤트 루프 안에서 그냥 돌면 모든 API 요청이 먹통이 됩니다.
+    # 세그먼트 최소 길이 (1초): 이보다 짧으면 WavLM 입력이 부존해 감정 분류가 불안정해집니다.
+    MIN_SEGMENT_SEC: float = 1.0
 
-        Args:
-            audio_array: AudioService에서 추출된 float32 NumPy 배열 (16000Hz 모노)
+    def _predict_emotion_for_segment(
+        self,
+        segment_audio: np.ndarray,
+        text: str
+    ) -> Dict[str, Any]:
         """
-        print("[SubtitleModel] 실제 추론 시작 (STT & Emotion)")
-
-        # 1. 텍스트 추출 (STT) - AudioService에서 추출된 float32 배열을 바로 사용
-        transcription = self.whisper_pipe(
-            {"array": audio_array, "sampling_rate": 16000},
-            generate_kwargs={"language": "korean"}
+        하나의 음성 세그먼트(NumPy 배열)와 해당 텍스트로
+        감정 분류를 수행하고 라벨맵(전체 확률)&회신도를 반환합니다.
+        """
+        audio_inputs = self.processor(
+            segment_audio, sampling_rate=16000,
+            return_tensors="pt", return_attention_mask=True
         )
-        text_input = transcription["text"].strip()
-        print(f"  > [STT 결과]: {text_input}")
+        text_inputs = self.tokenizer(
+            text, return_tensors="pt",
+            padding=True, truncation=True, max_length=48
+        )
 
-        # 2. 데이터 전처리 - 동일한 audio_array를 감정 분석 전처리에도 재사용
-        audio_inputs = self.processor(audio_array, sampling_rate=16000, return_tensors="pt", return_attention_mask=True)
-        text_inputs = self.tokenizer(text_input, return_tensors="pt", padding=True, truncation=True, max_length=48)
-
-        # 3. 모델 프레딕션
         with torch.no_grad():
             outputs = self.emotion_model(
                 input_values=audio_inputs.input_values.to(self.device),
@@ -113,31 +110,79 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
                 input_ids=text_inputs.input_ids.to(self.device),
                 text_mask=text_inputs.attention_mask.to(self.device)
             )
-            
-            logits = outputs["logits"]
-            probs = F.softmax(logits, dim=-1)
+            probs = F.softmax(outputs["logits"], dim=-1)
             pred_idx = torch.argmax(probs, dim=-1).item()
             pred_prob = probs[0][pred_idx].item() * 100
-
-            # 7개 감정 전체 확률 포맷팅 (소수점 둘째 자리)
             all_emotions = {
                 self.id2label[i]: round(probs[0][i].item() * 100, 2)
                 for i in range(len(self.id2label))
             }
 
-        duration = max(len(audio_array) / 16000.0, 1.0)
-        
-        print(f"  > [감정 분류 결과]: {self.id2label[pred_idx]} ({pred_prob:.1f}%)")
-        return [
-            {
-                "start": 0.0,
-                "end": round(duration, 1),
-                "text": text_input,
-                "emotion": self.id2label[pred_idx],
-                "confidence": round(pred_prob, 2),
-                "emotions": all_emotions
-            }
-        ]
+        return {
+            "emotion": self.id2label[pred_idx],
+            "confidence": round(pred_prob, 2),
+            "emotions": all_emotions,
+        }
+
+    def _sync_predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
+        """
+        [동기/Blocking 연산]
+        Whisper로 문장(한마디) 단위로 분리한 뒤,
+        각 세그먼트의 음성+텍스트로 개별 감정 분류를 수행합니다.
+
+        Args:
+            audio_array: AudioService에서 추출된 float32 NumPy 배열 (16000Hz 모노)
+        """
+        print("[SubtitleModel] 실제 추론 시작 (STT & Emotion per segment)")
+
+        # 1. Whisper STT - 타임스탬프를 활성화하여 문장(한마디) 단위로 자동 분리
+        transcription = self.whisper_pipe(
+            {"array": audio_array, "sampling_rate": 16000},
+            return_timestamps=True,              # ← 한마디 분리의 핵심
+            generate_kwargs={"language": "korean"}
+        )
+        chunks = transcription.get("chunks", [])
+        print(f"  > [STT 그결과]: {len(chunks)}개 문장 세그먼트 감지")
+
+        # 2. 너무 짧은 세그먼트 병합 (이전 항목에 합치기)
+        #    WavLM 입력이 MIN_SEGMENT_SEC백 이하면 부정확한 결과가 나옵니다.
+        merged: List[Dict] = []
+        for chunk in chunks:
+            start, end = chunk["timestamp"]
+            text = chunk["text"].strip()
+            # 시작/종료 값이 None인 엣지 케이스 안전 처리
+            if start is None:
+                start = merged[-1]["end"] if merged else 0.0
+            if end is None:
+                end = len(audio_array) / 16000.0
+
+            if merged and (end - start) < self.MIN_SEGMENT_SEC:
+                # 짧은 세그먼트는 마지막 항목과 합치기
+                merged[-1]["end"] = end
+                merged[-1]["text"] += " " + text
+            else:
+                merged.append({"start": start, "end": end, "text": text})
+
+        # 3. 각 세그먼트에대해 감정 분류
+        results: List[Dict[str, Any]] = []
+        for seg in merged:
+            start, end, text = seg["start"], seg["end"], seg["text"]
+            print(f"  > 분석 중: [{start:.1f}s ~ {end:.1f}s] \"{text}\"")
+
+            # 시간축 좌표로 해당 구간의 음성 배열 바로 슬라이싱
+            seg_audio = audio_array[int(start * 16000): int(end * 16000)]
+
+            emotion_result = self._predict_emotion_for_segment(seg_audio, text)
+            print(f"    → {emotion_result['emotion']} ({emotion_result['confidence']:.1f}%)")
+
+            results.append({
+                "start": round(start, 2),
+                "end": round(end, 2),
+                "text": text,
+                **emotion_result,
+            })
+
+        return results
 
     async def predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
         """
