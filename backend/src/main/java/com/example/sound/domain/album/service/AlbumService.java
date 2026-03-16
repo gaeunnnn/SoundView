@@ -3,13 +3,16 @@ package com.example.sound.domain.album.service;
 import com.example.sound.domain.album.dto.*;
 import com.example.sound.domain.album.entity.Album;
 import com.example.sound.domain.album.entity.AlbumUser;
+import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumRepository;
 import com.example.sound.domain.album.repository.AlbumUserRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
+import com.example.sound.domain.video.entity.Video;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
+import com.example.sound.domain.video.repository.VideoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +30,7 @@ public class AlbumService {
     private final VideoReactionRepository videoReactionRepository;
     private final VideoCommentRepository videoCommentRepository;
     private final AlbumVideoRepository albumVideoRepository;
+    private final VideoRepository videoRepository;
 
     public List<AlbumResponse> getUserAlbums(Long userId) {
         return albumRepository.findAlbumsByUserId(userId);
@@ -137,5 +141,40 @@ public class AlbumService {
                 .albumId(album.getId())
                 .name(album.getName())
                 .build();
+    }
+
+    @Transactional
+    public AlbumVideoAddResponse addVideosToAlbum(
+            Long albumId,
+            Long userId,
+            AlbumVideoAddRequest request
+    ) {
+
+        Album album = albumRepository.findById(albumId)
+                .orElseThrow(() -> new IllegalArgumentException("앨범이 없습니다."));
+
+        List<Long> createdIds = new ArrayList<>();
+
+        for (Long videoId : request.getVideoIds()) {
+
+            Video video = videoRepository.findById(videoId)
+                    .orElseThrow(() -> new IllegalArgumentException("영상이 없습니다."));
+
+            boolean exists =
+                    albumVideoRepository.existsByAlbumIdAndVideoId(albumId, videoId);
+
+            if (exists) continue;
+
+            AlbumVideo albumVideo = AlbumVideo.builder()
+                    .album(album)
+                    .video(video)
+                    .build();
+
+            albumVideoRepository.save(albumVideo);
+
+            createdIds.add(albumVideo.getId());
+        }
+
+        return new AlbumVideoAddResponse(createdIds);
     }
 }
