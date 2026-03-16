@@ -7,10 +7,10 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # MinIO 설정
+    # MinIO 설정 - 반드시 .env 파일 또는 환경 변수로 주입 필요 (기본값 없음)
     MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_ACCESS_KEY: str = "minioadmin"
-    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_ACCESS_KEY: str  # 기본값 제거 - 없으면 ValidationError 발생
+    MINIO_SECRET_KEY: str  # 기본값 제거 - 없으면 ValidationError 발생
     MINIO_SECURE: bool = False
     
     # Spring Boot 설정

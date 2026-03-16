@@ -90,13 +90,20 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         """
         print(f"[SubtitleModel] 실제 추론 시작 (STT & Emotion) -> {video_path}")
         
-        # 1. 텍스트 추출 (STT)
-        transcription = self.whisper_pipe(video_path, generate_kwargs={"language": "korean"})
+        # 1. 오디오 파일을 한 번만 읽어 메모리(NumPy 배열)에 올린다
+        #    Whisper와 감정 분석 모두 동일한 배열을 재사용 (디스크 I/O 50% 절감)
+        speech, sr = librosa.load(video_path, sr=16000)
+
+        # 2. 텍스트 추출 (STT) - 파일 경로 대신 이미 읽어둔 배열 dict로 전달
+        #    pipeline이 내부에서 파일을 다시 열지 않으므로 중복 디코딩 방지
+        transcription = self.whisper_pipe(
+            {"array": speech, "sampling_rate": sr},
+            generate_kwargs={"language": "korean"}
+        )
         text_input = transcription["text"].strip()
         print(f"  > [STT 결과]: {text_input}")
         
-        # 2. 데이터 전처리
-        speech, sr = librosa.load(video_path, sr=16000)
+        # 3. 데이터 전처리 - 위에서 읽어둔 speech 배열을 그대로 재사용
         audio_inputs = self.processor(speech, sampling_rate=16000, return_tensors="pt", return_attention_mask=True)
         text_inputs = self.tokenizer(text_input, return_tensors="pt", padding=True, truncation=True, max_length=48)
         
