@@ -2,12 +2,13 @@
 
 import { apiClient } from "./client";
 
-const BASE_URL = "https://j14e203.p.ssafy.io/dev";
-const REDIRECT_URI = "https://j14e203.p.ssafy.io/dev/oauth";
+// 🌟 API 주소에서 /api를 제외한 베이스 주소를 추출하여 OAuth 경로를 만듭니다.
+const AUTH_URL = import.meta.env.VITE_API_BASE_URL?.replace("/api", "") || "";
+const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI || "";
 
 // GET /oauth2/authorization/kakao — 카카오 OAuth 로그인 페이지로 리다이렉트
 export const kakaoLogin = (): void => {
-  window.location.href = `${BASE_URL}/oauth2/authorization/kakao?redirect_uri=${REDIRECT_URI}`;
+  window.location.href = `${AUTH_URL}/oauth2/authorization/kakao?redirect_uri=${REDIRECT_URI}`;
 };
 
 // POST /api/auth/reissue — refresh token으로 access token · refresh token 재발급

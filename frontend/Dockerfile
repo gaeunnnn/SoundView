@@ -4,6 +4,16 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+
+# 🌟 젠킨스에서 보낸 환경 변수를 빌드 시점에 주입합니다.
+ARG VITE_BASE_PATH
+ARG VITE_API_BASE_URL
+ARG VITE_REDIRECT_URI
+
+ENV VITE_BASE_PATH=$VITE_BASE_PATH
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_REDIRECT_URI=$VITE_REDIRECT_URI
+
 RUN npm run build
 
 # 2단계: 서빙
