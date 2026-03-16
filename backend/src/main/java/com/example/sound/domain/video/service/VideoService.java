@@ -3,6 +3,8 @@ package com.example.sound.domain.video.service;
 import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
+import com.example.sound.domain.video.dto.VideoUpdateRequest;
+import com.example.sound.domain.video.dto.VideoUpdateResponse;
 import com.example.sound.domain.video.entity.Video;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
@@ -62,5 +64,25 @@ public class VideoService {
         albumVideoRepository.deleteByVideo_Id(videoId);
 
         videoRepository.delete(video);
+    }
+
+    // 영상 제목 수정
+    @Transactional
+    public VideoUpdateResponse updateVideoTitle(
+            Long videoId,
+            Long userId,
+            VideoUpdateRequest request
+    ) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(()-> new IllegalArgumentException("영상이 없습니다."));
+
+        // 업로더 확인
+        if(!video.getUploader().getId().equals(userId)){
+            throw new IllegalArgumentException("수정 권한이 없습니다.");
+        }
+
+        video.updateTitle(request.getTitle());
+
+        return new VideoUpdateResponse(video.getId(), video.getTitle());
     }
 }

@@ -59,4 +59,8 @@ public class Video {
     public void preUpdate() {
         this.updatedAt = LocalDateTime.now();
     }
+
+    public void updateTitle(String title){
+        this.title = title;
+    }
 }
