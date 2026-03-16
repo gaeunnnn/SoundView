@@ -7,8 +7,10 @@ import com.example.sound.global.auth.oauth.CustomOAuth2UserService;
 import com.example.sound.global.auth.oauth.OAuth2SuccessHandler;
 import com.example.sound.global.auth.oauth.OAuthCookieRepository; // 보관함 추가
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -28,8 +30,11 @@ public class SecurityConfig {
     private final OAuthCookieRepository oAuthCookieRepository; // 보관함 주입
 
     @Bean
-    public ForwardedHeaderFilter forwardedHeaderFilter() {
-        return new ForwardedHeaderFilter();
+    public FilterRegistrationBean<ForwardedHeaderFilter> forwardedHeaderFilter() {
+        ForwardedHeaderFilter filter = new ForwardedHeaderFilter();
+        FilterRegistrationBean<ForwardedHeaderFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE); // 🌟 세상에서 제일 먼저 실행!
+        return registration;
     }
 
     @Bean
