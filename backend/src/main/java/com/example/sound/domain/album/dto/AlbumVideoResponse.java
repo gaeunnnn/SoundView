@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class AlbumVideoResponse {
 
-    private Long videoId;
+    private Long albumVideoId;
     private String title;
     private String thumbnailUrl;
     private BigDecimal durationSec;

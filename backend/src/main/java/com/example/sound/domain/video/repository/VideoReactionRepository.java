@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.Optional;
+
 public interface VideoReactionRepository extends JpaRepository<VideoReaction, Long> {
 
     @Modifying
@@ -15,4 +17,18 @@ public interface VideoReactionRepository extends JpaRepository<VideoReaction, Lo
         )
     """)
     void deleteByAlbumId(Long albumId);
+
+    Optional<VideoReaction> findByAlbumVideoIdAndUserIdAndEmoji(
+            Long albumVideoId,
+            Long userId,
+            String emoji
+    );
+
+    long countByAlbumVideoIdAndEmoji(Long albumVideoId, String emoji);
+
+    void deleteByAlbumVideoIdAndUserIdAndEmoji(
+            Long albumVideoId,
+            Long userId,
+            String emoji
+    );
 }
