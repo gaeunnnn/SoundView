@@ -37,4 +37,6 @@ GROUP BY av.id, v.title, v.thumbnailUrl, v.durationSec, v.uploader.nickname, v.c
     List<AlbumVideo> findByVideo_Id(Long videoId);
 
     void deleteByVideo_Id(Long videoId);
+
+    boolean existsByAlbumIdAndVideoId(Long albumId, Long videoId);
 }

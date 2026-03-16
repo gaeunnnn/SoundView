@@ -57,4 +57,18 @@ public class AlbumController {
 
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "공유 앨범에 영상 추가", description = "내 영상들을 선택하여 공유 앨범에 추가합니다.")
+    @PostMapping("/{albumId}/videos")
+    public ResponseEntity<AlbumVideoAddResponse> addVideosToAlbum(
+            @PathVariable Long albumId,
+            @AuthenticationPrincipal User user,
+            @RequestBody AlbumVideoAddRequest request
+    ){
+
+        AlbumVideoAddResponse response =
+                albumService.addVideosToAlbum(albumId, user.getId(), request);
+
+        return ResponseEntity.ok(response);
+    }
 }
