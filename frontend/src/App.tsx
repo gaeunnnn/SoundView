@@ -1,5 +1,5 @@
 // 라우트 경로를 연결하는 앱 엔트리 파일
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
 import MainPage from "./pages/MainPage";
 import ViewerPage from "./pages/ViewerPage";
@@ -19,7 +19,6 @@ export default function App() {
           <Route path="/viewer" element={<ViewerPage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/edit" element={<EditPage />} />
-          
         </Routes>
         <UploadProgressPip />
       </UploadProvider>
