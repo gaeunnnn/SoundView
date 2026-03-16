@@ -2,7 +2,7 @@
 
 import { apiClient } from "./client";
 
-const BASE_URL = "https://j14e203.p.ssafy.io/dev/api";
+const BASE_URL = "https://j14e203.p.ssafy.io/dev";
 const REDIRECT_URI = "https://j14e203.p.ssafy.io/dev/oauth";
 
 // GET /oauth2/authorization/kakao — 카카오 OAuth 로그인 페이지로 리다이렉트
