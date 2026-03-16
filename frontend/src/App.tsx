@@ -19,7 +19,7 @@ export default function App() {
           <Route path="/viewer" element={<ViewerPage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/edit" element={<EditPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          
         </Routes>
         <UploadProgressPip />
       </UploadProvider>
