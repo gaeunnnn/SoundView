@@ -30,4 +30,11 @@ GROUP BY av.id, v.title, v.thumbnailUrl, v.durationSec, v.uploader.nickname, v.c
 """)
     List<AlbumVideoResponse> findVideosByAlbumId(Long albumId);
     void deleteByAlbum_Id(Long albumId);
+
+    // 영상 삭제 시 사용
+    void deleteByVideo_id(Long videoId);
+
+    List<AlbumVideo> findByVideo_Id(Long videoId);
+
+    void deleteByVideo_Id(Long videoId);
 }

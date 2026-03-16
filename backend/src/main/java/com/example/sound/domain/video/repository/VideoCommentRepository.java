@@ -19,4 +19,6 @@ public interface VideoCommentRepository extends JpaRepository<VideoComment, Long
     void deleteByAlbumId(Long albumId);
 
     List<VideoComment> findByAlbumVideoIdOrderByCreatedAtAsc(Long albumVideoId);
+
+    void deleteByAlbumVideoId(Long albumVideoId);
 }

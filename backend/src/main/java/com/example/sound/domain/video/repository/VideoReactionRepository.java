@@ -31,4 +31,6 @@ public interface VideoReactionRepository extends JpaRepository<VideoReaction, Lo
             Long userId,
             String emoji
     );
+
+    void deleteByAlbumVideoId(Long albumVideoId);
 }
