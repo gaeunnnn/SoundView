@@ -3,7 +3,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # API 설정
-    PROJECT_NAME: str = "FastAPI AI Server"
+    PROJECT_NAME: str = "SoundView_AI_Server"
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     

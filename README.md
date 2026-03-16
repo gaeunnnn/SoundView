@@ -23,8 +23,9 @@ app/
 │       ├── base.py          # BaseAIModel / BasePipeline 추상 인터페이스
 │       ├── common/          # 범용 AI 유틸리티 (공통 수학 연산 등)
 │       └── tasks/
-│           └── video_processing/
-│               └── model_handler.py  # SubtitleModel / VibrationModel
+│           └── WavLM_KLUEBERT_Whisper/  # 🤖 멀티모달 자막/감정 분석 모델
+│               ├── emotion_model.py  # WavLM + KLUE-BERT PyTorch 뼈대
+│               └── model_handler.py  # SubtitleModel / VibrationModel 비동기 래핑
 └── main.py                  # 🚀 FastAPI 앱 진입점
 ```
 

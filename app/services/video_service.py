@@ -2,7 +2,7 @@ import asyncio
 from typing import Any, Dict, Optional
 from app.services.storage_service import StorageService
 from app.services.callback_service import CallbackService
-from app.services.ai.tasks.video_processing.model_handler import SubtitleModel, VibrationModel
+from app.services.ai.tasks.WavLM_KLUEBERT_Whisper.model_handler import SubtitleModel, VibrationModel
 
 
 class VideoService:
