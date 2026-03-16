@@ -19,8 +19,8 @@ export default function LaptopShowcase({
   rotationDeg,
 }: LaptopShowcaseProps) {
   const screenTexturePath = isAfterActive
-    ? "./images/LaptopScreenAfter.png"
-    : "./images/LaptopScreenBefore.png";
+  ? "/images/LaptopScreenAfter.png"                                                                       │
+  : "/images/LaptopScreenBefore.png"; 
 
   return (
     <div className="relative mx-auto w-full max-w-160">

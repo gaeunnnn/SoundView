@@ -7,7 +7,7 @@ import * as THREE from "three";
 
 // ─── 상수 ────────────────────────────────────────────────────────────────────
 
-const MODEL_URL = "./models/laptop.glb";
+const MODEL_URL = "/models/laptop.glb"; 
 
 /**
  * 화면 오버레이 평면 위치·크기 조정값.
