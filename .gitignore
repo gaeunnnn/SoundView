@@ -1,6 +1,13 @@
 .idea/
 .gemini/
 
+
+# 4. 보안 및 환경 변수 (절대 올라가면 안 되는 파일)
+.env
+*.pem
+secrets.json
+
+
 # Python cache files
 __pycache__/
 *.py[cod]
