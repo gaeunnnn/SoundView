@@ -8,11 +8,8 @@ RUN npm run build
 
 # 2단계: 서빙
 FROM nginx:stable-alpine
-# 🔴 빌드 결과물을 /dev 폴더 안에 넣습니다. (서브 경로 매칭)
-COPY --from=builder /app/dist /usr/share/nginx/html/dev
-# 🔴 루트로 들어오는 요청도 대비하여 복사해둡니다.
-RUN cp -r /usr/share/nginx/html/dev/* /usr/share/nginx/html/
-
+# 🔴 파일을 복잡한 폴더 구조 없이 루트에 바로 복사합니다.
+COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
