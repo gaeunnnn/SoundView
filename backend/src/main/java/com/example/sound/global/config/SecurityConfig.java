@@ -14,6 +14,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.filter.ForwardedHeaderFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +26,11 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final OAuthCookieRepository oAuthCookieRepository; // 보관함 주입
+
+    @Bean
+    public ForwardedHeaderFilter forwardedHeaderFilter() {
+        return new ForwardedHeaderFilter();
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
