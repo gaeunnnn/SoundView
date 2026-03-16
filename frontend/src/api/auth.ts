@@ -2,8 +2,8 @@
 
 import { apiClient } from "./client";
 
-const BASE_URL = "https://j14e203.p.ssafy.io/dev/api";
-const REDIRECT_URI = "https://j14e203.p.ssafy.io/dev/oauth";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const REDIRECT_URI = import.meta.env.VITE_REDIRECT_URI;
 
 // GET /oauth2/authorization/kakao — 카카오 OAuth 로그인 페이지로 리다이렉트
 export const kakaoLogin = (): void => {
