@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    // 🔴 Jenkins가 주입해준 VITE_BASE_PATH를 사용하고, 없으면 기본값 '/'
-    base: env.VITE_BASE_PATH || "/",
+    // 🔴 process.env 또는 env 중 값이 있는 것을 사용하고, 없으면 기본값 '/'
+    base: process.env.VITE_BASE_PATH || env.VITE_BASE_PATH || "/",
   };
 });
