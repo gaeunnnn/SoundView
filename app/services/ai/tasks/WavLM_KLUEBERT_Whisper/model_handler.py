@@ -119,6 +119,12 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
             pred_idx = torch.argmax(probs, dim=-1).item()
             pred_prob = probs[0][pred_idx].item() * 100
 
+            # 7개 감정 전체 확률 포맷팅 (소수점 둘째 자리)
+            all_emotions = {
+                self.id2label[i]: round(probs[0][i].item() * 100, 2)
+                for i in range(len(self.id2label))
+            }
+
         duration = max(len(audio_array) / 16000.0, 1.0)
         
         print(f"  > [감정 분류 결과]: {self.id2label[pred_idx]} ({pred_prob:.1f}%)")
@@ -128,7 +134,8 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
                 "end": round(duration, 1),
                 "text": text_input,
                 "emotion": self.id2label[pred_idx],
-                "confidence": round(pred_prob, 2)
+                "confidence": round(pred_prob, 2),
+                "emotions": all_emotions
             }
         ]
 
