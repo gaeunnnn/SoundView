@@ -1,7 +1,7 @@
 import asyncio
 import os
 import torch
-import librosa
+import numpy as np
 import torch.nn.functional as F
 from typing import Any, Dict, List
 from pathlib import Path
@@ -82,31 +82,29 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         self._is_initialized = True
         print("[SubtitleModel] 초기화 완벽히 완료되었습니다.")
 
-    def _sync_predict(self, video_path: str) -> List[Dict[str, Any]]:
+    def _sync_predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
         """
         [동기/Blocking 연산]
         실제 CPU/GPU를 점유하여 모델을 구동하는 핵심 로직입니다.
         이 함수가 이벤트 루프 안에서 그냥 돌면 모든 API 요청이 먹통이 됩니다.
-        """
-        print(f"[SubtitleModel] 실제 추론 시작 (STT & Emotion) -> {video_path}")
-        
-        # 1. 오디오 파일을 한 번만 읽어 메모리(NumPy 배열)에 올린다
-        #    Whisper와 감정 분석 모두 동일한 배열을 재사용 (디스크 I/O 50% 절감)
-        speech, sr = librosa.load(video_path, sr=16000)
 
-        # 2. 텍스트 추출 (STT) - 파일 경로 대신 이미 읽어둔 배열 dict로 전달
-        #    pipeline이 내부에서 파일을 다시 열지 않으므로 중복 디코딩 방지
+        Args:
+            audio_array: AudioService에서 추출된 float32 NumPy 배열 (16000Hz 모노)
+        """
+        print("[SubtitleModel] 실제 추론 시작 (STT & Emotion)")
+
+        # 1. 텍스트 추출 (STT) - AudioService에서 추출된 float32 배열을 바로 사용
         transcription = self.whisper_pipe(
-            {"array": speech, "sampling_rate": sr},
+            {"array": audio_array, "sampling_rate": 16000},
             generate_kwargs={"language": "korean"}
         )
         text_input = transcription["text"].strip()
         print(f"  > [STT 결과]: {text_input}")
-        
-        # 3. 데이터 전처리 - 위에서 읽어둔 speech 배열을 그대로 재사용
-        audio_inputs = self.processor(speech, sampling_rate=16000, return_tensors="pt", return_attention_mask=True)
+
+        # 2. 데이터 전처리 - 동일한 audio_array를 감정 분석 전처리에도 재사용
+        audio_inputs = self.processor(audio_array, sampling_rate=16000, return_tensors="pt", return_attention_mask=True)
         text_inputs = self.tokenizer(text_input, return_tensors="pt", padding=True, truncation=True, max_length=48)
-        
+
         # 3. 모델 프레딕션
         with torch.no_grad():
             outputs = self.emotion_model(
@@ -121,7 +119,7 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
             pred_idx = torch.argmax(probs, dim=-1).item()
             pred_prob = probs[0][pred_idx].item() * 100
 
-        duration = max(len(speech) / 16000.0, 1.0)
+        duration = max(len(audio_array) / 16000.0, 1.0)
         
         print(f"  > [감정 분류 결과]: {self.id2label[pred_idx]} ({pred_prob:.1f}%)")
         return [
@@ -134,21 +132,21 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
             }
         ]
 
-    async def predict(self, video_path: str) -> List[Dict[str, Any]]:
+    async def predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
         """
-        비동기 논블로킹(Non-Blocking) 실행 래핑
+        비동기 논블로킹(Non-Blocking) 실행 래핑.
+        AudioService에서 추출된 NumPy 배열을 Thread Pool에서 처리합니다.
         """
-        print(f"[SubtitleModel] 비동기 추론을 위해 Thread Pool로 넘깁니다: {video_path}")
-        # 이벤트 루프를 막지 않고 별개의 스레드에서 무거운 _sync_predict를 실행합니다.
-        return await asyncio.to_thread(self._sync_predict, video_path)
+        print("[SubtitleModel] 비동기 추론을 위해 Thread Pool로 넘깁니다")
+        return await asyncio.to_thread(self._sync_predict, audio_array)
 
 
 class VibrationModel(BaseAIModel[str, List[Dict[str, Any]]]):
     """
     영상에서 음성 진동 데이터를 생성하는 AI 모델 (현재는 임시 시뮬레이션입니다.)
     """
-    async def predict(self, video_path: str) -> List[Dict[str, Any]]:
-        print(f"[VibrationModel] Processing: {video_path}")
+    async def predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
+        print("[VibrationModel] Processing audio array")
         await asyncio.sleep(1)
         return [
             {"timestamp": 0.5, "intensity": 0.8},
