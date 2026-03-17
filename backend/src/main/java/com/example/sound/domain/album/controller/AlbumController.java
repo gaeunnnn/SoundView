@@ -86,4 +86,16 @@ public class AlbumController {
 
         return ResponseEntity.ok(users);
     }
+
+    @Operation(summary = "앨범 영상 개수 조회")
+    @GetMapping("/{albumId}/video-count")
+    public ResponseEntity<AlbumVideoCountResponse> getAlbumVideoCount(
+            @PathVariable Long albumId
+    ) {
+
+        AlbumVideoCountResponse response =
+                albumService.getAlbumVideoCount(albumId);
+
+        return ResponseEntity.ok(response);
+    }
 }

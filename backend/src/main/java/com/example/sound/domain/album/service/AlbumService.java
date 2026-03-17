@@ -188,4 +188,13 @@ public class AlbumService {
                 .map(user -> AlbumUserResponse.of(user,loginUserId))
                 .toList();
     }
+
+    // 앨범 영상 개수 조회
+    @Transactional(readOnly = true)
+    public AlbumVideoCountResponse getAlbumVideoCount(Long albumId) {
+
+        long count = albumVideoRepository.countByAlbumId(albumId);
+
+        return new AlbumVideoCountResponse(count);
+    }
 }

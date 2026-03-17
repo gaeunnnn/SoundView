@@ -39,4 +39,6 @@ GROUP BY av.id, v.title, v.thumbnailUrl, v.durationSec, v.uploader.nickname, v.c
     void deleteByVideo_Id(Long videoId);
 
     boolean existsByAlbumIdAndVideoId(Long albumId, Long videoId);
+
+    long countByAlbumId(Long albumId);
 }
