@@ -142,9 +142,12 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         print("[SubtitleModel] 추론 시작 (STT & Emotion per segment)")
 
         # 1. Whisper STT - 목소리 트랙만 사용하므로 배경음 할루시네이션 방지
+        #    chunk_length_s=30: 긴 오디오에서 30초 윈도우 간 타임스탬프를 절대 시간으로 누적
+        #    이 설정 없이는 30초마다 start=0.0으로 리셋되어 원본 시간과 매핑이 틀어집니다.
         transcription = self.whisper_pipe(
             {"array": vocal_array, "sampling_rate": 16000},
             return_timestamps=True,
+            chunk_length_s=30,
             generate_kwargs={"language": "korean"}
         )
         chunks = transcription.get("chunks", [])
