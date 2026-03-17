@@ -92,7 +92,7 @@ public class AlbumService {
             // 앨범 생성자는 제외하고 초대 알림 전송(sse)
             if(!member.getId().equals(loginUserId)){
 
-                notificationService.sendAlbumInvite(
+                notificationService.notifyAlbumInvite(
                         member.getId(),
                         album.getId(),
                         album.getName(),
@@ -201,7 +201,7 @@ public class AlbumService {
             // 업로더 제외
             if(memberId.equals(userId)) continue;
 
-            notificationService.sendAlbumVideoAdded(
+            notificationService.notifyAlbumVideoAdded(
                     memberId,
                     album.getId(),
                     album.getName(),

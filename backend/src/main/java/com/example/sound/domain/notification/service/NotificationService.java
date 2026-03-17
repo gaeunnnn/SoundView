@@ -1,14 +1,20 @@
 package com.example.sound.domain.notification.service;
 
+import com.example.sound.domain.notification.dto.NotificationResponse;
 import com.example.sound.domain.notification.repository.EmitterRepository;
 import com.example.sound.domain.notification.repository.NotificationRepository;
 import com.example.sound.domain.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.example.sound.domain.notification.entity.Notification;
+import com.example.sound.domain.notification.entity.NotificationType;
+import com.example.sound.domain.user.entity.User;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -66,6 +72,22 @@ public class NotificationService {
         }
     }
 
+    public void notifyAlbumInvite(Long userId, Long albumId, String albumName, String inviterName){
+
+        User user = userRepository.findById(userId).orElseThrow();
+
+        Notification notification = Notification.builder()
+                .user(user)
+                .type(NotificationType.ALBUM_INVITE)
+                .message(inviterName + "님이 공유 앨범에 초대했습니다")
+                .targetId(albumId)
+                .build();
+
+        notificationRepository.save(notification);
+
+        sendAlbumInvite(userId, albumId, albumName, inviterName);
+    }
+
     // 공유 앨범 영상 추가 알림
     public void sendAlbumVideoAdded(Long userId, Long albumId, String albumName, String uploaderName){
 
@@ -88,6 +110,22 @@ public class NotificationService {
         }catch (IOException e){
             emitterRepository.delete(userId);
         }
+    }
+
+    public void notifyAlbumVideoAdded(Long userId, Long albumId, String albumName, String uploaderName){
+
+        User user = userRepository.findById(userId).orElseThrow();
+
+        Notification notification = Notification.builder()
+                .user(user)
+                .type(NotificationType.ALBUM_VIDEO_ADDED)
+                .message(uploaderName + "님이 영상을 추가했습니다")
+                .targetId(albumId)
+                .build();
+
+        notificationRepository.save(notification);
+
+        sendAlbumVideoAdded(userId, albumId, albumName, uploaderName);
     }
 
     // 댓글 알림
@@ -113,6 +151,22 @@ public class NotificationService {
         }
     }
 
+    public void notifyVideoComment(Long userId, Long videoId, String commenterName){
+
+        User user = userRepository.findById(userId).orElseThrow();
+
+        Notification notification = Notification.builder()
+                .user(user)
+                .type(NotificationType.VIDEO_COMMENT)
+                .message(commenterName + "님이 댓글을 남겼습니다")
+                .targetId(videoId)
+                .build();
+
+        notificationRepository.save(notification);
+
+        sendVideoComment(userId, videoId, commenterName);
+    }
+
     // Heartbeat (연결 유지)
     @Scheduled(fixedRate = 30000)
     public void heartbeat(){
@@ -128,5 +182,21 @@ public class NotificationService {
                 emitterRepository.delete(userId);
             }
         });
+    }
+
+    // 알림 목록 조회
+    @Transactional
+    public List<NotificationResponse> getNotifications(Long userId) {
+        return notificationRepository
+                .findByUserIdOrderByCreatedAtDesc(userId)
+                .stream()
+                .map(NotificationResponse::from)
+                .toList();
+    }
+
+    // 읽지 않은 알림 개수
+    @Transactional
+    public long getUnreadCount(Long userId) {
+        return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
 }
