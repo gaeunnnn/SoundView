@@ -1,5 +1,5 @@
 // 메인 페이지 우측 콘텐츠 영역 전체를 조립하는 컴포넌트 파일
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SortOption } from "../../../types/video";
 import type { SharedAlbumItem } from "../../../types/sidebar";
@@ -12,11 +12,16 @@ import { useVideos } from "../../../context/VideosContext";
 
 type MainContentProps = {
   sharedAlbums: SharedAlbumItem[];
+  albumId: number;
 };
 
-export default function MainContent({ sharedAlbums }: MainContentProps) {
+export default function MainContent({ sharedAlbums, albumId }: MainContentProps) {
   const navigate = useNavigate();
-  const { videos, removeVideo, renameVideo } = useVideos();
+  const { videos, fetchVideos, removeVideo, renameVideo } = useVideos();
+
+  useEffect(() => {
+    fetchVideos(albumId);
+  }, [albumId]);
   const [openedMenuId, setOpenedMenuId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
   const [shareTargetId, setShareTargetId] = useState<number | null>(null);

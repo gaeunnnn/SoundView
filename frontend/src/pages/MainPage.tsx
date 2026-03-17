@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getMyProfile } from "../api/user";
+import { editAlbumTitle } from "../api/album";
 import type { UserProfile } from "../api/user";
 import MainHeader from "../components/Main/Header/MainHeader";
 import MainSidebar from "../components/Main/Sidebar/MainSidebar";
@@ -44,7 +45,9 @@ export default function MainPage() {
     setActiveMyAlbumId(0);
   };
 
-  const handleRename = (newName: string) => {
+  const handleRename = async (newName: string) => {
+    if (renameTargetId === null) return;
+    await editAlbumTitle(renameTargetId, newName);
     setSharedAlbums((prev) =>
       prev.map((a) => (a.id === renameTargetId ? { ...a, name: newName } : a))
     );
@@ -88,7 +91,7 @@ export default function MainPage() {
         />
 
         <div className={activeSharedAlbumId === null ? "flex flex-1 overflow-hidden" : "hidden"}>
-          <MainContent sharedAlbums={sharedAlbums} />
+          <MainContent sharedAlbums={sharedAlbums} albumId={activeMyAlbumId} />
         </div>
         {sharedAlbumDetails.map((albumDetail) => (
           <div
