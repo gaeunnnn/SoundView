@@ -13,6 +13,7 @@ import com.example.sound.domain.video.entity.Video;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
 import com.example.sound.domain.video.repository.VideoRepository;
+import com.example.sound.domain.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,7 @@ public class AlbumService {
     private final VideoCommentRepository videoCommentRepository;
     private final AlbumVideoRepository albumVideoRepository;
     private final VideoRepository videoRepository;
+    private final NotificationService notificationService;
 
     public List<AlbumResponse> getUserAlbums(Long userId) {
         return albumRepository.findAlbumsByUserId(userId);
@@ -86,6 +88,17 @@ public class AlbumService {
                     .build();
 
             albumUserRepository.save(albumUser);
+
+            // 앨범 생성자는 제외하고 초대 알림 전송(sse)
+            if(!member.getId().equals(loginUserId)){
+
+                notificationService.sendAlbumInvite(
+                        member.getId(),
+                        album.getId(),
+                        album.getName(),
+                        owner.getNickname()
+                );
+            }
         }
 
         return AlbumCreateResponse.builder()
@@ -153,6 +166,9 @@ public class AlbumService {
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new IllegalArgumentException("앨범이 없습니다."));
 
+        User uploader = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자 없음"));
+
         List<Long> createdIds = new ArrayList<>();
 
         for (Long videoId : request.getVideoIds()) {
@@ -173,6 +189,24 @@ public class AlbumService {
             albumVideoRepository.save(albumVideo);
 
             createdIds.add(albumVideo.getId());
+        }
+
+        // SSE 알림 전송
+        List<AlbumUser> albumUsers = albumUserRepository.findUsersByAlbumId(albumId);
+
+        for (AlbumUser albumUser : albumUsers) {
+
+            Long memberId = albumUser.getUser().getId();
+
+            // 업로더 제외
+            if(memberId.equals(userId)) continue;
+
+            notificationService.sendAlbumVideoAdded(
+                    memberId,
+                    album.getId(),
+                    album.getName(),
+                    uploader.getNickname()
+            );
         }
 
         return new AlbumVideoAddResponse(createdIds);
