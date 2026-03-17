@@ -46,7 +46,7 @@ public class VideoCommentService {
 
         if(!ownerId.equals(userId)){
 
-            notificationService.sendVideoComment(
+            notificationService.notifyVideoComment(
                     ownerId,
                     albumVideo.getVideo().getId(),
                     user.getNickname()
