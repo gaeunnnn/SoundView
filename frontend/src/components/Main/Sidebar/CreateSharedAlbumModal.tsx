@@ -1,6 +1,8 @@
 // 공유 앨범 만들기 모달 컴포넌트
 import { useState } from "react";
-import { X, FolderPlus, Users } from "lucide-react";
+import { X, FolderPlus, Users, Search } from "lucide-react";
+import { searchUser } from "../../../api/user";
+import type { SearchedUser } from "../../../api/user";
 
 type Friend = {
   id: number;
@@ -9,13 +11,11 @@ type Friend = {
   avatarColor: string;
 };
 
-// 더미 친구 목록 (추후 API 연동)
-const DUMMY_FRIENDS: Friend[] = [
-  { id: 1, name: "김지은", code: "JE11AB22", avatarColor: "#8B5CF6" },
-  { id: 2, name: "박준호", code: "JH33CD44", avatarColor: "#3B82F6" },
-  { id: 3, name: "이서연", code: "SY55EF66", avatarColor: "#EC4899" },
-  { id: 4, name: "최윤서", code: "YS77GH88", avatarColor: "#F59E0B" },
-];
+const AVATAR_COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
+
+function getAvatarColor(userId: number): string {
+  return AVATAR_COLORS[userId % AVATAR_COLORS.length];
+}
 
 type CreateSharedAlbumModalProps = {
   isOpen: boolean;
@@ -28,24 +28,58 @@ export default function CreateSharedAlbumModal({
   onClose,
   onConfirm,
 }: CreateSharedAlbumModalProps) {
-  const [selected, setSelected] = useState<number[]>([]);
+  const [codeInput, setCodeInput] = useState("");
+  const [searchResult, setSearchResult] = useState<SearchedUser | null>(null);
+  const [searchError, setSearchError] = useState("");
+  const [selected, setSelected] = useState<Friend[]>([]);
 
   if (!isOpen) return null;
 
-  const toggleFriend = (id: number) => {
-    setSelected((prev) =>
-      prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]
-    );
+  // GET /api/users/search — 개인 코드로 사용자 검색
+  const handleSearch = async () => {
+    const code = codeInput.trim();
+    if (!code) return;
+    setSearchError("");
+    setSearchResult(null);
+    try {
+      const user = await searchUser(code);
+      setSearchResult(user);
+    } catch {
+      setSearchError("해당 코드의 사용자를 찾을 수 없습니다.");
+    }
+  };
+
+  const handleAdd = () => {
+    if (!searchResult) return;
+    if (selected.some((f) => f.id === searchResult.userId)) return;
+    setSelected((prev) => [
+      ...prev,
+      {
+        id: searchResult.userId,
+        name: searchResult.nickname,
+        code: searchResult.userCode,
+        avatarColor: getAvatarColor(searchResult.userId),
+      },
+    ]);
+    setSearchResult(null);
+    setCodeInput("");
+  };
+
+  const handleRemove = (id: number) => {
+    setSelected((prev) => prev.filter((f) => f.id !== id));
   };
 
   const handleClose = () => {
+    setCodeInput("");
+    setSearchResult(null);
+    setSearchError("");
     setSelected([]);
     onClose();
   };
 
   const handleConfirm = () => {
     if (selected.length === 0) return;
-    onConfirm?.(DUMMY_FRIENDS.filter((f) => selected.includes(f.id)));
+    onConfirm?.(selected);
     handleClose();
   };
 
@@ -66,7 +100,7 @@ export default function CreateSharedAlbumModal({
             </div>
             <div>
               <h2 className="text-base font-bold text-[#1E293B]">앨범 만들기</h2>
-              <p className="text-xs text-[#94A3B8]">함께할 친구를 선택하세요</p>
+              <p className="text-xs text-[#94A3B8]">개인 코드로 친구를 추가하세요</p>
             </div>
           </div>
           <button
@@ -78,81 +112,98 @@ export default function CreateSharedAlbumModal({
           </button>
         </div>
 
-        {/* 친구 목록 */}
-        <div className="px-6 pb-2">
-          <p className="mb-2 text-xs font-semibold text-[#64748B]">친구 목록</p>
-          <div className="max-h-[260px] overflow-y-auto rounded-xl border border-[#F1F5F9]">
-            {DUMMY_FRIENDS.map((friend, idx) => {
-              const isChecked = selected.includes(friend.id);
-              return (
-                <button
+        {/* 코드 검색 입력 */}
+        <div className="px-6 pb-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              placeholder="개인 코드 입력 (예: ABC123)"
+              className="flex-1 rounded-xl border border-[#E2E8F0] px-3 py-2 text-sm outline-none focus:border-[#2563EB]"
+            />
+            <button
+              type="button"
+              onClick={handleSearch}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#EEF4FF] text-[#2563EB] transition-colors hover:bg-[#DBEAFE]"
+            >
+              <Search size={16} />
+            </button>
+          </div>
+
+          {/* 검색 결과 */}
+          {searchResult && (
+            <div className="mt-2 flex items-center gap-3 rounded-xl border border-[#E2E8F0] px-4 py-3">
+              <div
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                style={{ backgroundColor: getAvatarColor(searchResult.userId) }}
+              >
+                {searchResult.nickname[0]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[#1E293B]">{searchResult.nickname}</p>
+                <p className="truncate text-xs text-[#94A3B8]"># {searchResult.userCode}</p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAdd}
+                disabled={selected.some((f) => f.id === searchResult.userId)}
+                className="rounded-lg bg-[#2563EB] px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-[#1D4ED8] disabled:opacity-40 disabled:pointer-events-none"
+              >
+                추가
+              </button>
+            </div>
+          )}
+
+          {/* 오류 메시지 */}
+          {searchError && (
+            <p className="mt-2 text-xs text-red-500">{searchError}</p>
+          )}
+        </div>
+
+        {/* 추가된 친구 목록 */}
+        {selected.length > 0 && (
+          <div className="px-6 pb-2">
+            <p className="mb-2 text-xs font-semibold text-[#64748B]">추가된 친구</p>
+            <div className="max-h-45 overflow-y-auto rounded-xl border border-[#F1F5F9]">
+              {selected.map((friend, idx) => (
+                <div
                   key={friend.id}
-                  type="button"
-                  onClick={() => toggleFriend(friend.id)}
                   className={[
-                    "flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F8FAFC]",
-                    idx !== DUMMY_FRIENDS.length - 1
-                      ? "border-b border-[#F1F5F9]"
-                      : "",
+                    "flex items-center gap-3 px-4 py-3",
+                    idx !== selected.length - 1 ? "border-b border-[#F1F5F9]" : "",
                   ].join(" ")}
                 >
-                  {/* 아바타 */}
                   <div
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
                     style={{ backgroundColor: friend.avatarColor }}
                   >
                     {friend.name[0]}
                   </div>
-                  {/* 이름/코드 */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-[#1E293B]">
-                      {friend.name}
-                    </p>
-                    <p className="truncate text-xs text-[#94A3B8]">
-                      # {friend.code}
-                    </p>
+                    <p className="text-sm font-semibold text-[#1E293B]">{friend.name}</p>
+                    <p className="truncate text-xs text-[#94A3B8]"># {friend.code}</p>
                   </div>
-                  {/* 체크박스 */}
-                  <div
-                    className={[
-                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                      isChecked
-                        ? "border-[#2563EB] bg-[#2563EB]"
-                        : "border-[#CBD5E1] bg-white",
-                    ].join(" ")}
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(friend.id)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569]"
                   >
-                    {isChecked && (
-                      <svg
-                        width="10"
-                        height="8"
-                        viewBox="0 0 10 8"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <path
-                          d="M1 3.5L3.5 6.5L9 1"
-                          stroke="white"
-                          strokeWidth="1.8"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 선택 상태 안내 */}
         <div className="flex items-center gap-2 px-6 py-3">
           <Users size={14} className="text-[#F59E0B]" />
-          <span className="text-xs font-medium text-[#F59E0B]">
-            {selected.length}명 선택
-          </span>
+          <span className="text-xs font-medium text-[#F59E0B]">{selected.length}명 추가됨</span>
           {selected.length === 0 && (
-            <span className="text-xs text-[#F59E0B]">· 1명 이상 선택하세요</span>
+            <span className="text-xs text-[#F59E0B]">· 1명 이상 추가하세요</span>
           )}
         </div>
 
