@@ -8,16 +8,17 @@ class CallbackService:
     AI 처리 완료 여부와 무관하게 HTTP 통신 역할만 수행합니다.
     """
 
-    async def notify_complete(self, video_id: str, json_url: str) -> None:
+    async def notify_complete(self, video_id: str, subtitle_url: str, vibration_url: str) -> None:
         """
-        Spring Boot 서버에 처리 완료를 통지합니다.
+        Spring Boot 서버에 처리 완료를 통지합니다 (자막/진동 분리 URL 제공).
         """
         callback_url = f"{settings.SPRING_BOOT_API_URL}/videos/{video_id}/complete"
         print(f"Sending callback to Spring Boot: {callback_url}")
 
         payload = {
             "videoId": video_id,
-            "jsonUrl": json_url,
+            "subtitleUrl": subtitle_url,
+            "vibrationUrl": vibration_url,
             "status": "COMPLETED"
         }
 

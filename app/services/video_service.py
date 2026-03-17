@@ -52,19 +52,16 @@ class VideoService:
                 self.vibration_model.predict(tracks["vocals"]),
             )
 
-            # 4. 후처리 — MinIO에 결과 업로드
-            combined_result = {
-                "subtitles": subtitle_result,
-                "vibrations": vibration_result,
-            }
-            json_url = await self.storage.upload_results(video_id, combined_result)
+            # 4. 후처리 — MinIO에 결과 업로드 (분리 업로드)
+            subtitle_url, vibration_url = await self.storage.upload_results(video_id, subtitle_result, vibration_result)
 
             # 5. Spring Boot 완료 콜백
-            await self.callback.notify_complete(video_id, json_url)
+            await self.callback.notify_complete(video_id, subtitle_url, vibration_url)
 
             return {
                 "video_id": video_id,
-                "json_url": json_url,
+                "subtitle_url": subtitle_url,
+                "vibration_url": vibration_url,
                 "status": "success"
             }
         finally:
