@@ -7,6 +7,7 @@ import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.domain.video.dto.VideoCommentRequest;
 import com.example.sound.domain.video.dto.VideoCommentResponse;
 import com.example.sound.domain.video.entity.VideoComment;
+import com.example.sound.domain.notification.service.NotificationService;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -21,11 +22,12 @@ public class VideoCommentService {
     private final VideoCommentRepository videoCommentRepository;
     private final AlbumVideoRepository albumVideoRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Transactional
-    public VideoCommentResponse addComment(Long videoId, Long userId, VideoCommentRequest request) {
+    public VideoCommentResponse addComment(Long albumVideoId, Long userId, VideoCommentRequest request) {
 
-        AlbumVideo albumVideo = albumVideoRepository.findById(videoId)
+        AlbumVideo albumVideo = albumVideoRepository.findById(albumVideoId)
                 .orElseThrow(() -> new RuntimeException("영상 없음"));
 
         User user = userRepository.findById(userId)
@@ -38,6 +40,18 @@ public class VideoCommentService {
                 .build();
 
         videoCommentRepository.save(comment);
+
+        // 댓글 알림 전송
+        Long ownerId = albumVideo.getVideo().getUploader().getId();
+
+        if(!ownerId.equals(userId)){
+
+            notificationService.sendVideoComment(
+                    ownerId,
+                    albumVideo.getVideo().getId(),
+                    user.getNickname()
+            );
+        }
 
         return new VideoCommentResponse(
                 comment.getId(),
