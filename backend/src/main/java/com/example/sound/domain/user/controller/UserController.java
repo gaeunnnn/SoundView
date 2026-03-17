@@ -22,7 +22,8 @@ public class UserController {
     // 로그인한 사용자 정보 조회
     @GetMapping("/me")
     public UserMeResponse me(Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
+        User userEntity = (User) authentication.getPrincipal();
+        Long userId = userEntity.getId();
         User user = userService.getById(userId);
         return UserMeResponse.from(user);
     }
