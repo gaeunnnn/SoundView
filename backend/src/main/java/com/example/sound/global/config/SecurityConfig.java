@@ -76,7 +76,7 @@ public class SecurityConfig {
 
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
-                            if (request.getRequestURI().startsWith("/api")) {
+                            if (request.getRequestURI().contains("/api")) {
                                 response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
                                 response.setContentType("application/json;charset=UTF-8");
                                 response.getWriter().write("{\"message\": \"인증 정보가 없거나 만료되었습니다.\"}");
@@ -85,7 +85,7 @@ public class SecurityConfig {
                             }
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            if (request.getRequestURI().startsWith("/api")) {
+                            if (request.getRequestURI().contains("/api")) {
                                 response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
                                 response.setContentType("application/json;charset=UTF-8");
                                 response.getWriter().write("{\"message\": \"해당 자원에 대한 접근 권한이 없습니다.\"}");
