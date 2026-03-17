@@ -34,6 +34,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
         thumbnail: v.thumbnailUrl ?? "",
         duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
         date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+        uploaderName: v.uploaderName,
       }))
     );
   };

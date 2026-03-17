@@ -38,11 +38,11 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
       : videos;
 
     const sortedVideos = [...searchedVideos].sort((a, b) => {
-      if (sortOption === "latest") {
-        return b.date.localeCompare(a.date);
-      }
-
-      return a.date.localeCompare(b.date);
+      if (sortOption === "latest") return b.date.localeCompare(a.date);
+      if (sortOption === "oldest") return a.date.localeCompare(b.date);
+      if (sortOption === "title") return a.title.localeCompare(b.title, "ko");
+      if (sortOption === "uploader") return a.uploaderName.localeCompare(b.uploaderName, "ko");
+      return 0;
     });
 
     return sortedVideos;

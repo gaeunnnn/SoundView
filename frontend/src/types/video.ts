@@ -5,6 +5,7 @@ export type VideoItem = {
   date: string;
   duration: string;
   thumbnail: string;
+  uploaderName: string;
 };
 
-export type SortOption = "latest" | "oldest";
+export type SortOption = "latest" | "oldest" | "title" | "uploader";

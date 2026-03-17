@@ -8,10 +8,12 @@ import EditPage from "./pages/EditPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
 import { UploadProvider } from "./context/UploadContext";
 import { VideosProvider } from "./context/VideosContext";
+import { UserProvider } from "./context/UserContext";
 import UploadProgressPip from "./components/Upload/UploadProgressPip";
 
 export default function App() {
   return (
+    <UserProvider>
     <VideosProvider>
       <UploadProvider>
         <Routes>
@@ -25,5 +27,6 @@ export default function App() {
         <UploadProgressPip />
       </UploadProvider>
     </VideosProvider>
+    </UserProvider>
   );
 }

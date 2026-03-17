@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import HeaderActionGroup from "../Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../Main/Header/HeaderProfileButton";
+import { useUser } from "../../context/UserContext";
 
 type ViewerHeaderProps = {
   onBack: () => void;
@@ -10,6 +11,7 @@ type ViewerHeaderProps = {
 
 export default function ViewerHeader({ onBack }: ViewerHeaderProps) {
   const navigate = useNavigate();
+  const { me } = useUser();
   return (
     <div className="flex h-18 shrink-0 items-center justify-between border-b border-[#E8EDF4] bg-white px-5">
       <div className="flex items-center gap-4">
@@ -35,7 +37,7 @@ export default function ViewerHeader({ onBack }: ViewerHeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         <HeaderActionGroup />
-        <HeaderProfileButton userName="박민준" />
+        <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} />
       </div>
     </div>
   );

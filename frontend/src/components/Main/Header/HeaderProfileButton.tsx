@@ -12,7 +12,7 @@ type HeaderProfileButtonProps = {
 
 export default function HeaderProfileButton({
   userName,
-  userCode = "MJ2026",
+  userCode = "",
 }: HeaderProfileButtonProps) {
   const navigate = useNavigate();
   const initial = userName.slice(0, 1);
