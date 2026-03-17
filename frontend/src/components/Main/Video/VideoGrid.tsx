@@ -21,8 +21,16 @@ export default function VideoGrid({
   onDelete,
   onRenameTitle,
 }: VideoGridProps) {
+  if (videos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-[#94A3B8]">
+        <p className="text-sm">영상이 없습니다.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {videos.map((video) => (
         <VideoCard
           key={video.id}

@@ -1,7 +1,7 @@
 // 공유 앨범 영상 카드 컴포넌트
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Plus } from "lucide-react";
+import { MessageCircle, Plus, Ellipsis, Pencil, Trash2 } from "lucide-react";
 import type { EmojiReaction, SharedVideoItem } from "../../../types/sharedAlbum";
 import VideoThumbnail from "../Card/VideoThumbnail";
 import VideoTitleEditor from "../Card/VideoTitleEditor";
@@ -12,15 +12,29 @@ type SharedVideoCardProps = {
   video: SharedVideoItem;
   onReact: (videoId: number, emoji: string) => void;
   onRenameTitle?: (videoId: number, newTitle: string) => void;
+  onDelete?: (videoId: number) => void;
 };
 
-export default function SharedVideoCard({ video, onReact, onRenameTitle }: SharedVideoCardProps) {
+export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelete }: SharedVideoCardProps) {
   const navigate = useNavigate();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const reactedEmojis = new Set(video.reactions.filter((r) => r.reacted).map((r) => r.emoji));
   const visibleReactions = video.reactions.filter((r) => r.count > 0 || r.reacted);
   const availableToAdd = AVAILABLE_EMOJIS.filter((e) => !reactedEmojis.has(e));
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handle = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, [showMenu]);
 
   return (
     <article className="rounded-[22px] border border-[#E5EAF1] bg-white">
@@ -34,14 +48,49 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle }: Share
       <div className="px-3 pb-3 pt-3">
         {/* 제목 행 */}
         <div className="flex items-center gap-1.5">
-          <VideoTitleEditor
-            title={video.title}
-            onCommit={(newTitle) => onRenameTitle?.(video.id, newTitle)}
-            accentColor="#10B981"
-          />
+          <div className="min-w-0 flex-1">
+            <VideoTitleEditor
+              title={video.title}
+              onCommit={(newTitle) => onRenameTitle?.(video.id, newTitle)}
+              accentColor="#10B981"
+            />
+          </div>
+
+          {/* 내 영상일 때만 점3개 메뉴 */}
+          {video.uploadedBy.isMe && (
+            <div ref={menuRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowMenu((prev) => !prev)}
+                className="flex h-7 w-7 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F3F4F6] hover:text-[#64748B]"
+              >
+                <Ellipsis size={15} strokeWidth={2} />
+              </button>
+              {showMenu && (
+                <div className="absolute right-0 top-9 z-20 w-32 rounded-xl border border-[#E5E7EB] bg-white p-1.5 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => { setShowMenu(false); onRenameTitle?.(video.id, video.title); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-[#111827] transition-colors hover:bg-[#F3F4F6]"
+                  >
+                    <Pencil size={14} strokeWidth={2} />
+                    <span>수정</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowMenu(false); onDelete?.(video.id); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-[#DC2626] transition-colors hover:bg-[#FEF2F2]"
+                  >
+                    <Trash2 size={14} strokeWidth={2} />
+                    <span>삭제</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* 날짜 + 업로더 행 - 고정 높이로 레이아웃 안정 */}
+        {/* 날짜 + 업로더 행 */}
         <div className="mt-1.5 flex h-5 items-center gap-2">
           <span className="shrink-0 text-xs text-[#94A3B8]">{video.date}</span>
           <div className="flex items-center gap-1.5">
@@ -57,7 +106,7 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle }: Share
           </div>
         </div>
 
-        {/* 이모지 반응 + 댓글 행 - min-h로 레이아웃 고정 */}
+        {/* 이모지 반응 + 댓글 행 */}
         <div className="mt-3 flex min-h-[28px] items-center justify-between">
           <div className="flex items-center gap-1.5">
             {visibleReactions.map((reaction: EmojiReaction) => (
@@ -103,7 +152,7 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle }: Share
             </div>
           </div>
 
-          {/* 댓글 - 우측 고정 */}
+          {/* 댓글 */}
           <button
             type="button"
             className="flex shrink-0 items-center gap-1.5 text-xs text-[#94A3B8] transition-colors hover:text-[#64748B]"

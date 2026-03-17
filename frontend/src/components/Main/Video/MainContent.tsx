@@ -9,10 +9,12 @@ import VideoSectionHeader from "./VideoSectionHeader";
 import VideoToolbar from "./VideoToolbar";
 import ShareToAlbumModal from "./ShareToAlbumModal";
 import { useVideos } from "../../../context/VideosContext";
+import { addVideosToAlbum } from "../../../api/album";
+import { deleteVideo } from "../../../api/video";
 
 type MainContentProps = {
   sharedAlbums: SharedAlbumItem[];
-  albumId: number;
+  albumId: number | null;
 };
 
 export default function MainContent({ sharedAlbums, albumId }: MainContentProps) {
@@ -20,7 +22,7 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
   const { videos, fetchVideos, removeVideo, renameVideo } = useVideos();
 
   useEffect(() => {
-    fetchVideos(albumId);
+    if (albumId !== null) fetchVideos(albumId);
   }, [albumId]);
   const [openedMenuId, setOpenedMenuId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
@@ -76,13 +78,18 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
     setDeleteTargetId(null);
   };
 
-  const handleConfirmDelete = () => {
-    if (deleteTargetId !== null) removeVideo(deleteTargetId);
+  const handleConfirmDelete = async () => {
+    if (deleteTargetId !== null) {
+      await deleteVideo(deleteTargetId).catch(() => {});
+      removeVideo(deleteTargetId);
+    }
     setDeleteTargetId(null);
   };
 
-  const handleConfirmShare = (albumIds: number[]) => {
-    console.log("공유 완료 - 영상:", shareTargetId, "→ 앨범:", albumIds);
+  const handleConfirmShare = async (albumIds: number[]) => {
+    if (shareTargetId !== null) {
+      await Promise.all(albumIds.map((albumId) => addVideosToAlbum(albumId, [shareTargetId]).catch(() => {})));
+    }
     setShareTargetId(null);
   };
 
@@ -93,11 +100,11 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <section className="flex-1 overflow-y-auto bg-[#FAFBFD] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mx-auto max-w-[1280px] space-y-8 lg:space-y-10">
+      {/* 상단 헤더 + 툴바 */}
+      <div className="bg-[#FAFBFD] px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8 lg:pt-8">
+        <div className="mx-auto max-w-[1280px] space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <VideoSectionHeader title="내 앨범" count={videos.length} />
-
             <button
               type="button"
               onClick={() => navigate("/upload")}
@@ -106,14 +113,18 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
               새 영상 변환
             </button>
           </div>
-
           <VideoToolbar
             searchKeyword={searchKeyword}
             sortOption={sortOption}
             onChangeSearchKeyword={setSearchKeyword}
             onChangeSortOption={setSortOption}
           />
+        </div>
+      </div>
 
+      {/* 영상 그리드 — 흰 배경으로 나머지 전체 채움 */}
+      <div className="flex-1 overflow-y-auto bg-white border-t border-[#E8EDF4]">
+        <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <VideoGrid
             videos={filteredVideos}
             openedMenuId={openedMenuId}
@@ -124,7 +135,7 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
             onRenameTitle={handleRenameTitle}
           />
         </div>
-      </section>
+      </div>
 
       <ConfirmModal
         open={deleteTargetId !== null}

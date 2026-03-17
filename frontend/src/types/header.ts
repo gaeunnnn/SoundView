@@ -4,6 +4,5 @@ export type MainHeaderProps = {
   userCode?: string;
   onClickLogo?: () => void;
   onClickHelp?: () => void;
-  onClickNotification?: () => void;
   onClickProfile?: () => void;
 };

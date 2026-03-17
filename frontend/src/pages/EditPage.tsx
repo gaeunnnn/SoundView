@@ -339,7 +339,7 @@ export default function EditPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">
               <span className="text-xs font-bold text-white">S</span>
             </div>
-            <span className="text-base font-bold text-[#111827]">SoundSee</span>
+            <span className="hidden sm:block text-base font-bold text-[#111827]">SoundSee</span>
           </button>
           <button
             type="button"
@@ -347,7 +347,7 @@ export default function EditPage() {
             className="flex items-center gap-1.5 text-sm font-medium text-[#64748B] transition-colors hover:text-[#111827]"
           >
             <ArrowLeft size={14} strokeWidth={2} />
-            뒤로가기
+            <span className="hidden sm:inline">뒤로가기</span>
           </button>
         </div>
         <div className="flex items-center gap-3">
@@ -362,18 +362,18 @@ export default function EditPage() {
         <div className="flex flex-1 flex-col overflow-hidden">
           {/* 서브 헤더 */}
           <div className="flex shrink-0 items-center justify-between border-b border-[#E8EDF4] bg-white px-5 py-3">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-semibold text-[#111827]">✨ 자막 수정</span>
-              <ChevronRight size={14} className="text-[#94A3B8]" />
-              <span className="text-[#64748B]">{mediaTitle}</span>
+            <div className="flex min-w-0 items-center gap-2 text-sm">
+              <span className="shrink-0 font-semibold text-[#111827]">✨ 자막 수정</span>
+              <ChevronRight size={14} className="shrink-0 text-[#94A3B8]" />
+              <span className="truncate text-[#64748B]">{mediaTitle}</span>
             </div>
             <button
               type="button"
               onClick={() => setShowSaveModal(true)}
-              className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8] transition-colors"
+              className="ml-3 flex shrink-0 items-center gap-2 rounded-xl bg-[#2563EB] px-3 py-2 sm:px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8] transition-colors"
             >
               <Download size={14} strokeWidth={2.5} />
-              저장하기
+              <span className="hidden sm:inline">저장하기</span>
             </button>
           </div>
 
@@ -672,8 +672,8 @@ export default function EditPage() {
           </div>
         </div>
 
-        {/* 우측: 소리 목록 패널 (일반 화면) */}
-        <div className="flex w-72 shrink-0 flex-col border-l border-[#E8EDF4] bg-white">
+        {/* 우측: 소리 목록 패널 (일반 화면, 모바일에서 숨김) */}
+        <div className="hidden md:flex w-72 shrink-0 flex-col border-l border-[#E8EDF4] bg-white">
           <div className="flex shrink-0 items-center justify-between border-b border-[#E8EDF4] px-4 py-3">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-[#10B981]" />

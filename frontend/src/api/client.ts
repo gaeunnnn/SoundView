@@ -8,3 +8,16 @@ export const apiClient = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
 });
+
+// 401 응답 시 로그인 페이지로 리다이렉트
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      window.location.replace(
+        (import.meta.env.VITE_BASE_PATH ?? "") + "/"
+      );
+    }
+    return Promise.reject(error);
+  }
+);

@@ -9,7 +9,6 @@ export default function MainHeader({
   userCode,
   onClickLogo,
   onClickHelp,
-  onClickNotification,
   onClickProfile,
 }: MainHeaderProps) {
   return (
@@ -17,10 +16,7 @@ export default function MainHeader({
       <HeaderBrand title="SoundSee" onClick={onClickLogo} />
 
       <div className="flex items-center gap-3">
-        <HeaderActionGroup
-          onClickHelp={onClickHelp}
-          onClickNotification={onClickNotification}
-        />
+        <HeaderActionGroup onClickHelp={onClickHelp} />
         <HeaderProfileButton userName={userName} userCode={userCode} onClick={onClickProfile} />
       </div>
     </header>
