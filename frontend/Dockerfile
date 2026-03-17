@@ -16,7 +16,7 @@ ENV VITE_REDIRECT_URI=$VITE_REDIRECT_URI
 
 RUN npm run build
 
-# 2단계: 서빙 
+# 2단계: 서 빙 
 FROM nginx:stable-alpine
 # 🔴 파일을 복잡한 폴더 구조 없이 루트에 바로 복사합니다.
 COPY --from=builder /app/dist /usr/share/nginx/html
