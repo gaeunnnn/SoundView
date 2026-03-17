@@ -199,4 +199,14 @@ public class NotificationService {
     public long getUnreadCount(Long userId) {
         return notificationRepository.countByUserIdAndIsReadFalse(userId);
     }
+
+    // 읽음 처리
+    @Transactional
+    public void readNotification(Long notificationId){
+
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new RuntimeException("알림 없음"));
+
+        notification.markAsRead();
+    }
 }
