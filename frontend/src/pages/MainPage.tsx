@@ -1,9 +1,8 @@
 // 메인 페이지 전체 레이아웃을 조립하는 페이지 파일
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getMyProfile } from "../api/user";
 import { editAlbumTitle } from "../api/album";
-import type { UserProfile } from "../api/user";
+import { useUser } from "../context/UserContext";
 import MainHeader from "../components/Main/Header/MainHeader";
 import MainSidebar from "../components/Main/Sidebar/MainSidebar";
 import MainContent from "../components/Main/Video/MainContent";
@@ -18,12 +17,8 @@ import type { SharedAlbumDetail } from "../types/sharedAlbum";
 
 export default function MainPage() {
   const navigate = useNavigate();
-  const [me, setMe] = useState<UserProfile | null>(null);
+  const { me } = useUser();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  useEffect(() => {
-    getMyProfile().then(setMe).catch(() => {});
-  }, []);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [sharedAlbums, setSharedAlbums] = useState<SharedAlbumItem[]>(SHARED_ALBUMS);
   const [sharedAlbumDetails, setSharedAlbumDetails] = useState<SharedAlbumDetail[]>(SHARED_ALBUM_DETAILS);

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
+import { useUser } from "../context/UserContext";
 import PlayerOverlay from "../components/Viewer/PlayerOverlay";
 import type { SoundEvent } from "../constants/edit";
 import { DUMMY_EDIT_VIDEO, DUMMY_SOUND_EVENTS } from "../constants/edit";
@@ -79,6 +80,7 @@ function EventList({
 
 export default function EditPage() {
   const navigate = useNavigate();
+  const { me } = useUser();
   const { uploadedVideoUrl, uploadedFileType, fileName: uploadedFileName } = useUpload();
   const { addVideo } = useVideos();
 
@@ -292,6 +294,7 @@ export default function EditPage() {
       date: new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").replace(/\.$/, ""),
       duration,
       thumbnail: mediaUrl,
+      uploaderName: me?.nickname ?? "",
     });
     setSaveSuccess(true);
     setTimeout(() => {
@@ -349,7 +352,7 @@ export default function EditPage() {
         </div>
         <div className="flex items-center gap-3">
           <HeaderActionGroup />
-          <HeaderProfileButton userName="박민준" />
+          <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} />
         </div>
       </div>
 

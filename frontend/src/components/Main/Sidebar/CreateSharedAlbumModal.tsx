@@ -120,7 +120,7 @@ export default function CreateSharedAlbumModal({
               value={codeInput}
               onChange={(e) => setCodeInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="개인 코드 입력 (예: ABC123)"
+              placeholder="개인 코드 입력 (예: ABC12345)"
               className="flex-1 rounded-xl border border-[#E2E8F0] px-3 py-2 text-sm outline-none focus:border-[#2563EB]"
             />
             <button

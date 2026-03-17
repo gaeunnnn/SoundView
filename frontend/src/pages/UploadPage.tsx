@@ -5,6 +5,7 @@ import { ArrowLeft, CloudUpload, CheckCircle2, Loader2 } from "lucide-react";
 import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUpload } from "../context/UploadContext";
+import { useUser } from "../context/UserContext";
 import { DUMMY_EDIT_VIDEO } from "../constants/edit";
 
 const STAGES = [
@@ -24,6 +25,7 @@ function getStage(progress: number) {
 
 export default function UploadPage() {
   const navigate = useNavigate();
+  const { me } = useUser();
   const { status, progress, setUploadedVideo, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -151,7 +153,7 @@ export default function UploadPage() {
         </div>
         <div className="flex items-center gap-3">
           <HeaderActionGroup />
-          <HeaderProfileButton userName="박민준" />
+          <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} />
         </div>
       </div>
 

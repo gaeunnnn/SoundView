@@ -44,6 +44,8 @@ export default function VideoToolbar({
         >
           <option value="latest">최신순</option>
           <option value="oldest">오래된순</option>
+          <option value="title">이름순</option>
+          <option value="uploader">작성자순</option>
         </select>
       </div>
     </div>

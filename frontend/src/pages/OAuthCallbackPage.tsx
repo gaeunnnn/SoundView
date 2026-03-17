@@ -3,11 +3,11 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 export default function OAuthCallbackPage() {
-  const navigate = useNavigate();
-
   useEffect(() => {
-    navigate("/main", { replace: true });
-  }, [navigate]);
+    window.location.replace(
+      (import.meta.env.VITE_BASE_PATH ?? "") + "/main"
+    );
+  }, []);
 
   return null;
 }
