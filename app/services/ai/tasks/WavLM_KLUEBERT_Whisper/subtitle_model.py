@@ -5,7 +5,8 @@ import numpy as np
 import torch.nn.functional as F
 from typing import Any, Dict, List
 from pathlib import Path
-from transformers import pipeline, AutoTokenizer, Wav2Vec2FeatureExtractor
+from transformers import AutoTokenizer, Wav2Vec2FeatureExtractor
+from faster_whisper import WhisperModel
 
 from app.services.ai.base import BaseAIModel
 from .emotion_model import OptimizedCrossAttentionModel
@@ -46,13 +47,11 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
             3: "Happy (행복)", 4: "Neutral (중립)", 5: "Sad (슬픔)", 6: "Surprise (당황)"
         }
 
-        # 2. Whisper 모델 로드 (STT)
-        print("[SubtitleModel] Whisper 모델 (음성 인식) 로딩 중...")
-        self.whisper_pipe = pipeline(
-            "automatic-speech-recognition",
-            model="openai/whisper-medium",
-            device=self.device
-        )
+        # 2. Faster-Whisper 모델 로드 (STT)
+        print("[SubtitleModel] Faster-Whisper 모델 (음성 인식) 로딩 중...")
+        # device는 "cuda" 또는 "cpu" 문자열로 지정, compute_type은 fp16(GPU) 또는 int8(CPU/GPU)
+        compute_type = "float16" if torch.cuda.is_available() else "int8"
+        self.whisper_model = WhisperModel("medium", device=self.device.type, compute_type=compute_type)
 
         # 3. 토크나이저 & 프로세서 로드
         print("[SubtitleModel] 음성/텍스트 프로세서 & 토크나이저 로딩 중...")
@@ -141,17 +140,23 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         """
         print("[SubtitleModel] 추론 시작 (STT & Emotion per segment)")
 
-        # 1. Whisper STT - 목소리 트랙만 사용하므로 배경음 할루시네이션 방지
-        #    chunk_length_s=30: 긴 오디오에서 30초 윈도우 간 타임스탬프를 절대 시간으로 누적
-        #    이 설정 없이는 30초마다 start=0.0으로 리셋되어 원본 시간과 매핑이 틀어집니다.
-        transcription = self.whisper_pipe(
-            {"array": vocal_array, "sampling_rate": 16000},
-            return_timestamps=True,
-            chunk_length_s=30,
-            generate_kwargs={"language": "korean"}
+        # 1. Faster-Whisper STT - VAD 필터를 적용하여 무음 구간을 명확히 제거
+        # vocal_array의 데이터를 그대로 인식시키되, vad_filter=True를 통해 실제 음성이 있는 구간의 타임스탬프를 획득
+        segments_generator, info = self.whisper_model.transcribe(
+            vocal_array,
+            language="ko",
+            vad_filter=True,            # Silero VAD로 앞뒤 침묵 제거
+            vad_parameters=dict(min_silence_duration_ms=500) # 0.5초 이상 침묵이면 분리
         )
-        chunks = transcription.get("chunks", [])
-        print(f"  > [STT 결과]: {len(chunks)}개 문장 세그먼트 감지")
+        
+        chunks = []
+        for segment in segments_generator:
+            chunks.append({
+                "timestamp": (segment.start, segment.end),
+                "text": segment.text
+            })
+            
+        print(f"  > [STT 결과]: {len(chunks)}개 문장 세그먼트 감지 (Faster-Whisper + VAD)")
 
         # 2. 너무 짧은 세그먼트는 이전 구간에 병합
         merged: List[Dict] = []

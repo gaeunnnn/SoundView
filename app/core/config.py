@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     
     # Spring Boot 설정
     SPRING_BOOT_API_URL: str = "http://localhost:8080"
+
+    # 분석 결과 저장 경로 (임시 로컬 저장 - 추후 MinIO 업로드로 전환 예정)
+    RESULT_SAVE_DIR: str = "./results"
     
     model_config = SettingsConfigDict(
         env_file=".env",

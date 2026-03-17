@@ -40,3 +40,7 @@ test_ai_models.py
 *.avi
 *.jpg
 *.png
+
+
+# 테스트용 결과파일
+results/
