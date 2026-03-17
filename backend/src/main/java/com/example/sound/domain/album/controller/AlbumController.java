@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,6 +28,7 @@ public class AlbumController {
         return albumService.getUserAlbums(user.getId());
     }
 
+    @Operation(summary = "앨범 생성")
     @PostMapping
     public AlbumCreateResponse createAlbum(
             @AuthenticationPrincipal User user,
@@ -37,6 +37,7 @@ public class AlbumController {
         return albumService.createAlbum(user.getId(), request);
     }
 
+    @Operation(summary = "앨범 나가기")
     @DeleteMapping("/{albumId}/leave")
     public void leaveAlbum(
             @PathVariable Long albumId,
@@ -45,12 +46,13 @@ public class AlbumController {
         albumService.leaveAlbum(albumId, user.getId());
     }
 
+    @Operation(summary = "앨범 수정")
     @PatchMapping("/{albumId}")
     public ResponseEntity<AlbumUpdateResponse> updateAlbum(
             @PathVariable Long albumId,
             @RequestBody AlbumUpdateRequest request,
             @AuthenticationPrincipal User user
-    ){
+    ) {
 
         AlbumUpdateResponse response =
                 albumService.updateAlbum(albumId, user.getId(), request);
@@ -64,11 +66,24 @@ public class AlbumController {
             @PathVariable Long albumId,
             @AuthenticationPrincipal User user,
             @RequestBody AlbumVideoAddRequest request
-    ){
+    ) {
 
         AlbumVideoAddResponse response =
                 albumService.addVideosToAlbum(albumId, user.getId(), request);
 
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "공유 앨범 멤버 조회")
+    @GetMapping("/{albumId}/users")
+    public ResponseEntity<List<AlbumUserResponse>> getAlbumUsers(
+            @PathVariable Long albumId,
+            @AuthenticationPrincipal User user
+    ) {
+
+        List<AlbumUserResponse> users =
+                albumService.getAlbumUsers(albumId, user.getId());
+
+        return ResponseEntity.ok(users);
     }
 }

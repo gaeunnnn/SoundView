@@ -177,4 +177,15 @@ public class AlbumService {
 
         return new AlbumVideoAddResponse(createdIds);
     }
+
+    // 공유 앨범 멤버 조회
+    @Transactional
+    public List<AlbumUserResponse> getAlbumUsers(Long albumId, Long loginUserId) {
+
+        List<AlbumUser> albumUsers  = albumUserRepository.findUsersByAlbumId(albumId);
+
+        return albumUsers.stream()
+                .map(user -> AlbumUserResponse.of(user,loginUserId))
+                .toList();
+    }
 }
