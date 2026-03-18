@@ -9,6 +9,7 @@ import VideoSectionHeader from "./VideoSectionHeader";
 import VideoToolbar from "./VideoToolbar";
 import ShareToAlbumModal from "./ShareToAlbumModal";
 import { useVideos } from "../../../context/VideosContext";
+import { addVideosToAlbum } from "../../../api/album";
 
 type MainContentProps = {
   sharedAlbums: SharedAlbumItem[];
@@ -82,8 +83,12 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
   };
 
   const handleConfirmShare = (albumIds: number[]) => {
-    console.log("공유 완료 - 영상:", shareTargetId, "→ 앨범:", albumIds);
+    if (shareTargetId === null) return;
+    const videoId = shareTargetId;
     setShareTargetId(null);
+    albumIds.forEach((albumId) => {
+      addVideosToAlbum(albumId, [videoId]).catch(console.error);
+    });
   };
 
   const deleteTargetTitle =

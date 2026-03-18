@@ -17,7 +17,7 @@ export default function ViewerPage() {
       <ViewerHeader onBack={() => navigate(-1)} />
       <div className="flex flex-1 overflow-hidden">
         <VideoPlayer video={video} />
-        <CommentSection />
+        <CommentSection videoId={video.id} />
       </div>
     </div>
   );

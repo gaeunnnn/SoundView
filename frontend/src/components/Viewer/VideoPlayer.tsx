@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ViewerVideo, EmojiReaction } from "../../types/viewer";
-import { DUMMY_SOUND_EVENTS } from "../../constants/edit";
 import VideoMeta from "./VideoMeta";
 import PlayerOverlay from "./PlayerOverlay";
 import PlayerControls from "./PlayerControls";
@@ -149,12 +148,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isPlaying, totalSec]);
 
-  // 진동: 활성화된 이벤트 타이밍에 vibrate 호출
-  useEffect(() => {
-    if (!vibrateOn || !("vibrate" in navigator)) return;
-    const triggered = DUMMY_SOUND_EVENTS.filter((ev) => ev.enabled && currentSec === ev.timeSec);
-    if (triggered.length > 0) navigator.vibrate(200);
-  }, [currentSec, vibrateOn]);
+  // 진동: 비어있음 (sound events API 연결 후 활성화)
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current) return;
@@ -256,18 +250,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
                 <div className="h-2 w-2 rounded-full bg-[#10B981]" />
                 <span className="text-sm font-semibold text-white">인식된 소리</span>
               </div>
-              <div className="flex-1 overflow-y-auto">
-                {DUMMY_SOUND_EVENTS.filter((ev) => ev.enabled).map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="flex items-center gap-3 px-4 py-2.5"
-                  >
-                    <span className="w-10 shrink-0 font-mono text-xs text-[#60A5FA]">{ev.timeLabel}</span>
-                    <span className="text-base leading-none">{ev.emoji}</span>
-                    <span className="truncate text-sm text-white/90">{ev.description}</span>
-                  </div>
-                ))}
-              </div>
+              <div className="flex-1 overflow-y-auto" />
             </div>
           </div>
         )}
@@ -292,7 +275,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           onVolumeChange={(v) => { setVolume(v); setIsMuted(v === 0); }}
           onShowVolumeChange={setShowVolume}
           onReset={() => setCurrentSec(0)}
-          soundEvents={DUMMY_SOUND_EVENTS}
+          soundEvents={[]}
           onSubtitleToggle={() => setSubtitleOn((v) => !v)}
           onEmojiToggle={() => setEmojiOn((v) => !v)}
           onVibrateToggle={() => setVibrateOn((v) => !v)}

@@ -6,7 +6,6 @@ import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUpload } from "../context/UploadContext";
 import { useUser } from "../context/UserContext";
-import { DUMMY_EDIT_VIDEO } from "../constants/edit";
 
 const STAGES = [
   { minProgress: 0,  maxProgress: 20,  label: "영상을 업로드하는 중입니다...",          sub: "파일을 서버로 전송하고 있습니다" },
@@ -57,15 +56,6 @@ export default function UploadPage() {
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setUploadedVideo(url, file.type);
-  };
-
-  // 개발용: 더미 파일로 바로 선택 상태 진입
-  const handleDummyLoad = () => {
-    const blob = new Blob(["dummy"], { type: "video/mp4" });
-    const dummyFile = new File([blob], "자연_다큐멘터리_Vol.1.mp4", { type: "video/mp4" });
-    setSelectedFile(dummyFile);
-    setPreviewUrl(DUMMY_EDIT_VIDEO.thumbnail);
-    setUploadedVideo(DUMMY_EDIT_VIDEO.thumbnail, "image");
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -271,9 +261,7 @@ export default function UploadPage() {
                   <div>
                     <p className="text-base font-semibold text-[#111827]">{selectedFile.name}</p>
                     <p className="mt-1 text-sm text-[#64748B]">
-                      {selectedFile.size > 1024
-                        ? formatSize(selectedFile.size)
-                        : "더미 데이터 · 개발 모드"}
+                      {formatSize(selectedFile.size)}
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -305,12 +293,12 @@ export default function UploadPage() {
                       영상을 드래그하거나 클릭하여 업로드
                     </p>
                     <p className="mt-1.5 text-sm text-[#94A3B8]">
-                      MP4, MOV, AVI 지원 · 최대 2GB (개발 중: 모든 파일 형식 허용)
+                      MP4, MOV, AVI 지원 · 최대 2GB
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={(e) => { e.stopPropagation(); handleDummyLoad(); }}
+                    onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
                     className="mt-1 flex items-center gap-2 rounded-xl bg-[#2563EB] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
                   >
                     <CloudUpload size={15} strokeWidth={2.5} />

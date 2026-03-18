@@ -23,3 +23,7 @@ export const addVideoReaction = (videoId: number, emoji: string): Promise<Reacti
 // DELETE /api/videos/{videoId}/reaction?emoji={emoji} — 이모지 리액션 삭제 (videoId는 album_videos.id)
 export const deleteVideoReaction = (videoId: number, emoji: string): Promise<void> =>
   apiClient.delete(`/api/videos/${videoId}/reaction`, { params: { emoji } }).then(() => {});
+
+// DELETE /api/videos/{videoId} — 영상 자체 삭제
+export const deleteVideo = (videoId: number): Promise<void> =>
+  apiClient.delete(`/api/videos/${videoId}`).then(() => {});

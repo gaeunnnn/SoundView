@@ -1,7 +1,7 @@
 // 공유 앨범 영상 카드 컴포넌트
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { MessageCircle, Plus } from "lucide-react";
+import { MessageCircle, Plus, Trash2 } from "lucide-react";
 import type { EmojiReaction, SharedVideoItem } from "../../../types/sharedAlbum";
 import VideoThumbnail from "../Card/VideoThumbnail";
 import VideoTitleEditor from "../Card/VideoTitleEditor";
@@ -12,9 +12,10 @@ type SharedVideoCardProps = {
   video: SharedVideoItem;
   onReact: (videoId: number, emoji: string) => void;
   onRenameTitle?: (videoId: number, newTitle: string) => void;
+  onRemove?: (videoId: number) => void;
 };
 
-export default function SharedVideoCard({ video, onReact, onRenameTitle }: SharedVideoCardProps) {
+export default function SharedVideoCard({ video, onReact, onRenameTitle, onRemove }: SharedVideoCardProps) {
   const navigate = useNavigate();
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
@@ -103,14 +104,27 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle }: Share
             </div>
           </div>
 
-          {/* 댓글 - 우측 고정 */}
-          <button
-            type="button"
-            className="flex shrink-0 items-center gap-1.5 text-xs text-[#94A3B8] transition-colors hover:text-[#64748B]"
-          >
-            <MessageCircle size={13} strokeWidth={2} />
-            <span>댓글 {video.commentCount}</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* 댓글 */}
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-xs text-[#94A3B8] transition-colors hover:text-[#64748B]"
+            >
+              <MessageCircle size={13} strokeWidth={2} />
+              <span>댓글 {video.commentCount}</span>
+            </button>
+            {/* 영상 제거 */}
+            {onRemove && (
+              <button
+                type="button"
+                onClick={() => onRemove(video.id)}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#FEE2E2] hover:text-[#EF4444]"
+                title="앨범에서 제거"
+              >
+                <Trash2 size={12} strokeWidth={2} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </article>
