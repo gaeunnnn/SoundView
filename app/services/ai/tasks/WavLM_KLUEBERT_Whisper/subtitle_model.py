@@ -145,7 +145,7 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         segments_generator, info = self.whisper_model.transcribe(
             vocal_array,
             language="ko",
-            vad_filter=True,            # Silero VAD로 앞뒤 침묵 제거
+            vad_filter=False,            # Silero VAD로 앞뒤 침묵 제거
             vad_parameters=dict(min_silence_duration_ms=500) # 0.5초 이상 침묵이면 분리
         )
         
