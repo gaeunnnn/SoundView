@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.example.sound.global.auth.oauth.CustomUserPrincipal;
 
 @RestController
 @RequiredArgsConstructor
@@ -21,9 +22,11 @@ public class UserController {
 
     // 로그인한 사용자 정보 조회
     @GetMapping("/me")
-    public UserMeResponse me(Authentication authentication) {
-        User userEntity = (User) authentication.getPrincipal();
-        Long userId = userEntity.getId();
+    public UserMeResponse me(
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        Long userId = principal.getId();
+
         User user = userService.getById(userId);
         return UserMeResponse.from(user);
     }

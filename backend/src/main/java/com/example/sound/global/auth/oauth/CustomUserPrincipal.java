@@ -14,11 +14,13 @@ import java.util.Map;
 @Getter
 public class CustomUserPrincipal implements OAuth2User {
 
+    private final User user;
     private final Long userId;
     private final String nickname;
     private final Map<String, Object> attributes;
 
     public CustomUserPrincipal(User user, Map<String, Object> attributes) {
+        this.user = user;
         this.userId = user.getId();
         this.nickname = user.getNickname();
         this.attributes = attributes;
@@ -37,5 +39,9 @@ public class CustomUserPrincipal implements OAuth2User {
     @Override
     public String getName() {
         return String.valueOf(userId);
+    }
+
+    public Long getId(){
+        return user.getId();
     }
 }
