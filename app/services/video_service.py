@@ -45,10 +45,10 @@ class VideoService:
             tracks = await self.voice_sep.separate(audio_array)
 
             # 4. AI 추론 — 두 모델을 병렬 실행 (하나라도 실패 시 전체 예외 발생)
-            #    SubtitleModel : 목소리 트랙만 사용
-            #    VibrationModel: 목소리 트랙만 사용 (배경음 AI 추가 시 no_vocals 전달)
+            #    SubtitleModel : 원본 오디오 사용 (배경음 포함 원본, AI 자체 노이즈 캔슬링/VAD 최적화)
+            #    VibrationModel: 오디오의 목적에 맞는 트랙만 사용 (예: vocals)
             subtitle_result, vibration_result = await asyncio.gather(
-                self.subtitle_model.predict(tracks["vocals"]),
+                self.subtitle_model.predict(audio_array),
                 self.vibration_model.predict(tracks["vocals"]),
             )
 
