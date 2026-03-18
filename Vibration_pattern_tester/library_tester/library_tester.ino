@@ -69,7 +69,7 @@ uint8_t parseInput(String input, uint8_t* ids) {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   Wire.begin(21, 22);
   delay(200);
 
