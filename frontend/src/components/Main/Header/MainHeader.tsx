@@ -16,9 +16,7 @@ export default function MainHeader({
       <HeaderBrand title="SoundSee" onClick={onClickLogo} />
 
       <div className="flex items-center gap-3">
-        <HeaderActionGroup
-          onClickHelp={onClickHelp}
-        />
+        <HeaderActionGroup onClickHelp={onClickHelp} />
         <HeaderProfileButton userName={userName} userCode={userCode} onClick={onClickProfile} />
       </div>
     </header>

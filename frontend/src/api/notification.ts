@@ -2,35 +2,31 @@
 
 import { apiClient } from "./client";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export type Notification = {
   id: number;
-  type: string;
+  type: "ALBUM_INVITE" | "ALBUM_VIDEO_ADDED" | "VIDEO_COMMENT" | string;
   message: string;
   isRead: boolean;
   createdAt: string;
 };
 
-export type UnreadCount = {
-  count: number;
-};
-
-// GET /api/notifications — 로그인 사용자의 알림 목록을 최신순으로 조회
+// GET /api/notifications — 알림 목록 최신순 조회
 export const getNotifications = (): Promise<Notification[]> =>
   apiClient.get<Notification[]>("/api/notifications").then((res) => res.data);
 
 // GET /api/notifications/unread-count — 읽지 않은 알림 개수 조회
-export const getUnreadCount = (): Promise<UnreadCount> =>
-  apiClient.get<UnreadCount>("/api/notifications/unread-count").then((res) => res.data);
+export const getUnreadCount = (): Promise<number> =>
+  apiClient.get<{ count: number }>("/api/notifications/unread-count").then((res) => res.data.count);
 
-// PATCH /api/notifications/{id}/read — 특정 알림을 읽음 상태로 변경
+// PATCH /api/notifications/{id}/read — 특정 알림 읽음 처리
 export const markNotificationRead = (id: number): Promise<void> =>
   apiClient.patch(`/api/notifications/${id}/read`).then(() => {});
 
-const SSE_URL = `${import.meta.env.VITE_API_BASE_URL}/api/notifications/subscribe`;
-
-// GET /api/notifications/subscribe — SSE 알림 구독 (새 알림 수신 시 onNotification 콜백 호출)
+// GET /api/notifications/subscribe — SSE 실시간 알림 구독, 반환값은 구독 해제 함수
 export const subscribeNotifications = (onNotification: (n: Notification) => void): () => void => {
-  const es = new EventSource(SSE_URL, { withCredentials: true });
+  const es = new EventSource(`${BASE_URL}/api/notifications/subscribe`, { withCredentials: true });
   es.onmessage = (e) => {
     try {
       const data = JSON.parse(e.data) as Notification;
@@ -39,6 +35,15 @@ export const subscribeNotifications = (onNotification: (n: Notification) => void
       // heartbeat 등 파싱 불가 메시지 무시
     }
   };
+  es.addEventListener("ALBUM_INVITE", (e) => {
+    try { onNotification(JSON.parse(e.data)); } catch {}
+  });
+  es.addEventListener("ALBUM_VIDEO_ADDED", (e) => {
+    try { onNotification(JSON.parse(e.data)); } catch {}
+  });
+  es.addEventListener("VIDEO_COMMENT", (e) => {
+    try { onNotification(JSON.parse(e.data)); } catch {}
+  });
   es.onerror = () => es.close();
   return () => es.close();
 };

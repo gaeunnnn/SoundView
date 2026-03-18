@@ -26,17 +26,22 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
 
   // GET /api/albums/{albumId}/videos — 앨범 영상 목록을 불러와 상태에 저장
   const fetchVideos = async (albumId: number) => {
-    const data = await getAlbumVideos(albumId);
-    setVideos(
-      data.map((v) => ({
-        id: v.videoId,
-        title: v.title,
-        thumbnail: v.thumbnailUrl ?? "",
-        duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
-        date: v.createdAt.slice(0, 10).replace(/-/g, "."),
-        uploaderName: v.uploaderName,
-      }))
-    );
+    if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
+    try {
+      const data = await getAlbumVideos(albumId);
+      setVideos(
+        data.map((v) => ({
+          id: v.videoId,
+          title: v.title,
+          thumbnail: v.thumbnailUrl ?? "",
+          duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
+          date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+          uploaderName: v.uploaderName,
+        }))
+      );
+    } catch {
+      setVideos([]);
+    }
   };
 
   const addVideo = (video: VideoItem) => {
@@ -48,7 +53,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
     deleteVideo(id).catch(console.error);
   };
 
-  // POST /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영
+  // PATCH /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영
   const renameVideo = async (id: number, title: string) => {
     await updateVideoTitle(id, title);
     setVideos((prev) => prev.map((v) => (v.id === id ? { ...v, title } : v)));

@@ -48,7 +48,7 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
   // 읽지 않은 알림 개수 초기 로드 + SSE 구독
   useEffect(() => {
     getUnreadCount()
-      .then((res) => setUnreadCount(res.count))
+      .then((count) => setUnreadCount(count))
       .catch(() => {});
 
     const unsubscribe = subscribeNotifications((n) => {
@@ -63,8 +63,7 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
       getNotifications()
         .then((data) => {
           setNotifications(data);
-          const unread = data.filter((n) => !n.isRead).length;
-          setUnreadCount(unread);
+          setUnreadCount(data.filter((n) => !n.isRead).length);
         })
         .catch(() => {});
     }
@@ -105,7 +104,6 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
 
         {open && (
           <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-2xl border border-[#E8EDF4] bg-white shadow-xl">
-            {/* 헤더 */}
             <div className="flex items-center justify-between border-b border-[#E8EDF4] px-4 py-3">
               <span className="text-sm font-semibold text-[#111827]">알림</span>
               {unreadCount > 0 && (
@@ -115,7 +113,6 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
               )}
             </div>
 
-            {/* 알림 목록 */}
             <ul className="max-h-80 overflow-y-auto">
               {notifications.length === 0 ? (
                 <li className="flex flex-col items-center justify-center gap-2 py-10 text-[#94A3B8]">
@@ -133,7 +130,6 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
                         !n.isRead && "bg-[#EFF6FF] hover:bg-[#DBEAFE]",
                       ].join(" ")}
                     >
-                      {/* 읽음/미읽음 도트 */}
                       <span
                         className={[
                           "mt-1.5 h-2 w-2 shrink-0 rounded-full",

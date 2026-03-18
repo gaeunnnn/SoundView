@@ -5,21 +5,21 @@ import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAl
 import type { VideoItem } from "../../../types/video";
 import SharedVideoCard from "./SharedVideoCard";
 import ImportVideoModal from "./ImportVideoModal";
-import { useVideos } from "../../../context/VideosContext";
+import { getMyAlbumVideos, addVideosToAlbum } from "../../../api/album";
+import { addVideoReaction, deleteVideoReaction, updateVideoTitle, deleteVideo } from "../../../api/video";
 import { useUser } from "../../../context/UserContext";
-import { addVideoReaction, deleteVideoReaction } from "../../../api/video";
-import { removeAlbumVideo } from "../../../api/albumVideo";
 
 type Tab = "all" | "mine";
 
 type SharedAlbumContentProps = {
   album: SharedAlbumDetail;
+  myAlbumId: number | null;
 };
 
-export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
+export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumContentProps) {
   const { me } = useUser();
-  const { videos: myVideos } = useVideos();
   const [videos, setVideos] = useState<SharedVideoItem[]>(album.videos);
+  const [myVideos, setMyVideos] = useState<VideoItem[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [searchKeyword, setSearchKeyword] = useState("");
   const [showParticipants, setShowParticipants] = useState(false);
@@ -50,13 +50,16 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
   }, [showParticipants]);
 
   const handleReact = (videoId: number, emoji: string) => {
-    let wasReacted = false;
     setVideos((prev) =>
       prev.map((v) => {
         if (v.id !== videoId) return v;
         const existing = v.reactions.find((r) => r.emoji === emoji);
         if (existing) {
-          wasReacted = existing.reacted;
+          if (existing.reacted) {
+            deleteVideoReaction(videoId, emoji).catch(() => {});
+          } else {
+            addVideoReaction(videoId, emoji).catch(() => {});
+          }
           return {
             ...v,
             reactions: v.reactions.map((r) =>
@@ -70,7 +73,8 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
             ),
           };
         }
-        wasReacted = false;
+        // 새 이모지 추가
+        addVideoReaction(videoId, emoji).catch(() => {});
         return {
           ...v,
           reactions: [
@@ -80,27 +84,25 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
         };
       })
     );
-    if (wasReacted) {
-      deleteVideoReaction(videoId, emoji).catch(console.error);
-    } else {
-      addVideoReaction(videoId, emoji).catch(console.error);
-    }
   };
 
-  const meParticipant = album.participants.find((p) => p.isMe);
+  const meParticipant = album.participants.find((p) => p.code === me?.userCode);
 
   const handleRenameVideo = (videoId: number, newTitle: string) => {
+    updateVideoTitle(videoId, newTitle).catch(() => {});
     setVideos((prev) =>
       prev.map((v) => (v.id === videoId ? { ...v, title: newTitle } : v))
     );
   };
 
-  const handleRemoveVideo = (videoId: number) => {
+  const handleDeleteVideo = async (videoId: number) => {
+    await deleteVideo(videoId).catch(() => {});
     setVideos((prev) => prev.filter((v) => v.id !== videoId));
-    removeAlbumVideo(videoId).catch(console.error);
   };
 
-  const handleImport = (selected: VideoItem[]) => {
+  const handleImport = async (selected: VideoItem[]) => {
+    const videoIds = selected.map((v) => v.id);
+    await addVideosToAlbum(album.id, videoIds).catch(() => {});
     const newSharedVideos: SharedVideoItem[] = selected.map((v) => ({
       ...v,
       uploadedBy: meParticipant ?? { id: 0, name: "나", avatarColor: "#8B5CF6", isMe: true },
@@ -121,7 +123,7 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-    <section className="flex-1 overflow-y-auto bg-[#FAFBFD] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+    <section className="bg-[#FAFBFD] px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8 lg:pt-8">
       <div className="mx-auto max-w-[1280px] space-y-6">
         {/* 헤더 */}
         <div className="flex items-start justify-between">
@@ -198,8 +200,8 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
                             </div>
                           ) : null}
                         </li>
-                        );
-                      })}
+                          );
+                        })}
                     </ul>
                   </div>
                 )}
@@ -210,17 +212,30 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
           {/* 가져오기 버튼 */}
           <button
             type="button"
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 rounded-full bg-[#10B981] px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-[#059669]"
+            onClick={() => {
+              if (!myAlbumId || myAlbumId <= 0 || !Number.isFinite(myAlbumId)) { setShowImport(true); return; }
+              getMyAlbumVideos(myAlbumId).then((data) => {
+                setMyVideos(data.map((v) => ({
+                  id: v.videoId,
+                  title: v.title,
+                  thumbnail: v.thumbnailUrl ?? "",
+                  duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
+                  date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+                  uploaderName: "",
+                })));
+              }).catch(() => {});
+              setShowImport(true);
+            }}
+            className="flex items-center gap-2 rounded-full bg-[#10B981] px-3 py-2.5 sm:px-5 text-sm font-semibold text-white transition-colors hover:bg-[#059669]"
           >
             <Upload size={15} strokeWidth={2.5} />
-            가져오기
+            <span className="hidden sm:inline">가져오기</span>
           </button>
         </div>
 
         {/* 탭 + 검색/정렬 */}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex gap-1 rounded-xl bg-[#F1F5F9] p-1">
+          <div className="flex gap-1 rounded-xl bg-[#F1F5F9] p-1 self-start">
             <button
               type="button"
               onClick={() => setActiveTab("all")}
@@ -249,7 +264,7 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
 
           <div className="flex items-center gap-2">
             {/* 검색 */}
-            <div className="relative">
+            <div className="relative flex-1 sm:flex-none">
               <Search
                 size={14}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-[#94A3B8]"
@@ -259,7 +274,7 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
                 placeholder="영상 검색"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                className="h-9 w-44 rounded-xl border border-[#E2E8F0] pl-8 pr-3 text-sm outline-none placeholder:text-[#CBD5E1] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                className="h-9 w-full sm:w-44 rounded-xl border border-[#E2E8F0] pl-8 pr-3 text-sm outline-none placeholder:text-[#CBD5E1] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
               />
             </div>
             {/* 정렬 */}
@@ -273,16 +288,21 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
           </div>
         </div>
 
-        {/* 영상 그리드 */}
+      </div>
+    </section>
+
+    {/* 영상 그리드 — 흰 배경으로 나머지 전체 채움 */}
+    <div className="flex-1 overflow-y-auto bg-white border-t border-[#E8EDF4]">
+      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {filtered.length > 0 ? (
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((video) => (
               <SharedVideoCard
                 key={video.id}
                 video={video}
                 onReact={handleReact}
                 onRenameTitle={handleRenameVideo}
-                onRemove={handleRemoveVideo}
+                onDelete={handleDeleteVideo}
               />
             ))}
           </div>
@@ -292,7 +312,7 @@ export default function SharedAlbumContent({ album }: SharedAlbumContentProps) {
           </div>
         )}
       </div>
-    </section>
+    </div>
 
     <ImportVideoModal
       isOpen={showImport}

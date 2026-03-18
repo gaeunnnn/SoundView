@@ -19,8 +19,8 @@ export default function VideoToolbar({
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
       <h2 className="text-[26px] font-bold text-[#111827]">전체 영상</h2>
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative w-full sm:w-[300px]">
+      <div className="flex gap-3">
+        <div className="relative flex-1 sm:w-[300px] sm:flex-none">
           <Search
             size={18}
             strokeWidth={2}
@@ -44,7 +44,7 @@ export default function VideoToolbar({
         >
           <option value="latest">최신순</option>
           <option value="oldest">오래된순</option>
-          <option value="title">이름순</option>
+          <option value="title">제목순</option>
           <option value="uploader">작성자순</option>
         </select>
       </div>

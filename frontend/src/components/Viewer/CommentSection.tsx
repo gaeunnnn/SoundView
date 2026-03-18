@@ -5,20 +5,22 @@ import { getComments, addComment, deleteComment } from "../../api/comment";
 import type { CommentItem } from "../../api/comment";
 import { useUser } from "../../context/UserContext";
 
-const AVATAR_COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
+const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444", "#14B8A6"];
 
-function getAvatarColor(name: string): string {
+function getColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  return COLORS[Math.abs(hash) % COLORS.length];
 }
 
 function formatTimeAgo(createdAt: string): string {
-  const diff = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
-  if (diff < 60) return "방금";
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전`;
-  return `${Math.floor(diff / 86400)}일 전`;
+  const diff = Date.now() - new Date(createdAt).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "방금";
+  if (mins < 60) return `${mins}분 전`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  return `${Math.floor(hours / 24)}일 전`;
 }
 
 type Props = {
@@ -31,7 +33,7 @@ export default function CommentSection({ videoId }: Props) {
   const [commentInput, setCommentInput] = useState("");
 
   useEffect(() => {
-    getComments(videoId).then(setComments).catch(console.error);
+    getComments(videoId).then(setComments).catch(() => {});
   }, [videoId]);
 
   const handleSend = async () => {
@@ -41,21 +43,20 @@ export default function CommentSection({ videoId }: Props) {
     try {
       const created = await addComment(videoId, trimmed);
       setComments((prev) => [created, ...prev]);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch {}
   };
 
   const handleDelete = (commentId: number) => {
     setComments((prev) => prev.filter((c) => c.commentId !== commentId));
-    deleteComment(commentId).catch(console.error);
+    deleteComment(commentId).catch(() => {});
   };
 
   const myNickname = me?.nickname ?? "";
-  const avatarInitial = myNickname ? myNickname[0] : "나";
+  const myInitial = myNickname ? myNickname[0] : "나";
+  const myColor = myNickname ? getColor(myNickname) : "#8B5CF6";
 
   return (
-    <div className="flex w-80 shrink-0 flex-col border-l border-[#E8EDF4] bg-white">
+    <div className="flex w-full md:w-80 md:shrink-0 flex-col border-l border-[#E8EDF4] bg-white">
       {/* 헤더 */}
       <div className="flex items-center gap-2 border-b border-[#E8EDF4] px-4 py-3">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -71,9 +72,9 @@ export default function CommentSection({ videoId }: Props) {
       <div className="flex items-center gap-2 border-b border-[#E8EDF4] px-3 py-2.5">
         <div
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-          style={{ backgroundColor: getAvatarColor(myNickname) }}
+          style={{ backgroundColor: myColor }}
         >
-          {avatarInitial}
+          {myInitial}
         </div>
         <input
           type="text"
@@ -95,9 +96,12 @@ export default function CommentSection({ videoId }: Props) {
 
       {/* 댓글 목록 */}
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-3">
+        {comments.length === 0 && (
+          <p className="text-center text-sm text-[#94A3B8] pt-6">첫 댓글을 남겨보세요.</p>
+        )}
         {comments.map((c) => {
           const isMe = c.userNickname === myNickname;
-          const color = getAvatarColor(c.userNickname);
+          const color = getColor(c.userNickname);
           return (
             <div key={c.commentId} className="group flex items-start gap-2.5">
               <div

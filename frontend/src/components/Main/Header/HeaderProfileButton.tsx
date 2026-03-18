@@ -43,21 +43,21 @@ export default function HeaderProfileButton({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-3 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#F8FAFC]"
+        className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#F8FAFC]"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#8B5CF6] text-sm font-semibold text-white">
           {initial}
         </span>
-        <span className="text-sm font-semibold text-[#111827]">{userName}</span>
+        <span className="hidden sm:block text-sm font-semibold text-[#111827]">{userName}</span>
         <ChevronDown
           size={16}
           strokeWidth={2}
-          className={["text-[#94A3B8] transition-transform", isOpen ? "rotate-180" : ""].join(" ")}
+          className={["hidden sm:block text-[#94A3B8] transition-transform", isOpen ? "rotate-180" : ""].join(" ")}
         />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 z-50 w-56 rounded-2xl border border-[#E8EDF4] bg-white py-2 shadow-xl">
+        <div className="absolute right-0 top-12 z-50 w-56 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#E8EDF4] bg-white py-2 shadow-xl">
           {/* 프로필 정보 */}
           <div className="px-4 py-3">
             <p className="text-sm font-bold text-[#1E293B]">{userName}</p>

@@ -36,7 +36,7 @@ apiClient.interceptors.response.use(
       return apiClient(original);
     } catch {
       refreshSubscribers = [];
-      window.location.href = "/";
+      window.location.replace((import.meta.env.VITE_BASE_PATH ?? "") + "/");
       return Promise.reject(error);
     } finally {
       isRefreshing = false;

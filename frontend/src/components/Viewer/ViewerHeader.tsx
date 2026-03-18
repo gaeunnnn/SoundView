@@ -23,16 +23,16 @@ export default function ViewerHeader({ onBack }: ViewerHeaderProps) {
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">
             <span className="text-xs font-bold text-white">S</span>
           </div>
-          <span className="text-base font-bold text-[#111827]">SoundSee</span>
+          <span className="hidden sm:block text-base font-bold text-[#111827]">SoundSee</span>
         </button>
-        <div className="h-4 w-px bg-[#E8EDF4]" />
+        <div className="hidden sm:block h-4 w-px bg-[#E8EDF4]" />
         <button
           type="button"
           onClick={onBack}
           className="flex items-center gap-1.5 text-sm font-medium text-[#64748B] transition-colors hover:text-[#111827]"
         >
           <ArrowLeft size={15} strokeWidth={2} />
-          뒤로가기
+          <span className="hidden sm:inline">뒤로가기</span>
         </button>
       </div>
       <div className="flex items-center gap-3">

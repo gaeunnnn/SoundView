@@ -1,101 +1,125 @@
 // 메인 페이지 전체 레이아웃을 조립하는 페이지 파일
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAlbums, editAlbumTitle, createAlbum, leaveAlbum, getAlbumMembers } from "../api/album";
+import { getAlbums, editAlbumTitle, leaveAlbum, createAlbum, getAlbumMembers, getAlbumVideos } from "../api/album";
 import { useUser } from "../context/UserContext";
 import MainHeader from "../components/Main/Header/MainHeader";
 import MainSidebar from "../components/Main/Sidebar/MainSidebar";
 import MainContent from "../components/Main/Video/MainContent";
+import SharedAlbumContent from "../components/Main/SharedAlbum/SharedAlbumContent";
 import CreateSharedAlbumModal from "../components/Main/Sidebar/CreateSharedAlbumModal";
 import RenameSharedAlbumModal from "../components/Main/Sidebar/RenameSharedAlbumModal";
-import SharedAlbumContent from "../components/Main/SharedAlbum/SharedAlbumContent";
 import ConfirmModal from "../components/Main/Video/ConfirmModal";
-import type { MyAlbumItem, SharedAlbumItem } from "../types/sidebar";
+import type { SharedAlbumItem } from "../types/sidebar";
 import type { SharedAlbumDetail } from "../types/sharedAlbum";
+
+const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
 
 export default function MainPage() {
   const navigate = useNavigate();
   const { me } = useUser();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
-  const [myAlbums, setMyAlbums] = useState<MyAlbumItem[]>([]);
+  const [myAlbumId, setMyAlbumId] = useState<number | null>(null);
   const [sharedAlbums, setSharedAlbums] = useState<SharedAlbumItem[]>([]);
-  const [sharedAlbumDetails, setSharedAlbumDetails] = useState<SharedAlbumDetail[]>([]);
   const [activeSharedAlbumId, setActiveSharedAlbumId] = useState<number | null>(null);
-  const [activeMyAlbumId, setActiveMyAlbumId] = useState<number>(0);
-
-  const AVATAR_COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
-  const getAvatarColor = (name: string) => {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-  };
-
-  useEffect(() => {
-    getAlbums().then(async (albums) => {
-      const mine = albums.filter((a) => a.name === "내 앨범" && a.memberCount === 1).map((a) => ({ id: a.albumId, name: a.name }));
-      const shared = albums.filter((a) => !(a.name === "내 앨범" && a.memberCount === 1)).map((a) => ({ id: a.albumId, name: a.name }));
-      setMyAlbums(mine);
-      setSharedAlbums(shared);
-      if (mine.length > 0) setActiveMyAlbumId(mine[0].id);
-
-      const details = await Promise.all(
-        shared.map(async (a) => {
-          const members = await getAlbumMembers(a.id).catch(() => []);
-          return {
-            id: a.id,
-            name: a.name,
-            participants: members.map((m) => ({
-              id: m.userId,
-              name: m.nickname,
-              avatarColor: getAvatarColor(m.nickname),
-              isMe: m.isMe,
-              code: m.userCode,
-            })),
-            videos: [],
-          };
-        })
-      );
-      setSharedAlbumDetails(details);
-    });
-  }, []);
+  const [activeMyAlbumId, setActiveMyAlbumId] = useState<number | null>(null);
+  const [activeSharedAlbumDetail, setActiveSharedAlbumDetail] = useState<SharedAlbumDetail | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<number | null>(null);
   const [leaveTargetId, setLeaveTargetId] = useState<number | null>(null);
 
   const renameTargetName = sharedAlbums.find((a) => a.id === renameTargetId)?.name ?? "";
   const leaveTargetName = sharedAlbums.find((a) => a.id === leaveTargetId)?.name ?? "";
 
+  useEffect(() => {
+    getAlbums().then((albums) => {
+      const my = albums.find((a) => a.name === "내 앨범" && a.memberCount === 1);
+      const shared = albums.filter((a) => !(a.name === "내 앨범" && a.memberCount === 1));
+      if (my) {
+        setMyAlbumId(my.albumId);
+        setActiveMyAlbumId(my.albumId);
+      }
+      setSharedAlbums(shared.map((a) => ({ id: a.albumId, name: a.name })));
+    }).catch(() => {});
+  }, []);
+
   const handleClickMyAlbum = (albumId: number) => {
     setActiveMyAlbumId(albumId);
     setActiveSharedAlbumId(null);
+    setActiveSharedAlbumDetail(null);
   };
 
   const handleClickSharedAlbum = (albumId: number) => {
+    if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
     setActiveSharedAlbumId(albumId);
-    setActiveMyAlbumId(0);
+    setActiveMyAlbumId(null);
+    setActiveSharedAlbumDetail(null);
+    const albumName = sharedAlbums.find((a) => a.id === albumId)?.name ?? "";
+    Promise.all([getAlbumMembers(albumId), getAlbumVideos(albumId)])
+      .then(([members, videos]) => {
+        setActiveSharedAlbumDetail({
+          id: albumId,
+          name: albumName,
+          participants: members.map((m) => ({
+            id: m.userId,
+            name: m.nickname,
+            avatarColor: COLORS[m.userId % COLORS.length],
+            isMe: m.isMe,
+            code: m.userCode,
+          })),
+          videos: videos.map((v) => {
+            const uploader = members.find((m) => m.nickname === v.uploaderName);
+            return {
+              id: v.videoId,
+              title: v.title,
+              thumbnail: v.thumbnailUrl ?? "",
+              duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
+              date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+              uploadedBy: {
+                id: uploader?.userId ?? 0,
+                name: v.uploaderName,
+                avatarColor: uploader ? COLORS[uploader.userId % COLORS.length] : "#94A3B8",
+                isMe: uploader?.isMe ?? false,
+              },
+              reactions: [],
+              commentCount: v.commentCount,
+            };
+          }),
+        });
+      })
+      .catch(() => {});
   };
 
   const handleRename = (newName: string) => {
     if (renameTargetId === null) return;
     const id = renameTargetId;
-    setSharedAlbums((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, name: newName } : a))
-    );
-    setSharedAlbumDetails((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, name: newName } : d))
-    );
+    setSharedAlbums((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName } : a)));
+    if (activeSharedAlbumDetail?.id === id) {
+      setActiveSharedAlbumDetail((prev) => prev ? { ...prev, name: newName } : prev);
+    }
     setRenameTargetId(null);
     editAlbumTitle(id, newName).catch(console.error);
   };
 
-  const handleLeave = () => {
+  const handleLeave = async () => {
     if (leaveTargetId === null) return;
     const id = leaveTargetId;
+    await leaveAlbum(id).catch(() => {});
     setSharedAlbums((prev) => prev.filter((a) => a.id !== id));
-    setSharedAlbumDetails((prev) => prev.filter((d) => d.id !== id));
-    if (activeSharedAlbumId === id) setActiveSharedAlbumId(null);
+    if (activeSharedAlbumId === id) {
+      setActiveSharedAlbumId(null);
+      setActiveSharedAlbumDetail(null);
+    }
     setLeaveTargetId(null);
-    leaveAlbum(id).catch(console.error);
+  };
+
+  const handleCreateAlbum = async (friends: { id: number; name: string; code: string; avatarColor: string }[]) => {
+    const albumName = friends.map((f) => f.name).join(", ");
+    const res = await createAlbum({
+      name: albumName,
+      memberCodes: friends.map((f) => f.code),
+    });
+    setSharedAlbums((prev) => [...prev, { id: res.albumId, name: res.name }]);
   };
 
   return (
@@ -108,11 +132,11 @@ export default function MainPage() {
         onClickProfile={() => console.log("프로필 클릭")}
       />
 
-      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row">
+      <div className="flex flex-1 overflow-hidden flex-col lg:flex-row pb-14 lg:pb-0">
         <MainSidebar
-          myAlbums={myAlbums}
+          myAlbums={myAlbumId ? [{ id: myAlbumId, name: "내 앨범" }] : []}
           sharedAlbums={sharedAlbums}
-          activeMyAlbumId={activeSharedAlbumId === null ? activeMyAlbumId : undefined}
+          activeMyAlbumId={activeSharedAlbumId === null ? (activeMyAlbumId ?? undefined) : undefined}
           activeSharedAlbumId={activeSharedAlbumId ?? undefined}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -126,42 +150,26 @@ export default function MainPage() {
         <div className={activeSharedAlbumId === null ? "flex flex-1 overflow-hidden" : "hidden"}>
           <MainContent sharedAlbums={sharedAlbums} albumId={activeMyAlbumId} />
         </div>
-        {sharedAlbumDetails.map((albumDetail) => (
-          <div
-            key={albumDetail.id}
-            className={activeSharedAlbumId === albumDetail.id ? "flex flex-1 overflow-hidden" : "hidden"}
-          >
-            <SharedAlbumContent album={albumDetail} />
+
+        {activeSharedAlbumId !== null && (
+          <div className="flex flex-1 overflow-hidden">
+            {activeSharedAlbumDetail ? (
+              <SharedAlbumContent album={activeSharedAlbumDetail} myAlbumId={myAlbumId} />
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-sm text-[#94A3B8]">
+                앨범을 불러오는 중입니다...
+              </div>
+            )}
           </div>
-        ))}
+        )}
       </div>
 
       <CreateSharedAlbumModal
         isOpen={isCreateAlbumOpen}
         onClose={() => setIsCreateAlbumOpen(false)}
         onConfirm={(friends) => {
-          const albumName = friends.map((f) => f.name).join(", ");
-          createAlbum({
-            name: albumName,
-            memberCodes: friends.map((f) => f.code),
-          }).then((res) => {
-            const newAlbum: SharedAlbumItem = { id: res.albumId, name: res.name };
-            const newDetail: SharedAlbumDetail = {
-              id: res.albumId,
-              name: res.name,
-              participants: [
-                { id: me?.id ?? 0, name: me?.nickname ?? "", avatarColor: "#8B5CF6", isMe: true },
-                ...friends.map((f) => ({
-                  id: f.id,
-                  name: f.name,
-                  avatarColor: f.avatarColor,
-                })),
-              ],
-              videos: [],
-            };
-            setSharedAlbums((prev) => [...prev, newAlbum]);
-            setSharedAlbumDetails((prev) => [...prev, newDetail]);
-          }).catch(console.error);
+          handleCreateAlbum(friends).catch(() => {});
+          setIsCreateAlbumOpen(false);
         }}
       />
       <RenameSharedAlbumModal

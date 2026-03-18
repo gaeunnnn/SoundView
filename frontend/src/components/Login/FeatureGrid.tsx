@@ -12,7 +12,7 @@ const featureList = [
 
 export default function FeatureGrid() {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+    <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
       {featureList.map((feature) => (
         <FeatureCard
           key={feature.title}

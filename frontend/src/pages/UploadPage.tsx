@@ -129,16 +129,16 @@ export default function UploadPage() {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">
               <span className="text-xs font-bold text-white">S</span>
             </div>
-            <span className="text-base font-bold text-[#111827]">SoundSee</span>
+            <span className="hidden sm:block text-base font-bold text-[#111827]">SoundSee</span>
           </button>
-          <div className="h-4 w-px bg-[#E8EDF4]" />
+          <div className="hidden sm:block h-4 w-px bg-[#E8EDF4]" />
           <button
             type="button"
             onClick={() => navigate(-1)}
             className="flex items-center gap-1.5 text-sm font-medium text-[#64748B] transition-colors hover:text-[#111827]"
           >
             <ArrowLeft size={15} strokeWidth={2} />
-            뒤로가기
+            <span className="hidden sm:inline">뒤로가기</span>
           </button>
         </div>
         <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function UploadPage() {
       </div>
 
       {/* 콘텐츠 */}
-      <div className="flex-1 overflow-y-auto px-6 py-8">
+      <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
         <div className="mx-auto max-w-4xl">
           {/* 타이틀 */}
           <div className="mb-6">
@@ -236,7 +236,7 @@ export default function UploadPage() {
               onDrop={handleDrop}
               onClick={() => !selectedFile && inputRef.current?.click()}
               className={[
-                "relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-colors",
+                "relative flex min-h-[240px] sm:aspect-video w-full cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed transition-colors",
                 isDragging
                   ? "border-[#2563EB] bg-[#EFF6FF]"
                   : selectedFile
