@@ -1,8 +1,13 @@
 // 헤더 알림 아이콘 및 드롭다운 컴포넌트
 import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
-import { subscribeNotifications, getNotifications, getUnreadNotificationCount, markNotificationRead } from "../../../api/notification";
-import type { NotificationListItem } from "../../../api/notification";
+import {
+  subscribeNotifications,
+  getNotifications,
+  getUnreadCount,
+  markNotificationRead,
+} from "../../../api/notification";
+import type { Notification } from "../../../api/notification";
 
 function timeAgo(createdAt: string): string {
   const diff = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000);
@@ -14,41 +19,22 @@ function timeAgo(createdAt: string): string {
 
 export default function NotificationButton() {
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationListItem[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
   // 마운트 시 읽지 않은 알림 개수 조회
   useEffect(() => {
-    getUnreadNotificationCount().then(setUnreadCount).catch(() => {});
+    getUnreadCount().then(setUnreadCount).catch(() => {});
   }, []);
 
   // SSE 구독 — 새 알림 수신 시 목록 맨 앞에 추가
   useEffect(() => {
-    const es = subscribeNotifications({
-      onAlbumInvite: (data) => {
-        setNotifications((prev) => [
-          { id: Date.now(), type: "ALBUM_INVITE", message: `${data.inviterName}님이 "${data.albumName}" 앨범에 초대했습니다.`, isRead: false, createdAt: new Date().toISOString() },
-          ...prev,
-        ]);
-        setUnreadCount((c) => c + 1);
-      },
-      onAlbumVideoAdded: (data) => {
-        setNotifications((prev) => [
-          { id: Date.now(), type: "ALBUM_VIDEO_ADDED", message: `"${data.albumName}"에 ${data.uploaderName}님이 새 영상을 추가했습니다.`, isRead: false, createdAt: new Date().toISOString() },
-          ...prev,
-        ]);
-        setUnreadCount((c) => c + 1);
-      },
-      onVideoComment: (data) => {
-        setNotifications((prev) => [
-          { id: Date.now(), type: "VIDEO_COMMENT", message: `${data.commenterName}님이 내 영상에 댓글을 달았습니다.`, isRead: false, createdAt: new Date().toISOString() },
-          ...prev,
-        ]);
-        setUnreadCount((c) => c + 1);
-      },
+    const unsubscribe = subscribeNotifications((n: Notification) => {
+      setNotifications((prev) => [n, ...prev]);
+      setUnreadCount((c) => c + 1);
     });
-    return () => es.close();
+    return unsubscribe;
   }, []);
 
   // 외부 클릭 시 드롭다운 닫기
@@ -77,7 +63,7 @@ export default function NotificationButton() {
   };
 
   // 알림 항목 클릭 시 읽음 처리
-  const handleClickItem = (item: NotificationListItem) => {
+  const handleClickItem = (item: Notification) => {
     if (item.isRead) return;
     markNotificationRead(item.id).catch(() => {});
     setNotifications((prev) =>
