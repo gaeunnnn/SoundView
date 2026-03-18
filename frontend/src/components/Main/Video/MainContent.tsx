@@ -88,7 +88,7 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   const handleConfirmShare = async (albumIds: number[]) => {
     if (shareTargetId !== null) {
-      await Promise.all(albumIds.map((albumId) => addVideosToAlbum(albumId, [shareTargetId]).catch(() => {})));
+      await Promise.all(albumIds.map((id) => addVideosToAlbum(id, [shareTargetId]).catch(() => {})));
     }
     setShareTargetId(null);
   };

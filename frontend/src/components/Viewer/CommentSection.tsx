@@ -1,17 +1,9 @@
 // 영상 재생 페이지 우측 댓글 패널 컴포넌트 파일
 import { useEffect, useState } from "react";
 import { Send, Trash2 } from "lucide-react";
-import { getVideoComments, postVideoComment, deleteComment } from "../../api/comment";
+import { getComments, addComment, deleteComment } from "../../api/comment";
+import type { CommentItem } from "../../api/comment";
 import { useUser } from "../../context/UserContext";
-
-type CommentItem = {
-  id: number;
-  authorName: string;
-  authorColor: string;
-  isMe: boolean;
-  text: string;
-  timeAgo: string;
-};
 
 const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444", "#14B8A6"];
 
@@ -31,59 +23,37 @@ function formatTimeAgo(createdAt: string): string {
   return `${Math.floor(hours / 24)}일 전`;
 }
 
-type CommentSectionProps = {
+type Props = {
   videoId: number;
 };
 
-export default function CommentSection({ videoId }: CommentSectionProps) {
+export default function CommentSection({ videoId }: Props) {
   const { me } = useUser();
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [commentInput, setCommentInput] = useState("");
 
   useEffect(() => {
-    getVideoComments(videoId)
-      .then((data) => {
-        setComments(
-          data.map((c) => ({
-            id: c.commentId,
-            authorName: c.userNickname,
-            authorColor: getColor(c.userNickname),
-            isMe: c.userNickname === me?.nickname,
-            text: c.content,
-            timeAgo: formatTimeAgo(c.createdAt),
-          }))
-        );
-      })
-      .catch(() => {});
+    getComments(videoId).then(setComments).catch(() => {});
   }, [videoId]);
 
   const handleSend = async () => {
     const trimmed = commentInput.trim();
     if (!trimmed) return;
+    setCommentInput("");
     try {
-      const created = await postVideoComment(videoId, trimmed);
-      setComments((prev) => [
-        {
-          id: created.commentId,
-          authorName: created.userNickname,
-          authorColor: getColor(created.userNickname),
-          isMe: true,
-          text: created.content,
-          timeAgo: "방금",
-        },
-        ...prev,
-      ]);
-      setCommentInput("");
+      const created = await addComment(videoId, trimmed);
+      setComments((prev) => [created, ...prev]);
     } catch {}
   };
 
-  const handleDelete = async (id: number) => {
-    await deleteComment(id).catch(() => {});
-    setComments((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = (commentId: number) => {
+    setComments((prev) => prev.filter((c) => c.commentId !== commentId));
+    deleteComment(commentId).catch(() => {});
   };
 
-  const myInitial = me?.nickname?.[0] ?? "나";
-  const myColor = me ? getColor(me.nickname) : "#8B5CF6";
+  const myNickname = me?.nickname ?? "";
+  const myInitial = myNickname ? myNickname[0] : "나";
+  const myColor = myNickname ? getColor(myNickname) : "#8B5CF6";
 
   return (
     <div className="flex w-full md:w-80 md:shrink-0 flex-col border-l border-[#E8EDF4] bg-white">
@@ -129,32 +99,36 @@ export default function CommentSection({ videoId }: CommentSectionProps) {
         {comments.length === 0 && (
           <p className="text-center text-sm text-[#94A3B8] pt-6">첫 댓글을 남겨보세요.</p>
         )}
-        {comments.map((c) => (
-          <div key={c.id} className="group flex items-start gap-2.5">
-            <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-              style={{ backgroundColor: c.authorColor }}
-            >
-              {c.authorName[0]}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-semibold text-[#334155]">{c.authorName}</span>
-                <span className="text-[10px] text-[#94A3B8]">{c.timeAgo}</span>
-              </div>
-              <p className="mt-0.5 wrap-break-word text-sm text-[#475569]">{c.text}</p>
-            </div>
-            {c.isMe && (
-              <button
-                type="button"
-                onClick={() => handleDelete(c.id)}
-                className="mt-0.5 shrink-0 text-[#CBD5E1] opacity-0 transition-all group-hover:opacity-100 hover:text-[#EF4444]"
+        {comments.map((c) => {
+          const isMe = c.userNickname === myNickname;
+          const color = getColor(c.userNickname);
+          return (
+            <div key={c.commentId} className="group flex items-start gap-2.5">
+              <div
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                style={{ backgroundColor: color }}
               >
-                <Trash2 size={13} />
-              </button>
-            )}
-          </div>
-        ))}
+                {c.userNickname[0]}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-[#334155]">{c.userNickname}</span>
+                  <span className="text-[10px] text-[#94A3B8]">{formatTimeAgo(c.createdAt)}</span>
+                </div>
+                <p className="mt-0.5 wrap-break-word text-sm text-[#475569]">{c.content}</p>
+              </div>
+              {isMe && (
+                <button
+                  type="button"
+                  onClick={() => handleDelete(c.commentId)}
+                  className="mt-0.5 shrink-0 text-[#CBD5E1] opacity-0 transition-all group-hover:opacity-100 hover:text-[#EF4444]"
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

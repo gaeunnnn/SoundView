@@ -2,7 +2,7 @@
 import { createContext, useContext, useState } from "react";
 import type { VideoItem } from "../types/video";
 import { getAlbumVideos } from "../api/album";
-import { updateVideoTitle } from "../api/video";
+import { updateVideoTitle, deleteVideo } from "../api/video";
 
 type VideosContextValue = {
   videos: VideoItem[];
@@ -49,6 +49,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
 
   const removeVideo = (id: number) => {
     setVideos((prev) => prev.filter((v) => v.id !== id));
+    deleteVideo(id).catch(console.error);
   };
 
   // PATCH /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영

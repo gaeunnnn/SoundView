@@ -13,12 +13,7 @@ import ConfirmModal from "../components/Main/Video/ConfirmModal";
 import type { SharedAlbumItem } from "../types/sidebar";
 import type { SharedAlbumDetail } from "../types/sharedAlbum";
 
-type Friend = {
-  id: number;
-  name: string;
-  code: string;
-  avatarColor: string;
-};
+const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
 
 export default function MainPage() {
   const navigate = useNavigate();
@@ -29,18 +24,17 @@ export default function MainPage() {
   const [sharedAlbums, setSharedAlbums] = useState<SharedAlbumItem[]>([]);
   const [activeSharedAlbumId, setActiveSharedAlbumId] = useState<number | null>(null);
   const [activeMyAlbumId, setActiveMyAlbumId] = useState<number | null>(null);
+  const [activeSharedAlbumDetail, setActiveSharedAlbumDetail] = useState<SharedAlbumDetail | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<number | null>(null);
   const [leaveTargetId, setLeaveTargetId] = useState<number | null>(null);
-  const [activeSharedAlbumDetail, setActiveSharedAlbumDetail] = useState<SharedAlbumDetail | null>(null);
 
   const renameTargetName = sharedAlbums.find((a) => a.id === renameTargetId)?.name ?? "";
   const leaveTargetName = sharedAlbums.find((a) => a.id === leaveTargetId)?.name ?? "";
 
-  // 앨범 목록 API 로드
   useEffect(() => {
     getAlbums().then((albums) => {
-      const my = albums.find((a) => a.owner);
-      const shared = albums.filter((a) => !a.owner);
+      const my = albums.find((a) => a.name === "내 앨범" && a.memberCount === 1);
+      const shared = albums.filter((a) => !(a.name === "내 앨범" && a.memberCount === 1));
       if (my) {
         setMyAlbumId(my.albumId);
         setActiveMyAlbumId(my.albumId);
@@ -62,7 +56,6 @@ export default function MainPage() {
     const albumName = sharedAlbums.find((a) => a.id === albumId)?.name ?? "";
     Promise.all([getAlbumMembers(albumId), getAlbumVideos(albumId)])
       .then(([members, videos]) => {
-        const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
         setActiveSharedAlbumDetail({
           id: albumId,
           name: albumName,
@@ -71,7 +64,7 @@ export default function MainPage() {
             name: m.nickname,
             avatarColor: COLORS[m.userId % COLORS.length],
             isMe: m.isMe,
-            code: m.isMe ? undefined : m.userCode,
+            code: m.userCode,
           })),
           videos: videos.map((v) => {
             const uploader = members.find((m) => m.nickname === v.uploaderName);
@@ -96,27 +89,30 @@ export default function MainPage() {
       .catch(() => {});
   };
 
-  const handleRename = async (newName: string) => {
+  const handleRename = (newName: string) => {
     if (renameTargetId === null) return;
-    await editAlbumTitle(renameTargetId, newName);
-    setSharedAlbums((prev) =>
-      prev.map((a) => (a.id === renameTargetId ? { ...a, name: newName } : a))
-    );
+    const id = renameTargetId;
+    setSharedAlbums((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName } : a)));
+    if (activeSharedAlbumDetail?.id === id) {
+      setActiveSharedAlbumDetail((prev) => prev ? { ...prev, name: newName } : prev);
+    }
     setRenameTargetId(null);
+    editAlbumTitle(id, newName).catch(console.error);
   };
 
   const handleLeave = async () => {
     if (leaveTargetId === null) return;
-    await leaveAlbum(leaveTargetId).catch(() => {});
-    setSharedAlbums((prev) => prev.filter((a) => a.id !== leaveTargetId));
-    if (activeSharedAlbumId === leaveTargetId) {
+    const id = leaveTargetId;
+    await leaveAlbum(id).catch(() => {});
+    setSharedAlbums((prev) => prev.filter((a) => a.id !== id));
+    if (activeSharedAlbumId === id) {
       setActiveSharedAlbumId(null);
       setActiveSharedAlbumDetail(null);
     }
     setLeaveTargetId(null);
   };
 
-  const handleCreateAlbum = async (friends: Friend[]) => {
+  const handleCreateAlbum = async (friends: { id: number; name: string; code: string; avatarColor: string }[]) => {
     const albumName = friends.map((f) => f.name).join(", ");
     const res = await createAlbum({
       name: albumName,
@@ -156,14 +152,13 @@ export default function MainPage() {
 
         {activeSharedAlbumId !== null && (
           <div className="flex flex-1 overflow-hidden">
-            {activeSharedAlbumDetail
-              ? <SharedAlbumContent album={activeSharedAlbumDetail} myAlbumId={myAlbumId} />
-              : (
-                <div className="flex flex-1 items-center justify-center text-sm text-[#94A3B8]">
-                  앨범을 불러오는 중입니다...
-                </div>
-              )
-            }
+            {activeSharedAlbumDetail ? (
+              <SharedAlbumContent album={activeSharedAlbumDetail} myAlbumId={myAlbumId} />
+            ) : (
+              <div className="flex flex-1 items-center justify-center text-sm text-[#94A3B8]">
+                앨범을 불러오는 중입니다...
+              </div>
+            )}
           </div>
         )}
       </div>

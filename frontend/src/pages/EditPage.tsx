@@ -12,7 +12,6 @@ import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUser } from "../context/UserContext";
 import PlayerOverlay from "../components/Viewer/PlayerOverlay";
 import type { SoundEvent } from "../constants/edit";
-import { DUMMY_EDIT_VIDEO, DUMMY_SOUND_EVENTS } from "../constants/edit";
 import { useUpload } from "../context/UploadContext";
 import { useVideos } from "../context/VideosContext";
 
@@ -84,14 +83,13 @@ export default function EditPage() {
   const { uploadedVideoUrl, uploadedFileType, fileName: uploadedFileName } = useUpload();
   const { addVideo } = useVideos();
 
-  // 업로드된 파일이 있으면 그것을 사용, 없으면 더미 데이터
   const isRealFile = !!uploadedVideoUrl && uploadedFileType.startsWith("video/");
-  const mediaUrl = uploadedVideoUrl ?? DUMMY_EDIT_VIDEO.thumbnail;
+  const mediaUrl = uploadedVideoUrl ?? "";
   const mediaTitle = uploadedFileName
     ? uploadedFileName.replace(/\.[^/.]+$/, "") // 확장자 제거
-    : DUMMY_EDIT_VIDEO.title;
+    : "";
 
-  const [events, setEvents] = useState<SoundEvent[]>(DUMMY_SOUND_EVENTS);
+  const [events, setEvents] = useState<SoundEvent[]>([]);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentSec, setCurrentSec] = useState(226);
   const [hoveredDotId, setHoveredDotId] = useState<number | null>(null);
@@ -126,8 +124,8 @@ export default function EditPage() {
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [totalSec, setTotalSec] = useState(isRealFile ? 0 : DUMMY_EDIT_VIDEO.totalSec);
-  const [duration, setDuration] = useState(isRealFile ? "00:00" : DUMMY_EDIT_VIDEO.duration);
+  const [totalSec, setTotalSec] = useState(0);
+  const [duration, setDuration] = useState("00:00");
   const enabledEvents = events.filter((e) => e.enabled);
   const enabledCount = enabledEvents.length;
   const progressPct = (currentSec / totalSec) * 100;

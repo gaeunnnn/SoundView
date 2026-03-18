@@ -7,6 +7,7 @@ import SharedVideoCard from "./SharedVideoCard";
 import ImportVideoModal from "./ImportVideoModal";
 import { getMyAlbumVideos, addVideosToAlbum } from "../../../api/album";
 import { addVideoReaction, deleteVideoReaction, updateVideoTitle, deleteVideo } from "../../../api/video";
+import { useUser } from "../../../context/UserContext";
 
 type Tab = "all" | "mine";
 
@@ -16,6 +17,7 @@ type SharedAlbumContentProps = {
 };
 
 export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumContentProps) {
+  const { me } = useUser();
   const [videos, setVideos] = useState<SharedVideoItem[]>(album.videos);
   const [myVideos, setMyVideos] = useState<VideoItem[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("all");
@@ -84,7 +86,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     );
   };
 
-  const meParticipant = album.participants.find((p) => p.isMe);
+  const meParticipant = album.participants.find((p) => p.code === me?.userCode);
 
   const handleRenameVideo = (videoId: number, newTitle: string) => {
     updateVideoTitle(videoId, newTitle).catch(() => {});
@@ -144,29 +146,39 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
                 </button>
 
                 {showParticipants && (
-                  <div className="absolute left-0 top-8 z-30 w-52 rounded-2xl border border-[#E8EDF4] bg-white p-4 shadow-lg">
+                  <div className="absolute left-0 top-8 z-30 w-64 rounded-2xl border border-[#E8EDF4] bg-white p-4 shadow-lg sm:w-72">
                     <p className="mb-3 text-xs font-semibold text-[#94A3B8]">
                       참여자 {album.participants.length}명
                     </p>
                     <ul className="space-y-2">
-                      {album.participants.map((p) => (
-                        <li key={p.id} className="flex items-center gap-2.5">
+                      {[...album.participants]
+                        .sort((a, b) => {
+                          const aIsMe = a.code === me?.userCode;
+                          const bIsMe = b.code === me?.userCode;
+                          if (aIsMe) return -1;
+                          if (bIsMe) return 1;
+                          return a.name.localeCompare(b.name, "ko");
+                        })
+                        .map((p) => {
+                          const isMe = p.code === me?.userCode;
+                          return (
+                        <li key={p.id} className="flex items-center gap-2.5 overflow-hidden">
                           <div
                             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
                             style={{ backgroundColor: p.avatarColor }}
                           >
                             {p.name[0]}
                           </div>
-                          <span className="text-sm font-medium text-[#1E293B]">
+                          <span className="truncate text-sm font-medium text-[#1E293B]">
                             {p.name}
                           </span>
-                          {p.isMe ? (
-                            <span className="ml-auto rounded-full bg-[#EEF4FF] px-2 py-0.5 text-[10px] font-semibold text-[#2563EB]">
+                          {isMe ? (
+                            <span className="ml-auto shrink-0 rounded-full bg-[#EEF4FF] px-2 py-0.5 text-[10px] font-semibold text-[#2563EB]">
                               나
                             </span>
                           ) : p.code ? (
-                            <div className="ml-auto flex items-center gap-1">
-                              <span className="text-[11px] font-semibold text-[#2563EB]">
+                            <div className="ml-auto flex shrink-0 items-center gap-1">
+                              <span className="whitespace-nowrap text-[11px] font-semibold text-[#2563EB]">
                                 # {p.code}
                               </span>
                               <button
@@ -188,7 +200,8 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
                             </div>
                           ) : null}
                         </li>
-                      ))}
+                          );
+                        })}
                     </ul>
                   </div>
                 )}
