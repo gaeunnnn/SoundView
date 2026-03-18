@@ -50,6 +50,7 @@ export default function MainPage() {
   };
 
   const handleClickSharedAlbum = (albumId: number) => {
+    if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
     setActiveSharedAlbumId(albumId);
     setActiveMyAlbumId(null);
     setActiveSharedAlbumDetail(null);

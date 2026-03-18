@@ -26,6 +26,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
 
   // GET /api/albums/{albumId}/videos — 앨범 영상 목록을 불러와 상태에 저장
   const fetchVideos = async (albumId: number) => {
+    if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
     try {
       const data = await getAlbumVideos(albumId);
       setVideos(

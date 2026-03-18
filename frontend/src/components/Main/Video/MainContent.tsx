@@ -22,7 +22,7 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
   const { videos, fetchVideos, removeVideo, renameVideo } = useVideos();
 
   useEffect(() => {
-    if (albumId !== null) fetchVideos(albumId);
+    if (albumId !== null && albumId > 0 && Number.isFinite(albumId)) fetchVideos(albumId);
   }, [albumId]);
   const [openedMenuId, setOpenedMenuId] = useState<number | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);

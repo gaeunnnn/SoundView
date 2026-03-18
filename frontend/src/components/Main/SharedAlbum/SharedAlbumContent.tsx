@@ -123,7 +123,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-    <section className="flex-1 overflow-y-auto bg-[#FAFBFD] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+    <section className="bg-[#FAFBFD] px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8 lg:pt-8">
       <div className="mx-auto max-w-[1280px] space-y-6">
         {/* 헤더 */}
         <div className="flex items-start justify-between">
@@ -213,7 +213,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
           <button
             type="button"
             onClick={() => {
-              if (!myAlbumId) { setShowImport(true); return; }
+              if (!myAlbumId || myAlbumId <= 0 || !Number.isFinite(myAlbumId)) { setShowImport(true); return; }
               getMyAlbumVideos(myAlbumId).then((data) => {
                 setMyVideos(data.map((v) => ({
                   id: v.videoId,
@@ -288,7 +288,12 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
           </div>
         </div>
 
-        {/* 영상 그리드 */}
+      </div>
+    </section>
+
+    {/* 영상 그리드 — 흰 배경으로 나머지 전체 채움 */}
+    <div className="flex-1 overflow-y-auto bg-white border-t border-[#E8EDF4]">
+      <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((video) => (
@@ -307,7 +312,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
           </div>
         )}
       </div>
-    </section>
+    </div>
 
     <ImportVideoModal
       isOpen={showImport}
