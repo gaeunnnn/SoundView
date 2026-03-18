@@ -37,11 +37,11 @@ class StorageService:
                     os.unlink(temp_file.name)
                 raise Exception(f"영상 다운로드 실패: {str(e)}")
 
-    async def upload_results(self, video_id: str, subtitle_result: list, vibration_result: list) -> tuple[str, str]:
+    async def upload_results(self, video_id: str, subtitle_result: list, vibration_result: list, sound_event_result: list) -> tuple[str, str, str]:
         """
-        처리 결과(자막, 진동) JSON을 각각 MinIO에 업로드하고 접근 URL 튜플을 반환합니다.
+        처리 결과(자막, 진동, 효과음) JSON을 각각 MinIO에 업로드하고 접근 URL 튜플을 반환합니다.
         """
-        print(f"Uploading subtitle and vibration results for video {video_id} to MinIO...")
+        print(f"Uploading results for video {video_id} to MinIO...")
 
         # 실제 운영: boto3 또는 minio 라이브러리 사용
         # bucket = "results"
@@ -50,8 +50,9 @@ class StorageService:
         # 시뮬레이션
         subtitle_url = f"http://{settings.MINIO_ENDPOINT}/results/{video_id}_subtitle.json"
         vibration_url = f"http://{settings.MINIO_ENDPOINT}/results/{video_id}_vibration.json"
+        sound_event_url = f"http://{settings.MINIO_ENDPOINT}/results/{video_id}_sound_event.json"
         
-        return subtitle_url, vibration_url
+        return subtitle_url, vibration_url, sound_event_url
 
 
     def cleanup(self, file_path: str) -> None:

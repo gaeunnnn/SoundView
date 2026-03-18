@@ -44,3 +44,6 @@ test_ai_models.py
 
 # 테스트용 결과파일
 results/
+
+# github clone 파일
+PretrainedSED/

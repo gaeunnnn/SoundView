@@ -6,6 +6,7 @@ from app.services.audio_service import AudioService
 from app.services.callback_service import CallbackService
 from app.services.ai.common.voice_separator import VoiceSeparator
 from app.services.ai.tasks.WavLM_KLUEBERT_Whisper.model_handler import SubtitleModel, VibrationModel
+from app.services.ai.tasks.atst.sound_event_model import SoundEventModel
 
 
 class VideoService:
@@ -18,8 +19,10 @@ class VideoService:
         self.storage = StorageService()
         self.audio = AudioService()
         self.voice_sep = VoiceSeparator()         # 공통 음성 분리 (Demucs)
+        print("[VideoService] AI 자막, 진동, 효과음 모델을 백그라운드로 로딩 시작합니다...")
         self.subtitle_model = SubtitleModel()
         self.vibration_model = VibrationModel()
+        self.sound_event_model = SoundEventModel()
         self.callback = CallbackService()
 
     async def process_video(self, video_id: str, video_url: str) -> Dict[str, Any]:
@@ -44,24 +47,29 @@ class VideoService:
             #    각 AI 모델은 해당 트랙만 수신하여 정확도가 높아집니다.
             tracks = await self.voice_sep.separate(audio_array)
 
-            # 4. AI 추론 — 두 모델을 병렬 실행 (하나라도 실패 시 전체 예외 발생)
+            # 4. AI 추론 — 세 모델을 병렬 실행 (하나라도 실패 시 전체 예외 발생)
             #    SubtitleModel : 원본 오디오 사용 (배경음 포함 원본, AI 자체 노이즈 캔슬링/VAD 최적화)
             #    VibrationModel: 오디오의 목적에 맞는 트랙만 사용 (예: vocals)
-            subtitle_result, vibration_result = await asyncio.gather(
+            #    SoundEventModel: 배경음 전용 분류 분석 (no_vocals)
+            subtitle_result, vibration_result, sound_event_result = await asyncio.gather(
                 self.subtitle_model.predict(audio_array),
                 self.vibration_model.predict(tracks["vocals"]),
+                self.sound_event_model.predict(tracks["no_vocals"])
             )
 
             # 4. 후처리 — MinIO에 결과 업로드 (분리 업로드)
-            subtitle_url, vibration_url = await self.storage.upload_results(video_id, subtitle_result, vibration_result)
+            subtitle_url, vibration_url, sound_event_url = await self.storage.upload_results(
+                video_id, subtitle_result, vibration_result, sound_event_result
+            )
 
             # 5. Spring Boot 완료 콜백
-            await self.callback.notify_complete(video_id, subtitle_url, vibration_url)
+            await self.callback.notify_complete(video_id, subtitle_url, vibration_url, sound_event_url)
 
             return {
                 "video_id": video_id,
                 "subtitle_url": subtitle_url,
                 "vibration_url": vibration_url,
+                "sound_event_url": sound_event_url,
                 "status": "success"
             }
         finally:
