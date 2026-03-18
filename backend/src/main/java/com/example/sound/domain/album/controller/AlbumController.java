@@ -3,6 +3,7 @@ package com.example.sound.domain.album.controller;
 import com.example.sound.domain.album.dto.*;
 import com.example.sound.domain.album.service.AlbumService;
 import com.example.sound.domain.user.entity.User;
+import com.example.sound.global.auth.oauth.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,27 +24,27 @@ public class AlbumController {
     @Operation(summary = "앨범 목록 조회", description = "로그인 사용자가 속한 앨범 목록을 조회합니다.")
     @GetMapping
     public List<AlbumResponse> getAlbums(
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return albumService.getUserAlbums(user.getId());
+        return albumService.getUserAlbums(principal.getId());
     }
 
     @Operation(summary = "앨범 생성")
     @PostMapping
     public AlbumCreateResponse createAlbum(
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestBody AlbumCreateRequest request
     ) {
-        return albumService.createAlbum(user.getId(), request);
+        return albumService.createAlbum(principal.getId(), request);
     }
 
     @Operation(summary = "앨범 나가기")
     @DeleteMapping("/{albumId}/leave")
     public void leaveAlbum(
             @PathVariable Long albumId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        albumService.leaveAlbum(albumId, user.getId());
+        albumService.leaveAlbum(albumId, principal.getId());
     }
 
     @Operation(summary = "앨범 수정")
@@ -51,11 +52,11 @@ public class AlbumController {
     public ResponseEntity<AlbumUpdateResponse> updateAlbum(
             @PathVariable Long albumId,
             @RequestBody AlbumUpdateRequest request,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
 
         AlbumUpdateResponse response =
-                albumService.updateAlbum(albumId, user.getId(), request);
+                albumService.updateAlbum(albumId, principal.getId(), request);
 
         return ResponseEntity.ok(response);
     }
@@ -64,12 +65,12 @@ public class AlbumController {
     @PostMapping("/{albumId}/videos")
     public ResponseEntity<AlbumVideoAddResponse> addVideosToAlbum(
             @PathVariable Long albumId,
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestBody AlbumVideoAddRequest request
     ) {
 
         AlbumVideoAddResponse response =
-                albumService.addVideosToAlbum(albumId, user.getId(), request);
+                albumService.addVideosToAlbum(albumId, principal.getId(), request);
 
         return ResponseEntity.ok(response);
     }
@@ -78,11 +79,11 @@ public class AlbumController {
     @GetMapping("/{albumId}/users")
     public ResponseEntity<List<AlbumUserResponse>> getAlbumUsers(
             @PathVariable Long albumId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
 
         List<AlbumUserResponse> users =
-                albumService.getAlbumUsers(albumId, user.getId());
+                albumService.getAlbumUsers(albumId, principal.getId());
 
         return ResponseEntity.ok(users);
     }

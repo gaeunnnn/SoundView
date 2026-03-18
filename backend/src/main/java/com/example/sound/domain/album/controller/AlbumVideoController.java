@@ -3,6 +3,7 @@ package com.example.sound.domain.album.controller;
 import com.example.sound.domain.album.dto.AlbumVideoResponse;
 import com.example.sound.domain.album.service.AlbumVideoService;
 import com.example.sound.domain.user.entity.User;
+import com.example.sound.global.auth.oauth.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -21,8 +22,8 @@ public class AlbumVideoController {
     @GetMapping("/{albumId}/videos")
     public List<AlbumVideoResponse> getAlbumVideos(
             @PathVariable Long albumId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return albumVideoService.getAlbumVideos(albumId, user.getId());
+        return albumVideoService.getAlbumVideos(albumId, principal.getId());
     }
 }
