@@ -3,10 +3,14 @@ package com.example.sound.domain.video.service;
 import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
+import com.example.sound.domain.user.entity.User;
+import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.domain.video.dto.VideoResponse;
 import com.example.sound.domain.video.dto.VideoUpdateRequest;
 import com.example.sound.domain.video.dto.VideoUpdateResponse;
 import com.example.sound.domain.video.entity.Video;
+import com.example.sound.domain.video.entity.VideoFailReason;
+import com.example.sound.domain.video.entity.VideoStatus;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
 import com.example.sound.domain.video.repository.VideoRepository;
@@ -25,6 +29,7 @@ public class VideoService {
     private final VideoReactionRepository videoReactionRepository;
     private final VideoCommentRepository videoCommentRepository;
     private final AlbumRepository albumRepository;
+    private final UserRepository userRepository;
 
     // 공유 앨범에서만 제거 (업로드 취소)
     @Transactional
@@ -98,5 +103,67 @@ public class VideoService {
         return videos.stream()
                 .map(VideoResponse::from)
                 .toList();
+    }
+
+    public VideoStatus getStatus(Long videoId) {
+
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        return video.getStatus();
+    }
+
+    // 영상 생성 -> pending
+    @Transactional
+    public Long createVideo(Long userId, String title) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+
+        Video video = Video.builder()
+                .uploader(user)
+                .title(title)
+                .build();
+
+        videoRepository.save(video);
+
+        return video.getId();
+    }
+
+    // 영상 업로드 완료 -> processing
+    @Transactional
+    public void markUploadComplete(Long videoId, Long userId, String videoUrl){
+
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        if (!video.getUploader().getId().equals(userId)) {
+            throw new IllegalArgumentException("업로드 완료 처리 권한 없음");
+        }
+
+        // 영상 URL 저장
+        video.updateVideoUrl(videoUrl);
+
+        // 상태 변경
+        video.markProcessing();
+    }
+
+    // 완료 처리 -> AI 콜백
+    @Transactional
+    public void completeVideo(Long videoId, String subtitleUrl) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        video.markCompleted(subtitleUrl);
+    }
+
+    // 실패 처리
+    @Transactional
+    public void failVideo(Long videoId, VideoFailReason reason) {
+
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        video.markFailed(reason);
     }
 }

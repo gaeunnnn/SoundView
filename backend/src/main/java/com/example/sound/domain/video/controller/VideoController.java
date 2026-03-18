@@ -4,7 +4,10 @@ import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.video.dto.VideoResponse;
 import com.example.sound.domain.video.dto.VideoUpdateRequest;
 import com.example.sound.domain.video.dto.VideoUpdateResponse;
+import com.example.sound.domain.video.entity.VideoStatus;
 import com.example.sound.domain.video.service.VideoService;
+import com.example.sound.global.auth.oauth.CustomUserPrincipal;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -19,39 +22,77 @@ public class VideoController {
     private final VideoService videoService;
 
     // 공유앨범에서만 제거 (업로드 취소)
+    @Operation(summary = "공유 앨범에서 영상 제거 (업로드 취소)")
     @DeleteMapping("/album-videos/{albumVideoId}")
     public void removeFromAlbum(
             @PathVariable Long albumVideoId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        videoService.removeFromAlbum(albumVideoId, user.getId());
+        videoService.removeFromAlbum(albumVideoId, principal.getId());
     }
 
     // 영상 자체 삭제
+    @Operation(summary = "영상 삭제")
     @DeleteMapping("/videos/{videoId}")
     public void deleteVideo(
             @PathVariable Long videoId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        videoService.deleteVideo(videoId, user.getId());
+        videoService.deleteVideo(videoId, principal.getId());
     }
 
     // 영상 제목 수정
+    @Operation(summary = "영상 제목 수정")
     @PatchMapping("/videos/{videoId}")
     public VideoUpdateResponse updateVideoTitle(
             @PathVariable Long videoId,
-            @AuthenticationPrincipal User user,
+            @AuthenticationPrincipal CustomUserPrincipal principal,
             @RequestBody VideoUpdateRequest request
     ){
-        return videoService.updateVideoTitle(videoId,user.getId(),request);
+        return videoService.updateVideoTitle(videoId,principal.getId(),request);
     }
 
     // 공유 앨범에서 내가 만든 영상 조회
+    @Operation(summary = "공유 앨범에서 내가 업로드한 영상 조회")
     @GetMapping("/albums/{albumId}/videos/my")
     public List<VideoResponse> getMyVideosInAlbum(
             @PathVariable Long albumId,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return videoService.getMyVideosInAlbum(albumId, user.getId());
+        return videoService.getMyVideosInAlbum(albumId, principal.getId());
+    }
+
+    @Operation(summary = "영상 생성 (업로드 준비, 상태: PENDING)")
+    @PostMapping("/videos")
+    public Long createVideo(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestParam String title
+    ) {
+        return videoService.createVideo(principal.getId(), title);
+    }
+
+    @Operation(summary = "영상 업로드 완료 처리 (상태: PROCESSING)")
+    @PostMapping("/videos/{videoId}/upload-complete")
+    public void uploadComplete(
+            @PathVariable Long videoId,
+            @RequestParam String videoUrl,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        videoService.markUploadComplete(videoId, principal.getId(), videoUrl);
+    }
+
+    @Operation(summary = "영상 처리 상태 조회")
+    @GetMapping("/videos/{videoId}/status")
+    public VideoStatus getStatus(@PathVariable Long videoId) {
+        return videoService.getStatus(videoId);
+    }
+
+    @Operation(summary = "AI 처리 완료 콜백 (상태: COMPLETED)")
+    @PutMapping("/videos/{videoId}/complete")
+    public void complete(
+            @PathVariable Long videoId,
+            @RequestParam String subtitleUrl
+    ) {
+        videoService.completeVideo(videoId, subtitleUrl);
     }
 }
