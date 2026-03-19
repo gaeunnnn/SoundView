@@ -1,9 +1,16 @@
+import json
 import httpx
 import os
+import logging
+import aioboto3
+from botocore.exceptions import ClientError
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any, Dict
 from app.core.config import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class StorageService:
@@ -61,18 +68,56 @@ class StorageService:
         """
         처리 결과(자막, 진동, 효과음) JSON을 각각 MinIO에 업로드하고 접근 URL 튜플을 반환합니다.
         """
-        print(f"Uploading results for video {video_id} to MinIO...")
+        logger.info(f"[StorageService] 비디오 {video_id}의 자막 파일 업로드 시작")
 
-        # 실제 운영: boto3 또는 minio 라이브러리 사용
-        # bucket = "results"
-        # minio_client.put_object(...)
+        bucket = settings.AWS_S3_BUCKET_NAME
+        endpoint = settings.AWS_S3_ENDPOINT
 
-        # 시뮬레이션
-        subtitle_url = f"http://{settings.MINIO_ENDPOINT}/results/{video_id}_subtitle.json"
-        vibration_url = f"http://{settings.MINIO_ENDPOINT}/results/{video_id}_vibration.json"
-        sound_event_url = f"http://{settings.MINIO_ENDPOINT}/results/{video_id}_sound_event.json"
+        upload_tasks = {
+            f"results/{video_id}_subtitle.json": subtitle_result,
+            f"results/{video_id}_vibration.json": vibration_result,
+            f"results/{video_id}_sound_event.json": sound_event_result
+        }
+
+        uploaded_urls = []
+        session = aioboto3.Session()
+
+        try:
+            # S3 클라이언트 세션 비동기 연결
+            async with session.client(
+                's3',
+                endpoint_url=endpoint,
+                aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
+                aws_secret_access_key=settings.AWS_S3_SECRET_KEY
+            ) as s3:
+
+                # 매핑된 3개의 파일(자막, 진동, 효과음)을 순차적으로 업로드
+                for object_key, data in upload_tasks.items():
+                    # 리스트/딕셔너리 데이터를 JSON 문자열로 변환 후 UTF-8 바이트로 인코딩 (한글 깨짐 방지)
+                    json_body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+
+                    # 로컬에 임시 파일을 만들지 안고 메모리에서 S3 버킷으로 직접 전송
+                    await s3.put_object(
+                        Bucket=bucket,
+                        Key=object_key,
+                        Body=json_body,
+                        ContentType='application/json'
+                    )
+
+                    # 반환할 URL 조립
+                    file_url = f"{endpoint}/{bucket}/{object_key}"
+                    uploaded_urls.append(file_url)
+
+                    logger.info(f"[StorageService] S3/MinIO 업로드 완료: {object_key}")
         
-        return subtitle_url, vibration_url, sound_event_url
+            return tuple(uploaded_urls)
+        
+        except ClientError as e:
+            logger.error(f"[StorageService] S3/MinIO 업로드 중 AWS 클라이언트 에러 발생: {e}")
+            raise RuntimeError(f"결과 업로드 실패 (ClientError): {e}")
+        except Exception as e:
+            logger.error(f"[StorageService] S3/MinIO 업로드 중 알 수 없는 에러 발생: {e}")
+            raise RuntimeError(f"결과 업로드 실패: {e}")
 
 
     def cleanup(self, file_path: str) -> None:

@@ -7,11 +7,11 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api/v1"
     
-    # MinIO 설정 - 반드시 .env 파일 또는 환경 변수로 주입 필요 (기본값 없음)
-    MINIO_ENDPOINT: str = "localhost:9000"
-    MINIO_ACCESS_KEY: str  # 기본값 제거 - 없으면 ValidationError 발생
-    MINIO_SECRET_KEY: str  # 기본값 제거 - 없으면 ValidationError 발생
-    MINIO_SECURE: bool = False
+    # AWS S3 설정
+    AWS_S3_ENDPOINT: str     # 예: https://s3.ap-northeast-2.amazonaws.com (또는 MinIO URL)
+    AWS_S3_ACCESS_KEY: str
+    AWS_S3_SECRET_KEY: str
+    AWS_S3_BUCKET_NAME: str = "results"
     
     # Spring Boot 설정
     SPRING_BOOT_API_URL: str = "http://localhost:8080"
