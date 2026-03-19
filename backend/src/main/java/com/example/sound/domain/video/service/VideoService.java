@@ -1,10 +1,10 @@
 package com.example.sound.domain.video.service;
 
 import com.example.sound.domain.album.entity.AlbumVideo;
-import com.example.sound.domain.album.repository.AlbumRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
+import com.example.sound.domain.video.dto.VideoProcessMessage;
 import com.example.sound.domain.video.dto.VideoResponse;
 import com.example.sound.domain.video.dto.VideoUpdateRequest;
 import com.example.sound.domain.video.dto.VideoUpdateResponse;
@@ -14,6 +14,8 @@ import com.example.sound.domain.video.entity.VideoStatus;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
 import com.example.sound.domain.video.repository.VideoRepository;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.example.sound.global.config.RabbitMQConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,8 +30,8 @@ public class VideoService {
     private final VideoRepository videoRepository;
     private final VideoReactionRepository videoReactionRepository;
     private final VideoCommentRepository videoCommentRepository;
-    private final AlbumRepository albumRepository;
     private final UserRepository userRepository;
+    private final RabbitTemplate rabbitTemplate;
 
     // 공유 앨범에서만 제거 (업로드 취소)
     @Transactional
@@ -146,6 +148,18 @@ public class VideoService {
 
         // 상태 변경
         video.markProcessing();
+
+        // MQ 메시지 발행
+        VideoProcessMessage message = VideoProcessMessage.builder()
+                .videoId(video.getId())
+                .videoUrl(video.getVideoUrl())
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE,
+                RabbitMQConfig.ROUTING_KEY,
+                message
+        );
     }
 
     // 완료 처리 -> AI 콜백

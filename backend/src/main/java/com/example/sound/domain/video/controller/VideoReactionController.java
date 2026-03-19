@@ -4,6 +4,7 @@ import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.video.dto.VideoReactionRequest;
 import com.example.sound.domain.video.dto.VideoReactionResponse;
 import com.example.sound.domain.video.service.VideoReactionService;
+import com.example.sound.global.auth.oauth.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,9 +24,9 @@ public class VideoReactionController {
     public ResponseEntity<VideoReactionResponse> addReaction(
             @PathVariable Long videoId,
             @RequestBody VideoReactionRequest request,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal CustomUserPrincipal principal
     ){
-        VideoReactionResponse response =  videoReactionService.addReaction(videoId, user.getId(), request);
+        VideoReactionResponse response =  videoReactionService.addReaction(videoId, principal.getId(), request);
 
         return ResponseEntity.ok(response);
     }
@@ -35,9 +36,9 @@ public class VideoReactionController {
     public ResponseEntity<Void> removeReaction(
             @PathVariable Long videoId,
             @RequestParam String emoji,
-            @AuthenticationPrincipal User user
+            @AuthenticationPrincipal  CustomUserPrincipal principal
     ){
-        videoReactionService.removeReaction(videoId, user.getId(), emoji);
+        videoReactionService.removeReaction(videoId, principal.getId(), emoji);
 
         return ResponseEntity.ok().build();
     }
