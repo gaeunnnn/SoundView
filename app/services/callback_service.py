@@ -16,12 +16,12 @@ class CallbackService:
 
         # 1. SpringBoot로 보낼 최종 완료 메시지 페이로드 구성
         result_payload = {
-            "videoid" : video_id,
+            "videoId" : video_id,
             "status" : "SUCCESS",
             "result" : {
-                "subtitle_key" : subtitle_key,
-                "vibration_key" : vibration_key,
-                "sound_event_key" : sound_event_key
+                "subtitleKey" : subtitle_key,
+                "vibrationKey" : vibration_key,
+                "soundEventKey" : sound_event_key
             }
         }
 
