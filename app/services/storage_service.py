@@ -68,6 +68,21 @@ class StorageService:
         """
         처리 결과(자막, 진동, 효과음) JSON을 각각 MinIO에 업로드하고 접근 URL 튜플을 반환합니다.
         """
+
+        # 테스트용 코드, 임시 url을 반환함.
+        logger.info(f"[StorageService] 테스트용 임시 비디오 {video_id}의 자막 파일 업로드 시작")
+        # Spring Boot로 넘겨줄 S3 Object Key (URL 전체가 아닌 Key만 넘기는 것이 정석입니다)
+        subtitle_key = f"results/{video_id}_subtitle.json"
+        vibration_key = f"results/{video_id}_vibration.json"
+        sound_event_key = f"results/{video_id}_sound_event.json"
+        logger.info(f"[StorageService] 가짜(Mock) S3 업로드 완료 처리: {subtitle_key}")
+        
+        # 실제 URL이 아닌 Object Key를 튜플로 반환
+        return subtitle_key, vibration_key, sound_event_key
+
+
+        # 실제로 서비스하는 코드, S3에 데이터를 저장함.
+        #==================================================
         logger.info(f"[StorageService] 비디오 {video_id}의 자막 파일 업로드 시작")
 
         bucket = settings.AWS_S3_BUCKET_NAME

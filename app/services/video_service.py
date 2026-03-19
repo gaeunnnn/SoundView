@@ -30,7 +30,7 @@ class VideoService:
         1. 영상 다운로드 (StorageService)
         2. AI 추론       (SubtitleModel + VibrationModel 병렬 실행)
         3. 결과 업로드   (StorageService)
-        4. 완료 콜백     (CallbackService)
+        4. 완료 콜백(RabbitMQ 사용)     (CallbackService)
         5. 임시 파일 정리
         
         두 AI 모델 중 하나라도 실패하면 전체가 실패합니다.

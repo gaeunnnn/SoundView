@@ -48,23 +48,31 @@ class RabbitMQClient:
             logger.error(f"❌ RabbitMQ Consumer 구동 실패: {e}")
             raise
 
-    async def send_message(self, message: dict):
-        """메시지를 큐에 전송합니다."""
+    async def send_message(self, message: dict, queue_name: str = None):
+        """메시지를 지정된 큐에 전송합니다."""
         if not self.channel:
             await self.connect()
         
+        # queue_name이 명시되지 않으면 기존처럼 기본 설정된 큐 사용(하위 호환성 유지)
+        target_queue = queue_name or settings.RABBITMQ_QUEUE_NAME
+
         try:
+            # queue가 존재하지 않는 경우 queue를 만들어줌
+            await self.channel.declare_queue(target_queue, durable=True)
+
             await self.channel.default_exchange.publish(
                 aio_pika.Message(
-                    body=json.dumps(message).encode("utf-8"),
-                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT # 메시지 영속성 추가 (durable=True 큐와 함께 사용)
+                    # ensure_ascii=False 추가: JSON 변환 시 한글 데이터 깨짐 방지
+                    body=json.dumps(message, ensure_ascii=False).encode("utf-8"),
+                    delivery_mode=aio_pika.DeliveryMode.PERSISTENT   # 메시지 영속성 추가 (durable=True 큐와 함께 사용)
                 ),
-                routing_key=settings.RABBITMQ_QUEUE_NAME
+                routing_key=target_queue    # 동적으로 목적지 큐 할당
             )
-            logger.info(f"📤 메시지 전송 성공: {message}")
+            logger.info(f"📤 '{target_queue}' 큐로 메시지 전송 성공: {message}")
         except Exception as e:
-            logger.error(f"❌ 메시지 전송 실패: {e}")
+            logger.error(f"❌ '{target_queue}' 큐로 메시지 전송 실패: {e}")
             raise
+
 
 # 전역에서 재사용할 싱글톤 인스턴스
 rabbitmq_client = RabbitMQClient()
