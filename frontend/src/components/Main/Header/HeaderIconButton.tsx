@@ -17,7 +17,7 @@ export default function HeaderIconButton({
       type="button"
       aria-label={ariaLabel}
       onClick={onClick}
-      className="flex h-9 w-9 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F8FAFC] hover:text-[#475569]"
+      className="flex h-9 w-9 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#475569]"
     >
       {children}
     </button>

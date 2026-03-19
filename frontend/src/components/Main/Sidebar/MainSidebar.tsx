@@ -45,6 +45,7 @@ export default function MainSidebar({
               <SidebarFriendItem
                 key={album.id}
                 label={album.name}
+                members={album.members}
                 isActive={album.id === activeSharedAlbumId}
                 isCollapsed={isCollapsed}
                 onClick={() => { onClickSharedAlbum?.(album.id); setMobileOpen(false); }}
@@ -53,7 +54,7 @@ export default function MainSidebar({
               />
             ))
           ) : isCollapsed ? null : (
-            <div className="rounded-xl bg-[#F8FAFC] px-4 py-4 text-sm leading-6 text-[#94A3B8]">
+            <div className="rounded-xl bg-[#F0F4FF] px-4 py-4 text-sm leading-6 text-[#94A3B8]">
               아직 공유 앨범이 없습니다.
             </div>
           )}
@@ -63,13 +64,13 @@ export default function MainSidebar({
             onClick={() => { onClickCreateSharedAlbum?.(); setMobileOpen(false); }}
             title={isCollapsed ? "공유 앨범 만들기" : undefined}
             className={[
-              "mt-2 flex rounded-2xl border border-dashed border-[#BFDBFE] bg-[#F8FBFF] text-sm font-semibold text-[#2563EB] transition-colors hover:bg-[#F0F7FF]",
+              "mt-2 flex rounded-2xl border border-dashed border-[#BFDBFE] bg-[#EFF6FF] text-sm font-semibold text-[#2563EB] transition-colors hover:bg-[#DBEAFE]",
               isCollapsed
                 ? "h-11 w-full items-center justify-center"
                 : "h-11 w-full items-center gap-3 px-4",
             ].join(" ")}
           >
-            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E8F1FF]">
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#DBEAFE]">
               <Plus size={14} strokeWidth={2.5} />
             </span>
             {!isCollapsed && <span>공유 앨범 만들기</span>}
@@ -84,7 +85,7 @@ export default function MainSidebar({
       {/* 데스크톱 사이드바 */}
       <aside
         className={[
-          "group relative hidden border-r border-[#E8EDF4] bg-white lg:flex lg:h-[calc(100vh-72px)] lg:flex-col",
+          "group relative hidden border-r border-[#E8EDF4] bg-[#F8FAFF] lg:flex lg:h-[calc(100vh-72px)] lg:flex-col",
           isCollapsed ? "lg:w-[72px]" : "lg:w-[240px]",
         ].join(" ")}
       >
@@ -93,7 +94,7 @@ export default function MainSidebar({
       </aside>
 
       {/* 모바일 하단 탭바 */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex h-14 items-center justify-around border-t border-[#E8EDF4] bg-white">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 flex h-14 items-center justify-around border-t border-[#E8EDF4] bg-white shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
         <button
           type="button"
           onClick={() => { onClickMyAlbum?.(myAlbums[0]?.id); }}
@@ -113,7 +114,7 @@ export default function MainSidebar({
           onClick={() => setMobileOpen(true)}
           className={[
             "flex flex-1 flex-col items-center justify-center gap-0.5 h-full text-xs font-medium transition-colors",
-            activeSharedAlbumId != null ? "text-[#2563EB]" : "text-[#94A3B8]",
+            activeSharedAlbumId != null ? "text-[#10B981]" : "text-[#94A3B8]",
           ].join(" ")}
         >
           <Users size={20} strokeWidth={2} />
@@ -160,6 +161,7 @@ export default function MainSidebar({
                     <SidebarFriendItem
                       key={album.id}
                       label={album.name}
+                      members={album.members}
                       isActive={album.id === activeSharedAlbumId}
                       isCollapsed={false}
                       onClick={() => { onClickSharedAlbum?.(album.id); setMobileOpen(false); }}
@@ -177,7 +179,7 @@ export default function MainSidebar({
                   onClick={() => { onClickCreateSharedAlbum?.(); setMobileOpen(false); }}
                   className="mt-2 flex h-11 w-full items-center gap-3 rounded-2xl border border-dashed border-[#BFDBFE] bg-[#F8FBFF] px-4 text-sm font-semibold text-[#2563EB] transition-colors hover:bg-[#F0F7FF]"
                 >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#E8F1FF]">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#DBEAFE]">
                     <Plus size={14} strokeWidth={2.5} />
                   </span>
                   공유 앨범 만들기

@@ -26,7 +26,7 @@ export default function SidebarAlbumItem({
           : "gap-3 px-4 py-3",
         isActive
           ? "bg-[#EEF4FF] text-[#2563EB]"
-          : "text-[#1F2937] hover:bg-[#F7F9FC]",
+          : "text-[#64748B] hover:bg-[#F0F4FF] hover:text-[#2563EB]",
       ].join(" ")}
     >
       <span
@@ -38,7 +38,7 @@ export default function SidebarAlbumItem({
         <FolderOpen size={16} strokeWidth={2} />
       </span>
 
-      {!isCollapsed && <span className="text-sm font-medium">{label}</span>}
+      {!isCollapsed && <span className="text-sm font-semibold">{label}</span>}
     </button>
   );
 }

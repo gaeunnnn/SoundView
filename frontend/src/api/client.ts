@@ -36,7 +36,10 @@ apiClient.interceptors.response.use(
       return apiClient(original);
     } catch {
       refreshSubscribers = [];
-      window.location.replace((import.meta.env.VITE_BASE_PATH ?? "") + "/");
+      const loginPath = (import.meta.env.VITE_BASE_PATH ?? "") + "/";
+      if (window.location.pathname !== loginPath) {
+        window.location.replace(loginPath);
+      }
       return Promise.reject(error);
     } finally {
       isRefreshing = false;

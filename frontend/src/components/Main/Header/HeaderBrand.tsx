@@ -1,21 +1,21 @@
 // 상단 헤더 좌측의 로고와 서비스명을 렌더링하는 컴포넌트 파일
+import logoIcon from "../../../assets/images/logoIcon.png";
+
 type HeaderBrandProps = {
-  title: string;
+  title?: string;
   onClick?: () => void;
 };
 
-export default function HeaderBrand({ title, onClick }: HeaderBrandProps) {
+export default function HeaderBrand({ onClick }: HeaderBrandProps) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors hover:bg-[#F8FAFC]"
+      className="flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-[#F8FAFC]"
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB] text-sm font-bold text-white">
-        S
-      </span>
+      <img src={logoIcon} alt="SoundView 로고" className="h-14 w-14 object-contain" />
       <span className="text-[22px] font-semibold tracking-[-0.02em] text-[#0F172A]">
-        {title}
+        SoundView
       </span>
     </button>
   );

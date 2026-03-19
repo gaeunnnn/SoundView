@@ -7,17 +7,18 @@ import HeaderProfileButton from "./HeaderProfileButton";
 export default function MainHeader({
   userName,
   userCode,
+  profileImageUrl,
   onClickLogo,
   onClickHelp,
   onClickProfile,
 }: MainHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[#E8EDF4] bg-white px-5">
-      <HeaderBrand title="SoundSee" onClick={onClickLogo} />
+    <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[#E8EDF4] bg-white px-5 shadow-sm">
+      <HeaderBrand onClick={onClickLogo} />
 
       <div className="flex items-center gap-3">
         <HeaderActionGroup onClickHelp={onClickHelp} />
-        <HeaderProfileButton userName={userName} userCode={userCode} onClick={onClickProfile} />
+        <HeaderProfileButton userName={userName} userCode={userCode} profileImageUrl={profileImageUrl} onClick={onClickProfile} />
       </div>
     </header>
   );

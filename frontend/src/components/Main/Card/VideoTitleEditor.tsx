@@ -6,12 +6,14 @@ type VideoTitleEditorProps = {
   title: string;
   onCommit: (newTitle: string) => void;
   accentColor?: string;
+  dark?: boolean;
 };
 
 export default function VideoTitleEditor({
   title,
   onCommit,
   accentColor = "#2563EB",
+  dark = false,
 }: VideoTitleEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(title);
@@ -58,11 +60,16 @@ export default function VideoTitleEditor({
 
   return (
     <>
-      <h3 className="truncate text-sm font-bold text-[#111827]">{title}</h3>
+      {!dark && <h3 className="truncate text-sm font-bold text-[#111827]">{title}</h3>}
       <button
         type="button"
         onClick={() => { setEditTitle(title); setIsEditing(true); }}
-        className="shrink-0 text-[#94A3B8] transition-colors hover:text-[#64748B]"
+        className={[
+          "shrink-0 transition-colors",
+          dark
+            ? "text-white/50 hover:text-white"
+            : "text-[#94A3B8] hover:text-[#64748B]",
+        ].join(" ")}
         aria-label={`${title} 제목 수정`}
       >
         <Pencil size={12} strokeWidth={2} />

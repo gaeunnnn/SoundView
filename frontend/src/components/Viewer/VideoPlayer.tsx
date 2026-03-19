@@ -2,18 +2,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ViewerVideo, EmojiReaction } from "../../types/viewer";
-import VideoMeta from "./VideoMeta";
 import PlayerOverlay from "./PlayerOverlay";
 import PlayerControls from "./PlayerControls";
-import EmojiReactionBar from "./EmojiReactionBar";
-
-const PRESET_EMOJIS: EmojiReaction[] = [
-  { emoji: "👍", count: 2, reacted: false },
-  { emoji: "❤️", count: 1, reacted: false },
-  { emoji: "😂", count: 0, reacted: false },
-  { emoji: "🔥", count: 3, reacted: false },
-  { emoji: "😮", count: 0, reacted: false },
-];
 
 function parseDuration(dur: string): number {
   const parts = dur.split(":").map(Number);
@@ -24,9 +14,11 @@ function parseDuration(dur: string): number {
 
 type VideoPlayerProps = {
   video: ViewerVideo;
+  reactions: EmojiReaction[];
+  onReact: (emoji: string) => void;
 };
 
-export default function VideoPlayer({ video }: VideoPlayerProps) {
+export default function VideoPlayer({ video, reactions, onReact }: VideoPlayerProps) {
   const totalSec = parseDuration(video.duration);
 
   const [isPlaying, setIsPlaying] = useState(true);
@@ -38,7 +30,6 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   const [subtitleOn, setSubtitleOn] = useState(true);
   const [emojiOn, setEmojiOn] = useState(true);
   const [vibrateOn, setVibrateOn] = useState(true);
-  const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSidePanel, setShowSidePanel] = useState(true);
@@ -166,25 +157,10 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
     resetOverlayTimer();
   };
 
-  const handleReact = (emoji: string) => {
-    setReactions((prev) =>
-      prev.map((r) =>
-        r.emoji === emoji
-          ? { ...r, reacted: !r.reacted, count: r.reacted ? Math.max(0, r.count - 1) : r.count + 1 }
-          : r
-      )
-    );
-  };
-
-  const uploaderLabel = video.uploadedBy
-    ? (video.uploadedBy.isMe ? "나" : video.uploadedBy.name)
-    : "나";
   const progress = totalSec > 0 ? (currentSec / totalSec) * 100 : 0;
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden bg-[#0F172A]">
-      <VideoMeta title={video.title} uploaderLabel={uploaderLabel} date={video.date} />
-
+    <div className="flex flex-1 h-full overflow-hidden bg-[#0F172A]">
       {/* 플레이어 캔버스 */}
       <div
         ref={playerRef}
@@ -284,8 +260,6 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           onFullscreen={handleFullscreen}
         />
       </div>
-
-      <EmojiReactionBar reactions={reactions} onReact={handleReact} />
     </div>
   );
 }

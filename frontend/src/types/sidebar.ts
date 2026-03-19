@@ -5,9 +5,18 @@ export type MyAlbumItem = {
   isActive?: boolean;
 };
 
+export type SharedAlbumMember = {
+  userId: number;
+  nickname: string;
+  profileImageUrl: string | null;
+  avatarColor: string;
+  isMe: boolean;
+};
+
 export type SharedAlbumItem = {
   id: number;
   name: string;
+  members?: SharedAlbumMember[];
 };
 
 export type MainSidebarProps = {

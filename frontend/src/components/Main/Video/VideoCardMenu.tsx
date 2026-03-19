@@ -2,24 +2,14 @@
 import { Pencil, Share2, Trash2 } from "lucide-react";
 
 type VideoCardMenuProps = {
-  open: boolean;
   onEdit: () => void;
   onShare: () => void;
   onDelete: () => void;
 };
 
-export default function VideoCardMenu({
-  open,
-  onEdit,
-  onShare,
-  onDelete,
-}: VideoCardMenuProps) {
-  if (!open) {
-    return null;
-  }
-
+export default function VideoCardMenu({ onEdit, onShare, onDelete }: VideoCardMenuProps) {
   return (
-    <div className="absolute right-3 top-10 z-20 w-[148px] rounded-xl border border-[#E5E7EB] bg-white p-1.5 shadow-lg">
+    <div className="absolute right-0 top-9 z-50 w-[148px] rounded-xl border border-[#E5E7EB] bg-white p-1.5 shadow-lg">
       <button
         type="button"
         onClick={onEdit}
@@ -28,7 +18,6 @@ export default function VideoCardMenu({
         <Pencil size={15} strokeWidth={2} />
         <span>편집</span>
       </button>
-
       <button
         type="button"
         onClick={onShare}
@@ -37,7 +26,6 @@ export default function VideoCardMenu({
         <Share2 size={15} strokeWidth={2} />
         <span>공유</span>
       </button>
-
       <button
         type="button"
         onClick={onDelete}

@@ -32,14 +32,30 @@ export default function MainPage() {
   const leaveTargetName = sharedAlbums.find((a) => a.id === leaveTargetId)?.name ?? "";
 
   useEffect(() => {
-    getAlbums().then((albums) => {
+    getAlbums().then(async (albums) => {
       const my = albums.find((a) => a.name === "내 앨범" && a.memberCount === 1);
       const shared = albums.filter((a) => !(a.name === "내 앨범" && a.memberCount === 1));
       if (my) {
         setMyAlbumId(my.albumId);
         setActiveMyAlbumId(my.albumId);
       }
-      setSharedAlbums(shared.map((a) => ({ id: a.albumId, name: a.name })));
+      const sharedWithMembers = await Promise.all(
+        shared.map(async (a) => {
+          const members = await getAlbumMembers(a.albumId).catch(() => []);
+          return {
+            id: a.albumId,
+            name: a.name,
+            members: members.map((m) => ({
+              userId: m.userId,
+              nickname: m.nickname,
+              profileImageUrl: m.profileImageUrl,
+              avatarColor: COLORS[m.userId % COLORS.length],
+              isMe: m.isMe,
+            })),
+          };
+        })
+      );
+      setSharedAlbums(sharedWithMembers);
     }).catch(() => {});
   }, []);
 
@@ -87,13 +103,13 @@ export default function MainPage() {
           }),
         });
       })
-      .catch(() => {});
+      .catch((e) => { console.error("[SharedAlbum] 로딩 실패:", e); });
   };
 
   const handleRename = (newName: string) => {
     if (renameTargetId === null) return;
     const id = renameTargetId;
-    setSharedAlbums((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName } : a)));
+    setSharedAlbums((prev) => prev.map((a) => (a.id === id ? { ...a, name: newName, members: a.members } : a)));
     if (activeSharedAlbumDetail?.id === id) {
       setActiveSharedAlbumDetail((prev) => prev ? { ...prev, name: newName } : prev);
     }
@@ -119,14 +135,26 @@ export default function MainPage() {
       name: albumName,
       memberCodes: friends.map((f) => f.code),
     });
-    setSharedAlbums((prev) => [...prev, { id: res.albumId, name: res.name }]);
+    const newMembers = await getAlbumMembers(res.albumId).catch(() => []);
+    setSharedAlbums((prev) => [...prev, {
+      id: res.albumId,
+      name: res.name,
+      members: newMembers.map((m) => ({
+        userId: m.userId,
+        nickname: m.nickname,
+        profileImageUrl: m.profileImageUrl,
+        avatarColor: COLORS[m.userId % COLORS.length],
+        isMe: m.isMe,
+      })),
+    }]);
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#FAFBFD] overflow-hidden">
+    <div className="h-screen flex flex-col bg-[#F4F7FF] overflow-hidden">
       <MainHeader
         userName={me?.nickname ?? ""}
         userCode={me?.userCode}
+        profileImageUrl={me?.profileImageUrl}
         onClickLogo={() => navigate("/main")}
         onClickHelp={() => console.log("도움말 클릭")}
         onClickProfile={() => console.log("프로필 클릭")}

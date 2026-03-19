@@ -1,5 +1,6 @@
 // 공유 앨범 콘텐츠 영역 컴포넌트
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Search, SlidersHorizontal, Users, Upload, Copy, Check } from "lucide-react";
 import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAlbum";
 import type { VideoItem } from "../../../types/video";
@@ -18,6 +19,7 @@ type SharedAlbumContentProps = {
 
 export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumContentProps) {
   const { me } = useUser();
+  const navigate = useNavigate();
   const [videos, setVideos] = useState<SharedVideoItem[]>(album.videos);
   const [myVideos, setMyVideos] = useState<VideoItem[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("all");
@@ -123,14 +125,14 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-    <section className="bg-[#FAFBFD] px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8 lg:pt-8">
+    <section className="bg-white/80 backdrop-blur-sm px-4 pt-5 pb-4 sm:px-6 sm:pt-6 sm:pb-5 lg:px-8 lg:pt-8 border-b border-[#E8EDF4]">
       <div className="mx-auto max-w-[1280px] space-y-6">
         {/* 헤더 */}
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-[#111827]">{album.name}</h1>
+            <h1 className="text-2xl font-bold text-[#0F172A]">{album.name}</h1>
             <div className="mt-1.5 flex items-center gap-2">
-              <span className="rounded-full bg-[#F1F5F9] px-2.5 py-0.5 text-xs font-medium text-[#64748B]">
+              <span className="inline-flex items-center rounded-full bg-[#ECFDF5] px-2.5 py-0.5 text-xs font-semibold text-[#059669]">
                 {videos.length}개의 영상
               </span>
 
@@ -226,7 +228,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
               }).catch(() => {});
               setShowImport(true);
             }}
-            className="flex items-center gap-2 rounded-full bg-[#10B981] px-3 py-2.5 sm:px-5 text-sm font-semibold text-white transition-colors hover:bg-[#059669]"
+            className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#10B981] to-[#059669] px-3 py-2.5 sm:px-5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:opacity-90"
           >
             <Upload size={15} strokeWidth={2.5} />
             <span className="hidden sm:inline">가져오기</span>
@@ -274,13 +276,13 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
                 placeholder="영상 검색"
                 value={searchKeyword}
                 onChange={(e) => setSearchKeyword(e.target.value)}
-                className="h-9 w-full sm:w-44 rounded-xl border border-[#E2E8F0] pl-8 pr-3 text-sm outline-none placeholder:text-[#CBD5E1] focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/10"
+                className="h-9 w-full sm:w-44 rounded-xl border border-[#E2E8F0] bg-white pl-8 pr-3 text-sm outline-none placeholder:text-[#CBD5E1] focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/10 shadow-sm"
               />
             </div>
             {/* 정렬 */}
             <button
               type="button"
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm text-[#475569] transition-colors hover:bg-[#F8FAFC]"
+              className="flex h-9 items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm text-[#475569] shadow-sm transition-colors hover:bg-[#F0F4FF] hover:border-[#C7D7FD] hover:text-[#2563EB]"
             >
               <SlidersHorizontal size={14} />
               최신순
@@ -292,10 +294,10 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     </section>
 
     {/* 영상 그리드 — 흰 배경으로 나머지 전체 채움 */}
-    <div className="flex-1 overflow-y-auto bg-white border-t border-[#E8EDF4]">
+    <div className="flex-1 overflow-y-auto bg-[#F4F7FF]">
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {filtered.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((video) => (
               <SharedVideoCard
                 key={video.id}

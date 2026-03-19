@@ -7,59 +7,37 @@ export default function LoginInfoCard() {
   };
 
   return (
-    <div className="rounded-[24px] border border-[#E8ECF4] bg-white px-6 py-8 shadow-[0_12px_30px_rgba(15,23,42,0.05)] sm:rounded-[28px] sm:px-8 sm:py-10">
-      <h2 className="text-[24px] font-bold leading-[1.35] text-[#1F2937] sm:text-[28px]">
-        소리를 눈으로
-        <br />
-        <span className="text-[#4F6EF7]">경험하세요</span>
-      </h2>
-
-      <p className="mt-4 text-[14px] leading-[1.8] text-[#98A2B3] sm:mt-5 sm:text-[16px]">
-        AI가 영상 속 환경음과 대화를 인식하여
-        <br />
-        자막, 이모티콘, 진동으로 전달합니다.
-      </p>
-
-      <div className="mt-8 flex items-start justify-between text-center sm:mt-10">
+    <div className="rounded-[28px] border border-[#E0E8FF] bg-white px-7 py-8 shadow-[0_16px_40px_rgba(79,110,247,0.1)] sm:px-9 sm:py-10">
+      {/* 통계 수치 */}
+      <div className="mb-7 flex items-center justify-between text-center">
         <div className="flex-1">
-          <p className="text-[17px] font-bold text-[#27324A] sm:text-[18px]">
-            12+
-          </p>
-          <p className="mt-2 text-[11px] text-[#B4BCCB] sm:text-[12px]">
-            환경음 유형
-          </p>
+          <p className="text-[22px] font-extrabold text-[#4F6EF7] sm:text-[24px]">12+</p>
+          <p className="mt-1 text-[11px] text-[#A0AABF] sm:text-[12px]">환경음 유형</p>
         </div>
-
+        <div className="h-8 w-px bg-[#EDF1F7]" />
         <div className="flex-1">
-          <p className="text-[17px] font-bold text-[#27324A] sm:text-[18px]">
-            98%
-          </p>
-          <p className="mt-2 text-[11px] text-[#B4BCCB] sm:text-[12px]">
-            인식 정확도
-          </p>
+          <p className="text-[22px] font-extrabold text-[#4F6EF7] sm:text-[24px]">98%</p>
+          <p className="mt-1 text-[11px] text-[#A0AABF] sm:text-[12px]">인식 정확도</p>
         </div>
-
+        <div className="h-8 w-px bg-[#EDF1F7]" />
         <div className="flex-1">
-          <p className="text-[17px] font-bold text-[#27324A] sm:text-[18px]">
-            실시간
-          </p>
-          <p className="mt-2 text-[11px] text-[#B4BCCB] sm:text-[12px]">
-            자막 생성
-          </p>
+          <p className="text-[22px] font-extrabold text-[#4F6EF7] sm:text-[24px]">실시간</p>
+          <p className="mt-1 text-[11px] text-[#A0AABF] sm:text-[12px]">자막 생성</p>
         </div>
       </div>
 
-      <div className="mt-7 h-px w-full bg-[#EDF1F7] sm:mt-8" />
+      <div className="h-px w-full bg-[#EDF1F7]" />
 
       <button
         type="button"
         onClick={handleKakaoLogin}
-        className="mt-7 flex h-[60px] w-full items-center justify-center rounded-[18px] bg-[#F7E548] text-[16px] font-bold text-[#2A1D00] transition hover:brightness-95 sm:mt-8 sm:h-[68px] sm:rounded-[20px] sm:text-[18px]"
+        className="mt-7 flex h-[60px] w-full items-center justify-center gap-2 rounded-[18px] bg-[#F7E548] text-[16px] font-bold text-[#2A1D00] transition hover:brightness-95 sm:mt-7 sm:h-[64px] sm:rounded-[20px] sm:text-[17px]"
       >
+        <span className="text-[20px]">💬</span>
         카카오톡으로 시작하기
       </button>
 
-      <p className="mt-6 text-center text-[11px] leading-[1.7] text-[#C2C8D4] sm:mt-7 sm:text-[12px]">
+      <p className="mt-5 text-center text-[11px] leading-[1.7] text-[#C2C8D4] sm:mt-6 sm:text-[12px]">
         로그인 시 서비스 이용약관 및 개인정보 처리방침에 동의합니다.
       </p>
     </div>

@@ -350,7 +350,7 @@ export default function EditPage() {
         </div>
         <div className="flex items-center gap-3">
           <HeaderActionGroup />
-          <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} />
+          <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} profileImageUrl={me?.profileImageUrl} />
         </div>
       </div>
 

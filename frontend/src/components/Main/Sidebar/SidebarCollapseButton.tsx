@@ -15,7 +15,7 @@ export default function SidebarCollapseButton({
       type="button"
       onClick={onClick}
       aria-label={isCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
-      className="absolute right-0 top-1/2 z-20 hidden h-9 w-9 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#BFDBFE] bg-[#EFF6FF] text-[#3B82F6] shadow-sm transition-colors hover:bg-[#DBEAFE] group-hover:flex"
+      className="absolute right-0 top-1/2 z-20 hidden h-9 w-9 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#BFDBFE] bg-white text-[#2563EB] shadow-md transition-colors hover:bg-[#EFF6FF] group-hover:flex"
     >
       {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
     </button>

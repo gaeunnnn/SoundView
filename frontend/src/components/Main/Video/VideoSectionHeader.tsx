@@ -10,10 +10,10 @@ export default function VideoSectionHeader({
 }: VideoSectionHeaderProps) {
   return (
     <section className="space-y-2">
-      <h1 className="text-[40px] font-extrabold tracking-[-0.03em] text-[#111827]">
-        {title}
-      </h1>
-      <p className="text-[17px] font-medium text-[#94A3B8]">{count}개의 영상</p>
+      <h1 className="text-2xl font-bold text-[#0F172A]">{title}</h1>
+      <span className="inline-flex items-center rounded-full bg-[#EEF4FF] px-2.5 py-0.5 text-xs font-semibold text-[#2563EB]">
+        {count}개의 영상
+      </span>
     </section>
   );
 }

@@ -15,7 +15,7 @@ export default function SidebarSection({
   return (
     <section className="space-y-3">
       {!isCollapsed && (
-        <h3 className="px-3 text-xs font-semibold text-[#A0A8B8]">{title}</h3>
+        <h3 className="px-3 text-xs font-bold text-[#64748B]">{title}</h3>
       )}
       <div className="space-y-2">{children}</div>
     </section>

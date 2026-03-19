@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import HeaderActionGroup from "../Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../Main/Header/HeaderProfileButton";
 import { useUser } from "../../context/UserContext";
+import logoIcon from "../../assets/images/logoIcon.png";
 
 type ViewerHeaderProps = {
   onBack: () => void;
@@ -13,17 +14,15 @@ export default function ViewerHeader({ onBack }: ViewerHeaderProps) {
   const navigate = useNavigate();
   const { me } = useUser();
   return (
-    <div className="flex h-18 shrink-0 items-center justify-between border-b border-[#E8EDF4] bg-white px-5">
+    <div className="flex h-[72px] shrink-0 items-center justify-between border-b border-[#E8EDF4] bg-white px-5 shadow-sm">
       <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={() => navigate("/main")}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2.5 rounded-lg px-2 py-1 transition-colors hover:bg-[#F8FAFC]"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">
-            <span className="text-xs font-bold text-white">S</span>
-          </div>
-          <span className="hidden sm:block text-base font-bold text-[#111827]">SoundSee</span>
+          <img src={logoIcon} alt="SoundView 로고" className="h-14 w-14 object-contain" />
+          <span className="hidden sm:block text-[22px] font-semibold tracking-[-0.02em] text-[#0F172A]">SoundView</span>
         </button>
         <div className="hidden sm:block h-4 w-px bg-[#E8EDF4]" />
         <button
@@ -37,7 +36,7 @@ export default function ViewerHeader({ onBack }: ViewerHeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         <HeaderActionGroup />
-        <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} />
+        <HeaderProfileButton userName={me?.nickname ?? ""} userCode={me?.userCode} profileImageUrl={me?.profileImageUrl} />
       </div>
     </div>
   );

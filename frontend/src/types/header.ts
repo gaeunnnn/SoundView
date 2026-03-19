@@ -2,6 +2,7 @@
 export type MainHeaderProps = {
   userName: string;
   userCode?: string;
+  profileImageUrl?: string | null;
   onClickLogo?: () => void;
   onClickHelp?: () => void;
   onClickProfile?: () => void;

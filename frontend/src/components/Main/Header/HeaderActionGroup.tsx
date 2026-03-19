@@ -92,7 +92,7 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
           type="button"
           aria-label="알림"
           onClick={handleOpen}
-          className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F8FAFC] hover:text-[#475569]"
+          className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#475569]"
         >
           <Bell size={18} strokeWidth={2} />
           {unreadCount > 0 && (

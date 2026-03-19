@@ -7,12 +7,14 @@ import { logout } from "../../../api/auth";
 type HeaderProfileButtonProps = {
   userName: string;
   userCode?: string;
+  profileImageUrl?: string | null;
   onClick?: () => void;
 };
 
 export default function HeaderProfileButton({
   userName,
   userCode = "",
+  profileImageUrl,
 }: HeaderProfileButtonProps) {
   const navigate = useNavigate();
   const initial = userName.slice(0, 1);
@@ -43,12 +45,20 @@ export default function HeaderProfileButton({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#F8FAFC]"
+        className="flex items-center gap-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-[#F1F5F9]"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#8B5CF6] text-sm font-semibold text-white">
-          {initial}
-        </span>
-        <span className="hidden sm:block text-sm font-semibold text-[#111827]">{userName}</span>
+        {profileImageUrl ? (
+          <img
+            src={profileImageUrl}
+            alt={userName}
+            className="h-8 w-8 rounded-full object-cover shadow-sm ring-2 ring-white"
+          />
+        ) : (
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-sm font-semibold text-white shadow-sm">
+            {initial}
+          </span>
+        )}
+        <span className="hidden sm:block text-sm font-semibold text-[#1E293B]">{userName}</span>
         <ChevronDown
           size={16}
           strokeWidth={2}
@@ -59,7 +69,19 @@ export default function HeaderProfileButton({
       {isOpen && (
         <div className="absolute right-0 top-12 z-50 w-56 max-w-[calc(100vw-2rem)] rounded-2xl border border-[#E8EDF4] bg-white py-2 shadow-xl">
           {/* 프로필 정보 */}
-          <div className="px-4 py-3">
+          <div className="px-4 py-3 flex items-center gap-3">
+            {profileImageUrl ? (
+              <img
+                src={profileImageUrl}
+                alt={userName}
+                className="h-10 w-10 rounded-full object-cover shrink-0 ring-2 ring-[#E8EDF4]"
+              />
+            ) : (
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8B5CF6] to-[#6366F1] text-base font-semibold text-white">
+                {initial}
+              </span>
+            )}
+            <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-[#1E293B]">{userName}</p>
 
             {/* 개인 코드 */}
@@ -79,6 +101,7 @@ export default function HeaderProfileButton({
                   <Copy size={13} />
                 )}
               </button>
+            </div>
             </div>
           </div>
 

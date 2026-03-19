@@ -1,9 +1,11 @@
 // 사이드바의 공유 앨범 친구 항목과 설정 버튼을 렌더링하는 컴포넌트 파일
 import { useEffect, useRef, useState } from "react";
-import { Cog, Users, Pencil, LogOut } from "lucide-react";
+import { MoreVertical, Pencil, LogOut } from "lucide-react";
+import type { SharedAlbumMember } from "../../../types/sidebar";
 
 type SidebarFriendItemProps = {
   label: string;
+  members?: SharedAlbumMember[];
   isActive?: boolean;
   isCollapsed?: boolean;
   onClick?: () => void;
@@ -16,8 +18,55 @@ function getInitial(label: string) {
   return label.slice(0, 1);
 }
 
+function AvatarStack({ members, size = 20 }: { members: SharedAlbumMember[]; size?: number }) {
+  const MAX_SHOW = 3;
+  const shown = members.slice(0, MAX_SHOW);
+  const extra = members.length - MAX_SHOW;
+  const overlap = Math.round(size * 0.35);
+
+  return (
+    <div className="flex items-center" style={{ paddingLeft: overlap }}>
+      {shown.map((m, i) => (
+        <div
+          key={m.userId}
+          className="relative rounded-full ring-2 ring-white flex-shrink-0 overflow-hidden flex items-center justify-center text-white font-bold"
+          style={{
+            width: size,
+            height: size,
+            fontSize: size * 0.4,
+            backgroundColor: m.avatarColor,
+            marginLeft: -overlap,
+            zIndex: shown.length - i,
+          }}
+        >
+          {m.profileImageUrl ? (
+            <img src={m.profileImageUrl} alt={m.nickname} className="w-full h-full object-cover" />
+          ) : (
+            getInitial(m.nickname)
+          )}
+        </div>
+      ))}
+      {extra > 0 && (
+        <div
+          className="relative rounded-full ring-2 ring-white flex-shrink-0 flex items-center justify-center bg-[#E2E8F0] text-[#64748B] font-semibold"
+          style={{
+            width: size,
+            height: size,
+            fontSize: size * 0.35,
+            marginLeft: -overlap,
+            zIndex: 0,
+          }}
+        >
+          +{extra}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SidebarFriendItem({
   label,
+  members = [],
   isActive = false,
   isCollapsed = false,
   onClick,
@@ -46,11 +95,22 @@ export default function SidebarFriendItem({
           onClick={onClick}
           title={label}
           className={[
-            "flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold text-white transition-transform hover:scale-105",
-            isActive ? "bg-[#059669]" : "bg-[#10B981]",
+            "flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:scale-105",
+            isActive ? "bg-[#ECFDF5] ring-2 ring-[#10B981]/30" : "hover:bg-[#F0FDF9]",
           ].join(" ")}
         >
-          {getInitial(label)}
+          {members.length > 0 ? (
+            <AvatarStack members={members} size={members.length === 1 ? 26 : 18} />
+          ) : (
+            <span
+              className={[
+                "flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white",
+                isActive ? "bg-[#059669]" : "bg-[#10B981]",
+              ].join(" ")}
+            >
+              {getInitial(label)}
+            </span>
+          )}
         </button>
       </div>
     );
@@ -60,7 +120,7 @@ export default function SidebarFriendItem({
     <div
       className={[
         "relative flex items-center justify-between rounded-xl px-4 py-3 transition-colors",
-        isActive ? "bg-[#ECFDF5]" : "hover:bg-[#F7F9FC]",
+        isActive ? "bg-[#ECFDF5]" : "hover:bg-[#F0FDF9]",
       ].join(" ")}
     >
       <button
@@ -68,13 +128,17 @@ export default function SidebarFriendItem({
         onClick={onClick}
         className="flex min-w-0 flex-1 items-center gap-3 text-left"
       >
-        <span className={["flex h-5 w-5 items-center justify-center", isActive ? "text-[#059669]" : "text-[#94A3B8]"].join(" ")}>
-          <Users size={16} strokeWidth={2} />
-        </span>
-        <span className={["truncate text-sm font-medium", isActive ? "text-[#059669]" : "text-[#1F2937]"].join(" ")}>
+        <span className={["truncate text-sm font-semibold", isActive ? "text-[#059669]" : "text-[#374151]"].join(" ")}>
           {label}
         </span>
       </button>
+
+      {/* 아바타 스택 */}
+      {members.length > 0 && (
+        <span className="flex items-center flex-shrink-0 mr-1">
+          <AvatarStack members={members} size={18} />
+        </span>
+      )}
 
       {/* 설정 버튼 + 드롭다운 */}
       <div ref={dropdownRef} className="relative">
@@ -84,12 +148,12 @@ export default function SidebarFriendItem({
           className={[
             "flex h-7 w-7 items-center justify-center rounded-md transition-colors",
             isDropdownOpen
-              ? "bg-white text-[#2563EB]"
+              ? "bg-white text-[#059669]"
               : "text-[#94A3B8] hover:bg-white hover:text-[#64748B]",
           ].join(" ")}
           aria-label={`${label} 공유 앨범 설정`}
         >
-          <Cog size={14} strokeWidth={2} />
+          <MoreVertical size={15} strokeWidth={2} />
         </button>
 
         {isDropdownOpen && (

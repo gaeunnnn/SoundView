@@ -4,8 +4,6 @@ import VideoCard from "./VideoCard";
 
 type VideoGridProps = {
   videos: VideoItem[];
-  openedMenuId: number | null;
-  onToggleMenu: (videoId: number) => void;
   onEdit: (videoId: number) => void;
   onShare: (videoId: number) => void;
   onDelete: (videoId: number) => void;
@@ -14,8 +12,6 @@ type VideoGridProps = {
 
 export default function VideoGrid({
   videos,
-  openedMenuId,
-  onToggleMenu,
   onEdit,
   onShare,
   onDelete,
@@ -30,13 +26,11 @@ export default function VideoGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
       {videos.map((video) => (
         <VideoCard
           key={video.id}
           video={video}
-          isMenuOpen={openedMenuId === video.id}
-          onToggleMenu={onToggleMenu}
           onEdit={onEdit}
           onShare={onShare}
           onDelete={onDelete}

@@ -1,66 +1,62 @@
 // 영상 재생 페이지
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { MessageCircle, X } from "lucide-react";
-import type { ViewerVideo } from "../types/viewer";
+import type { ViewerVideo, EmojiReaction } from "../types/viewer";
 import ViewerHeader from "../components/Viewer/ViewerHeader";
 import VideoPlayer from "../components/Viewer/VideoPlayer";
 import CommentSection from "../components/Viewer/CommentSection";
+
+const PRESET_EMOJIS: EmojiReaction[] = [
+  { emoji: "👍", count: 2, reacted: false },
+  { emoji: "❤️", count: 1, reacted: false },
+  { emoji: "😂", count: 0, reacted: false },
+  { emoji: "🔥", count: 3, reacted: false },
+  { emoji: "😮", count: 0, reacted: false },
+];
 
 export default function ViewerPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const video = location.state?.video as ViewerVideo | undefined;
-  const [showComments, setShowComments] = useState(false);
+  const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
 
   if (!video) { navigate("/main", { replace: true }); return null; }
 
+  const uploaderLabel = video.uploadedBy
+    ? (video.uploadedBy.isMe ? "나" : video.uploadedBy.name)
+    : "나";
+
+  const handleReact = (emoji: string) => {
+    setReactions((prev) =>
+      prev.map((r) =>
+        r.emoji === emoji
+          ? { ...r, reacted: !r.reacted, count: r.reacted ? Math.max(0, r.count - 1) : r.count + 1 }
+          : r
+      )
+    );
+  };
+
   return (
-    <div className="flex h-screen flex-col bg-[#FAFBFD] overflow-hidden">
+    <div className="flex h-screen flex-col overflow-hidden bg-[#0F172A]">
       <ViewerHeader onBack={() => navigate(-1)} />
 
-      {/* 데스크톱: 플레이어 + 댓글 나란히 / 모바일: 플레이어 전체 */}
+      {/* 데스크톱: 플레이어(좌) + 우측패널(우) */}
       <div className="flex flex-1 overflow-hidden">
-        <VideoPlayer video={video} />
-        {/* 댓글 패널 — 데스크톱 전용 */}
-        <div className="hidden md:flex">
-          <CommentSection videoId={video.id} />
+        {/* 좌: 비디오 플레이어 — 남은 공간 전부 */}
+        <VideoPlayer video={video} reactions={reactions} onReact={handleReact} />
+
+        {/* 우: 메타 + 댓글(이모지 포함) */}
+        <div className="flex w-80 shrink-0 flex-col border-l border-[#E8EDF4] bg-white overflow-hidden">
+          {/* 영상 메타 */}
+          <div className="shrink-0 border-b border-[#E8EDF4] px-4 py-3">
+            <h2 className="text-sm font-bold text-[#1E293B] leading-snug truncate">{video.title}</h2>
+            <p className="mt-0.5 text-xs text-[#64748B]">{uploaderLabel} · {video.date}</p>
+          </div>
+
+          {/* 댓글 + 이모지 통합 */}
+          <CommentSection videoId={video.id} reactions={reactions} onReact={handleReact} />
         </div>
       </div>
-
-      {/* 모바일 댓글 토글 버튼 */}
-      <button
-        type="button"
-        onClick={() => setShowComments(true)}
-        className="md:hidden fixed bottom-5 right-5 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#2563EB] text-white shadow-lg"
-      >
-        <MessageCircle size={20} strokeWidth={2} />
-      </button>
-
-      {/* 모바일 댓글 드로어 */}
-      {showComments && (
-        <div className="md:hidden fixed inset-0 z-50 flex flex-col">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowComments(false)}
-          />
-          <div className="absolute bottom-0 left-0 right-0 h-[70vh] rounded-t-2xl bg-white flex flex-col shadow-xl overflow-hidden">
-            <div className="flex items-center justify-between border-b border-[#E8EDF4] px-5 py-3 shrink-0">
-              <span className="text-sm font-bold text-[#1E293B]">댓글</span>
-              <button
-                type="button"
-                onClick={() => setShowComments(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-[#94A3B8] hover:bg-[#F1F5F9]"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="flex flex-1 overflow-hidden">
-              <CommentSection videoId={video.id} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
