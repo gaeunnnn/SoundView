@@ -45,11 +45,11 @@
 1. **[React]** 영상 재생 요청
 2. **[Spring Boot]** 권한 확인 후 **CloudFront Signed Cookie** 발급
 3. **[React]** 발급된 쿠키를 들고 CloudFront 도메인에 영상/자막/진동 데이터 요청
-4. **[CloudFront]** 쿠키 검증 후 캐싱된 데이터를 초고속으로 서빙
+4. **[CloudFront]** 쿠키 검증 후 캐싱된 데이터를 고속으로 서빙
 
 ---
 
-## 💡 4. 오늘의 회고
+
 * 단순히 '기능 구현'에 그치지 않고, **확장성(Scalability)**과 **보안(Security)**을 고려한 아키텍처를 고민해 보았다.
 * 각 서버(Spring Boot, FastAPI)와 인프라(S3, CloudFront)에 명확한 **책임(Responsibility)**을 부여함으로써, 특정 구간에 트래픽이 몰려도 시스템 전체가 마비되지 않는 구조를 도출해냈다.
 * Spring Boot에서 AWS SDK를 연동하여 실제 **Presigned URL 발급 로직**을 구현할 예정이다.
