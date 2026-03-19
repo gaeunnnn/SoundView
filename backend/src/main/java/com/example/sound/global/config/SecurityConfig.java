@@ -6,11 +6,13 @@ import com.example.sound.global.auth.jwt.JwtTokenProvider;
 import com.example.sound.global.auth.oauth.CustomOAuth2UserService;
 import com.example.sound.global.auth.oauth.OAuth2SuccessHandler;
 import com.example.sound.global.auth.oauth.OAuthCookieRepository; // 보관함 추가
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -76,8 +78,14 @@ public class SecurityConfig {
 
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
+
+                            if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                                response.setStatus(HttpServletResponse.SC_OK);
+                                return;
+                            }
+
                             if (request.getRequestURI().contains("/api")) {
-                                response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                                 response.setContentType("application/json;charset=UTF-8");
                                 response.getWriter().write("{\"message\": \"인증 정보가 없거나 만료되었습니다.\"}");
                             } else {
@@ -94,6 +102,7 @@ public class SecurityConfig {
                 )
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/",
                                 "/login/**",
