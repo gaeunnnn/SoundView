@@ -1,6 +1,24 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from app.core.config import settings
 from app.api.v1.api import api_router
+
+from app.core.rabbitmq import rabbitmq_client
+from app.services.mq_handler import process_mq_message
+
+
+# 수명주기(lifespan) 관리 함수 정의
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("RabbitMQ 연결 및 Consumer 구동 준비...")
+
+    await rabbitmq_client.connect()
+    await rabbitmq_client.consume(process_mq_message)
+
+    yield
+
+    print("RabbitMQ 연결 안전하게 해제 중...")
+    await rabbitmq_client.close()
 
 def create_app() -> FastAPI:
     """
@@ -9,10 +27,11 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.VERSION,
-        openapi_url=f"{settings.API_V1_STR}/openapi.json"
+        openapi_url=f"{settings.API_V1_STR}/openapi.json",
+        lifespan=lifespan
     )
     
-    # API 라운터 등록
+    # API 라우터 등록
     app.include_router(api_router, prefix=settings.API_V1_STR)
     
     @app.get("/")

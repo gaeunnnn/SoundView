@@ -34,6 +34,20 @@ class RabbitMQClient:
             await self.connection.close()
             logger.info("🔌 RabbitMQ 연결 종료")
 
+    async def consume(self, callback_func):
+        """메시지를 큐에서 수신합니다. Subscribe"""
+        if not self.channel:
+            await self.connect()
+        
+        try:
+            queue = await self.channel.get_queue(settings.RABBITMQ_QUEUE_NAME)
+            await queue.consume(callback_func)
+        
+            logger.info("✅ RabbitMQ Consumer 구동 완료")
+        except Exception as e:
+            logger.error(f"❌ RabbitMQ Consumer 구동 실패: {e}")
+            raise
+
     async def send_message(self, message: dict):
         """메시지를 큐에 전송합니다."""
         if not self.channel:
