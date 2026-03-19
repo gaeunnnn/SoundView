@@ -25,4 +25,16 @@ class Settings(BaseSettings):
         case_sensitive=True
     )
 
+    # rabbitMQ 세팅
+    RABBITMQ_HOST: str
+    RABBITMQ_PORT: int
+    RABBITMQ_USER: str
+    RABBITMQ_PASSWORD: str
+    RABBITMQ_QUEUE_NAME: str
+
+    @property
+    def rabbitmq_url(self) -> str:
+        return f"amqp://{self.RABBITMQ_USER}:{self.RABBITMQ_PASSWORD}@{self.RABBITMQ_HOST}:{self.RABBITMQ_PORT}/"
+
+
 settings = Settings()
