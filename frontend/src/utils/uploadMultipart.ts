@@ -12,10 +12,12 @@ const MIN_CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 
 // 파일 크기에 따라 청크 크기를 계산합니다.
 // 마지막 파트를 제외한 모든 파트가 S3 최소 파트 크기(5MB) 이상이 되도록 보장합니다.
+// S3 최대 파트 수(10,000개) 초과 방지: 파일이 클수록 청크 크기를 키웁니다.
 export function calculateChunkSize(fileSize: number): number {
   const PREFERRED_CHUNK_SIZE = 10 * 1024 * 1024; // 기본 선호 크기: 10MB
-  // 5MB 미만이 되지 않도록 하한 설정
-  return Math.max(MIN_CHUNK_SIZE, PREFERRED_CHUNK_SIZE);
+  // 파일 크기 / 10,000 이상이어야 파트 수 제한을 초과하지 않음
+  const minForMaxParts = Math.ceil(fileSize / 10000);
+  return Math.max(MIN_CHUNK_SIZE, PREFERRED_CHUNK_SIZE, minForMaxParts);
 }
 
 // 파일을 지정된 크기의 Blob 청크 배열로 분할합니다.
