@@ -1,9 +1,7 @@
 package com.example.sound.domain.video.controller;
 
 import com.example.sound.domain.user.entity.User;
-import com.example.sound.domain.video.dto.VideoResponse;
-import com.example.sound.domain.video.dto.VideoUpdateRequest;
-import com.example.sound.domain.video.dto.VideoUpdateResponse;
+import com.example.sound.domain.video.dto.*;
 import com.example.sound.domain.video.entity.VideoStatus;
 import com.example.sound.domain.video.service.VideoService;
 import com.example.sound.global.auth.oauth.CustomUserPrincipal;
@@ -71,14 +69,32 @@ public class VideoController {
         return videoService.createVideo(principal.getId(), title);
     }
 
+    @Operation(summary = "S3 멀티파트 업로드 시작 (Presigned URL 발급)")
+    @PostMapping("/videos/upload/initiate")
+    public VideoUploadInitiateResponse initiateUpload(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestBody VideoUploadInitiateRequest request
+    ) {
+        return videoService.initiateVideoUpload(principal.getId(), request);
+    }
+
+    @Operation(summary = "S3 멀티파트 업로드 완료 (조각 병합)")
+    @PostMapping("/videos/upload/complete")
+    public void completeUpload(
+            @AuthenticationPrincipal CustomUserPrincipal principal,
+            @RequestBody VideoUploadCompleteRequest request
+    ) {
+        videoService.completeVideoUpload(principal.getId(), request);
+    }
+
     @Operation(summary = "영상 업로드 완료 처리 (상태: PROCESSING)")
     @PostMapping("/videos/{videoId}/upload-complete")
     public void uploadComplete(
             @PathVariable Long videoId,
-            @RequestParam String videoUrl,
+            @RequestParam String videoS3Key,
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        videoService.markUploadComplete(videoId, principal.getId(), videoUrl);
+        videoService.markUploadComplete(videoId, principal.getId(), videoS3Key);
     }
 
     @Operation(summary = "영상 처리 상태 조회")
@@ -91,8 +107,8 @@ public class VideoController {
     @PutMapping("/videos/{videoId}/complete")
     public void complete(
             @PathVariable Long videoId,
-            @RequestParam String subtitleUrl
+            @RequestParam String subtitleS3Key
     ) {
-        videoService.completeVideo(videoId, subtitleUrl);
+        videoService.completeVideo(videoId, subtitleS3Key);
     }
 }
