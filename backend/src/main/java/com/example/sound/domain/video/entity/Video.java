@@ -26,20 +26,26 @@ public class Video {
     @Column(nullable = false, length = 255)
     private String title;
 
-    @Column(name = "video_url", length = 500)
-    private String videoUrl;
+    @Column(name = "video_s3_key", length = 500)
+    private String videoS3Key;
 
-    @Column(name = "thumbnail_url", length = 500)
-    private String thumbnailUrl;
+    @Column(name = "thumbnail_s3_key", length = 500)
+    private String thumbnailS3Key;
 
     @Column(name = "duration_sec", precision = 10, scale = 3)
     private BigDecimal durationSec;
 
-    @Column(name = "subtitle_file_url", length = 500)
-    private String subtitleFileUrl;
+    @Column(name = "subtitle_s3_key", length = 500)
+    private String subtitleS3Key;
 
-    @Column(name = "vibration_file_url", length = 500)
-    private String vibrationFileUrl;
+    @Column(name = "vibration_s3_key", length = 500)
+    private String vibrationS3Key;
+
+    @Column(name = "upload_id", length = 255)
+    private String uploadId;
+
+    @Column(name = "original_file_name", length = 255)
+    private String originalFileName;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -76,8 +82,8 @@ public class Video {
         this.title = title;
     }
 
-    public void updateVideoUrl(String videoUrl){
-        this.videoUrl = videoUrl;
+    public void updateVideoS3Key(String videoS3Key){
+        this.videoS3Key = videoS3Key;
     }
 
     // 업로드 완료 → AI 처리 시작
@@ -85,20 +91,26 @@ public class Video {
         this.status = VideoStatus.PROCESSING;
     }
 
-    // AI 처리 완료 → 결과 URL 저장
-    public void markCompleted(String subtitleUrl) {
-        if (subtitleUrl == null) {
+    // AI 처리 완료 → 결과 S3 Key 저장
+    public void markCompleted(String subtitleS3Key) {
+        if (subtitleS3Key == null) {
             throw new IllegalArgumentException("결과 없이 완료 불가");
         }
 
         this.status = VideoStatus.COMPLETED;
-        this.subtitleFileUrl = subtitleUrl;
+        this.subtitleS3Key = subtitleS3Key;
     }
 
     // 처리 실패 → 상태 + 원인 저장
     public void markFailed(VideoFailReason reason) {
         this.status = VideoStatus.FAILED;
         this.failReason = reason;
-        this.subtitleFileUrl = null; // 혹시 남아있던 값 제거
+        this.subtitleS3Key = null; // 혹시 남아있던 값 제거
+    }
+
+    // 멀티파트 세션 정보 저장
+    public void setUploadId(String uploadId, String originalFileName) {
+        this.uploadId = uploadId;
+        this.originalFileName = originalFileName;
     }
 }

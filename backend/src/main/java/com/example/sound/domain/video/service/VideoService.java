@@ -4,10 +4,7 @@ import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
-import com.example.sound.domain.video.dto.VideoProcessMessage;
-import com.example.sound.domain.video.dto.VideoResponse;
-import com.example.sound.domain.video.dto.VideoUpdateRequest;
-import com.example.sound.domain.video.dto.VideoUpdateResponse;
+import com.example.sound.domain.video.dto.*;
 import com.example.sound.domain.video.entity.Video;
 import com.example.sound.domain.video.entity.VideoFailReason;
 import com.example.sound.domain.video.entity.VideoStatus;
@@ -17,6 +14,7 @@ import com.example.sound.domain.video.repository.VideoRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import com.example.sound.global.config.RabbitMQConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +30,10 @@ public class VideoService {
     private final VideoCommentRepository videoCommentRepository;
     private final UserRepository userRepository;
     private final RabbitTemplate rabbitTemplate;
+    private final S3UploadService s3UploadService;
+
+    @Value("${spring.cloud.aws.cloudfront.domain}")
+    private String cloudFrontDomain;
 
     // 공유 앨범에서만 제거 (업로드 취소)
     @Transactional
@@ -103,7 +105,7 @@ public class VideoService {
                 videoRepository.findMyVideosInAlbum(albumId, userId);
 
         return videos.stream()
-                .map(VideoResponse::from)
+                .map(v -> VideoResponse.from(v, cloudFrontDomain))
                 .toList();
     }
 
@@ -113,6 +115,65 @@ public class VideoService {
                 .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
 
         return video.getStatus();
+    }
+
+    /**
+     * S3 멀티파트 업로드 시작 로직
+     */
+    @Transactional
+    public VideoUploadInitiateResponse initiateVideoUpload(Long userId, VideoUploadInitiateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+
+        // 1. S3 Key 생성
+        String s3Key = s3UploadService.generateS3Key(request.getFileName());
+
+        // 2. S3 멀티파트 업로드 초기화 (Upload ID 발급)
+        String uploadId = s3UploadService.initiateMultipartUpload(s3Key);
+
+        // 3. DB에 Video 엔티티 생성 (PENDING 상태)
+        Video video = Video.builder()
+                .uploader(user)
+                .title(request.getTitle())
+                .videoS3Key(s3Key)
+                .uploadId(uploadId)
+                .originalFileName(request.getFileName())
+                .status(VideoStatus.PENDING)
+                .build();
+
+        videoRepository.save(video);
+
+        // 4. 각 파트별 Presigned URL 생성
+        List<String> presignedUrls = s3UploadService.generatePresignedUrls(s3Key, uploadId, request.getPartCount());
+
+        return VideoUploadInitiateResponse.builder()
+                .videoId(video.getId())
+                .uploadId(uploadId)
+                .videoS3Key(s3Key)
+                .presignedUrls(presignedUrls)
+                .build();
+    }
+
+    /**
+     * S3 멀티파트 업로드 완료 로직 (병합)
+     */
+    @Transactional
+    public void completeVideoUpload(Long userId, VideoUploadCompleteRequest request) {
+        Video video = videoRepository.findById(request.getVideoId())
+                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        // 🌟 권한 검증: 비디오 업로더와 현재 로그인한 유저가 일치하는지 확인
+        if (!video.getUploader().getId().equals(userId)) {
+            throw new IllegalArgumentException("업로드 완료 권한이 없습니다.");
+        }
+
+        // 1. S3 조각 병합 실행
+        s3UploadService.completeMultipartUpload(video.getVideoS3Key(), video.getUploadId(), request.getParts());
+
+        // 2. 상태 변경 (PENDING -> PROCESSING)
+        video.markProcessing();
+
+        // 3. TODO: RabbitMQ 연동 (다음 단계에서 진행 예정)
     }
 
     // 영상 생성 -> pending
@@ -134,7 +195,7 @@ public class VideoService {
 
     // 영상 업로드 완료 -> processing
     @Transactional
-    public void markUploadComplete(Long videoId, Long userId, String videoUrl){
+    public void markUploadComplete(Long videoId, Long userId, String videoS3Key){
 
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
@@ -143,16 +204,18 @@ public class VideoService {
             throw new IllegalArgumentException("업로드 완료 처리 권한 없음");
         }
 
-        // 영상 URL 저장
-        video.updateVideoUrl(videoUrl);
+        // 영상 S3 Key 저장
+        video.updateVideoS3Key(videoS3Key);
 
         // 상태 변경
         video.markProcessing();
 
-        // MQ 메시지 발행
+        // MQ 메시지 발행 (AI 서버는 Full URL이 필요할 수 있으므로 변환하여 전송)
+        String fullVideoUrl = "https://" + cloudFrontDomain + "/" + videoS3Key;
+
         VideoProcessMessage message = VideoProcessMessage.builder()
                 .videoId(video.getId())
-                .videoUrl(video.getVideoUrl())
+                .videoUrl(fullVideoUrl)
                 .build();
 
         rabbitTemplate.convertAndSend(
@@ -164,11 +227,11 @@ public class VideoService {
 
     // 완료 처리 -> AI 콜백
     @Transactional
-    public void completeVideo(Long videoId, String subtitleUrl) {
+    public void completeVideo(Long videoId, String subtitleS3Key) {
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
 
-        video.markCompleted(subtitleUrl);
+        video.markCompleted(subtitleS3Key);
     }
 
     // 실패 처리

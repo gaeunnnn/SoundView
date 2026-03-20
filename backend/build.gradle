@@ -20,6 +20,7 @@ configurations {
 }
 
 repositories {
+	mavenLocal()
 	mavenCentral()
 }
 
@@ -48,6 +49,9 @@ dependencies {
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
 
 	implementation 'org.springframework.boot:spring-boot-starter-amqp'
+
+	// Spring Cloud AWS (S3 & Presigner 통합 관리)
+	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1'
 }
 
 tasks.named('test') {
