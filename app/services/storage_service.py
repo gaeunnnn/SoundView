@@ -33,13 +33,14 @@ class StorageService:
 
         # AWS 설정값 가지고오기
         bucket = settings.AWS_S3_BUCKET_NAME
-        endpoint = settings.AWS_S3_ENDPOINT
+        enpoint = settings.AWS_S3_ENDPOINT
+        actual_endpoint = enpoint if enpoint else None
         session = aioboto3.Session()
 
         try:
             async with session.client(
                 's3',
-                endpoint_url=endpoint,
+                endpoint_url=actual_endpoint,
                 aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
                 aws_secret_access_key=settings.AWS_S3_SECRET_KEY,
                 region_name=settings.AWS_REGION
