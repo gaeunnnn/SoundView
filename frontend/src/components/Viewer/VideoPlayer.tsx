@@ -18,7 +18,7 @@ type VideoPlayerProps = {
   onReact: (emoji: string) => void;
 };
 
-export default function VideoPlayer({ video, reactions, onReact }: VideoPlayerProps) {
+export default function VideoPlayer({ video, reactions: _reactions, onReact: _onReact }: VideoPlayerProps) {
   const totalSec = parseDuration(video.duration);
 
   const [isPlaying, setIsPlaying] = useState(true);

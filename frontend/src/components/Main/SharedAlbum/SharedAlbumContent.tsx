@@ -1,6 +1,5 @@
 // 공유 앨범 콘텐츠 영역 컴포넌트
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Search, SlidersHorizontal, Users, Upload, Copy, Check } from "lucide-react";
 import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAlbum";
 import type { VideoItem } from "../../../types/video";
@@ -19,7 +18,6 @@ type SharedAlbumContentProps = {
 
 export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumContentProps) {
   const { me } = useUser();
-  const navigate = useNavigate();
   const [videos, setVideos] = useState<SharedVideoItem[]>(album.videos);
   const [myVideos, setMyVideos] = useState<VideoItem[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("all");
