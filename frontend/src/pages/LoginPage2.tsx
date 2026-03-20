@@ -233,7 +233,7 @@ export default function LoginPage2() {
         </RevealSection>
 
         <div className="flex flex-col gap-5 w-full">
-          {FEATURES.map(({ emoji, title, desc, color, lightBg, tag, vibrate }, i) => (
+          {FEATURES.map(({ emoji, title, desc, color, lightBg, vibrate }, i) => (
             <RevealSection key={title} delay={i * 80}>
               <div
                 className="group flex items-center gap-6 sm:gap-10 rounded-2xl px-8 py-7 hover:-translate-y-0.5 transition-all duration-300 cursor-default relative overflow-hidden"
