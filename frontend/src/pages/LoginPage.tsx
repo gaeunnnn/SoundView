@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { kakaoLogin } from "../api/auth";
 import loginBeforeImage from "../assets/images/login(before).png";
 import loginAfterImage from "../assets/images/login.png";
-import LogoIcon from "../assets/images/LogoIcon.png";
 
 export default function LoginPage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -41,11 +40,6 @@ export default function LoginPage() {
         className="sticky top-0 flex h-screen w-full flex-col"
         style={{ scrollSnapAlign: "start" }}
       >
-        {/* 상단 로고 */}
-        <header className="flex items-center px-6 py-3 sm:px-10">
-          <img src={LogoIcon} alt="SoundSee 로고" className="h-12 w-auto" />
-        </header>
-
         {/* 메인 영역 */}
         <main className="flex flex-1 flex-col items-center justify-center px-6 pb-4">
           {/* 이미지 전환 영역 — 두 이미지를 absolute로 겹쳐 크기 고정 */}
