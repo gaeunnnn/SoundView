@@ -1,0 +1,36 @@
+
+============================================================
+  SYNC REPORT
+============================================================
+  Audio start  : 1557.1 ms
+  Serial start : 2342.4 ms
+  Audio lead   : 785.3 ms
+
+  Frame target : 20.0 ms
+  Max drift    : 19.86 ms
+  End drift    : -19.9 ms
+  Frames       : 23/1072
+
+    Frame     Drift
+        0      +0.1 ms
+      500      +0.2 ms
+     1000      +0.2 ms
+     1072     -19.9 ms
+
+  ESP32 log (last 15 lines):
+    [ 10342.5 ms] [STREAM] 400/1072  L=130 R=136  drift=-20.0ms
+    [ 11342.6 ms] [STREAM] 450/1072  L=115 R=165  drift=-20.0ms
+    [ 12358.9 ms] [STREAM] 500/1072  L=56 R=0  drift=-20.0ms
+    [ 13342.6 ms] [STREAM] 550/1072  L=54 R=0  drift=-20.0ms
+    [ 14362.5 ms] [STREAM] 600/1072  L=45 R=42  drift=-20.0ms
+    [ 15342.8 ms] [STREAM] 650/1072  L=31 R=19  drift=-20.0ms
+    [ 16390.6 ms] [STREAM] 700/1072  L=63 R=165  drift=-20.0ms
+    [ 17342.8 ms] [STREAM] 750/1072  L=187 R=0  drift=-20.0ms
+    [ 18342.9 ms] [STREAM] 800/1072  L=49 R=0  drift=-20.0ms
+    [ 19362.6 ms] [STREAM] 850/1072  L=0 R=92  drift=-20.0ms
+    [ 20342.9 ms] [STREAM] 900/1072  L=64 R=0  drift=-20.0ms
+    [ 21362.6 ms] [STREAM] 950/1072  L=187 R=11  drift=-20.0ms
+    [ 22342.6 ms] [STREAM] 1000/1072  L=43 R=0  drift=-20.0ms
+    [ 23342.6 ms] [STREAM] 1050/1072  L=38 R=0  drift=-20.0ms
+    [ 23773.7 ms] [DONE] 1072프레임 완료 (21.4s, 예상 21.4s)
+============================================================

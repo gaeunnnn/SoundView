@@ -1,20 +1,13 @@
 """
-audio_to_esp32.py
-MP3/WAV → L/R 진동 패턴 변환 → ESP32 시리얼 전송 통합 스크립트
+audio_to_esp32_v10.py
+3밴드 + 비트 + 센트로이드 (기저 없음, 이벤트 전용)
 
-VIB1 포맷 (channels=2):
-  Header 12 bytes: magic(4) ver(1) fps(2LE) n_frames(4LE) channels(1)
-  Payload: [L0, R0, L1, R1, ...] uint8 × n_frames × 2
+원칙: 기본 = 무음(0). 이벤트만 진동.
+  - 이벤트 디케이를 길게 → 자연스럽게 겹쳐서 빈 구간 줄임
+  - 기저/크레센도 레이어 완전 제거 → 잔진동 없음
 
-사용법:
-  # 변환만
-  python audio_to_esp32.py alarm.mp3 --out alarm.bin
-
-  # 변환 + 즉시 전송
-  python audio_to_esp32.py alarm.mp3 --port COM3
-
-  # 기존 bin 파일만 전송
-  python audio_to_esp32.py alarm.bin --port COM3 --send-only
+L motor = 킥 (<150Hz) + 비트 정렬 + 센트로이드(dark=boost)
+R motor = 멜로디 (>500Hz) + 노트 탭 + 센트로이드(bright=boost)
 """
 
 import argparse
@@ -28,211 +21,273 @@ import numpy as np
 MAGIC           = b"VIB1"
 CHANNELS        = 2
 SUPPORTED_AUDIO = {".mp3", ".wav", ".flac", ".ogg", ".m4a"}
+DEFAULT_LOW_CUT  = 150
+DEFAULT_HIGH_CUT = 500
 
 
-# ── 단일 채널 오디오 → intensity ────────────────────────────────────
-def _process_channel(y: np.ndarray, sr: int, fps: int) -> np.ndarray:
-    from scipy.ndimage import uniform_filter1d
-    import librosa
-
-    hop = int(sr / fps)
-
-    rms = librosa.feature.rms(y=y, hop_length=hop)[0]
-    db  = librosa.amplitude_to_db(rms, ref=1.0)
-
-    # 실제 음원 범위 기준으로 정규화 (고정 범위 대신)
-    p5  = np.percentile(db, 5)
-    p95 = np.percentile(db, 95)
-    db_clipped = np.clip(db, p5, p95)
-    norm = (db_clipped - p5) / (p95 - p5 + 1e-6)
-
-    # tanh soft-clipping
-    TANH_SCALE = 2.5
-    shaped = np.tanh(TANH_SCALE * norm) / np.tanh(TANH_SCALE)
-
-    # 온셋 boost
-    onset_frames = librosa.onset.onset_detect(y=y, sr=sr, hop_length=hop)
-    valid_onsets = onset_frames[onset_frames < len(shaped)]
-    shaped[valid_onsets] = np.minimum(shaped[valid_onsets] * 1.4, 1.0)
-
-    # 스무딩
-    shaped = uniform_filter1d(shaped, size=3)
-
-    # 0~255 + 원본 무음 구간 = 0
-    intensity = (shaped * 255).astype(np.uint8)
-    silence_mask = (db <= p5 + (p95 - p5) * 0.05)  # 하위 5% 무음 처리
-    intensity[silence_mask] = 0
-
-    return intensity
+def _make_envelope(peak, attack_f, sustain_f, decay_f, max_len):
+    total = min(attack_f + sustain_f + decay_f, max_len)
+    if total <= 0:
+        return np.array([])
+    env = np.zeros(total)
+    atk = min(attack_f, total)
+    if atk > 0:
+        env[:atk] = np.linspace(peak * 0.3, peak, atk)
+    sus_end = min(atk + sustain_f, total)
+    env[atk:sus_end] = peak
+    dec_start = sus_end
+    dec_len = total - dec_start
+    if dec_len > 0:
+        env[dec_start:] = peak * np.exp(-np.arange(dec_len) * 2.5 / max(dec_len, 1))
+    return env
 
 
-# ── 스테레오 오디오 → L/R intensity ─────────────────────────────────
-def audio_to_intensity_stereo(path: str, fps: int = 50):
+def _apply_envelope(output, start, env):
+    for i in range(len(env)):
+        idx = start + i
+        if idx < len(output):
+            output[idx] = max(output[idx], env[i])
+
+
+def convert(path, fps=50, low_cut=DEFAULT_LOW_CUT, high_cut=DEFAULT_HIGH_CUT):
     try:
         import librosa
+        from scipy.signal import butter, sosfilt
+        from scipy.ndimage import uniform_filter1d
     except ImportError:
-        print("[ERR] 필요 패키지 없음: pip install librosa scipy")
-        sys.exit(1)
+        print("[ERR] pip install librosa scipy"); sys.exit(1)
 
-    print(f"[CONV] 로드 중: {path}")
-    y, sr = librosa.load(path, sr=None, mono=False)
+    print(f"[LOAD] {path}")
+    y, sr = librosa.load(path, sr=None, mono=True)
+    hop = int(sr / fps)
+    n = len(librosa.feature.rms(y=y, hop_length=hop)[0])
+    print(f"[INFO] sr={sr}Hz  {len(y)/sr:.2f}s  {n}frames")
 
-    if y.ndim == 1:
-        # 모노 파일 → 양 채널 동일
-        print("[CONV] 모노 입력 → L/R 동일 처리")
-        y_l = y_r = y
-    else:
-        y_l = y[0]
-        y_r = y[1]
+    # ── 3밴드 분리 ───────────────────────────────────────────────────
+    print(f"[BAND] low<{low_cut} | mid {low_cut}~{high_cut} | high>{high_cut}")
 
-    print(f"[CONV] sr={sr}Hz  길이={len(y_l)/sr:.2f}s")
+    sos_lo = butter(4, low_cut, btype='low', fs=sr, output='sos')
+    sos_mid = butter(4, [low_cut, high_cut], btype='band', fs=sr, output='sos')
+    sos_hi = butter(4, high_cut, btype='high', fs=sr, output='sos')
 
-    int_l = _process_channel(y_l, sr, fps)
-    int_r = _process_channel(y_r, sr, fps)
+    y_lo = sosfilt(sos_lo, y)
+    y_mid = sosfilt(sos_mid, y)
+    y_hi = sosfilt(sos_hi, y)
 
-    # 길이 맞추기
-    n = min(len(int_l), len(int_r))
-    int_l = int_l[:n]
-    int_r = int_r[:n]
+    rms_lo = librosa.feature.rms(y=y_lo, hop_length=hop)[0][:n]
+    rms_mid = librosa.feature.rms(y=y_mid, hop_length=hop)[0][:n]
+    rms_hi = librosa.feature.rms(y=y_hi, hop_length=hop)[0][:n]
+    rms_full = librosa.feature.rms(y=y, hop_length=hop)[0][:n]
+    silence_thresh = np.max(rms_full) * 0.015
 
-    duration_s = n / fps
-    print(f"[CONV] 완료: {n}프레임 ({duration_s:.1f}초)")
-    print(f"[CONV]  L: min={int_l.min()}  max={int_l.max()}  "
-          f"평균={int_l[int_l > 0].mean():.1f}")
-    print(f"[CONV]  R: min={int_r.min()}  max={int_r.max()}  "
-          f"평균={int_r[int_r > 0].mean():.1f}")
+    lo_max = np.max(rms_lo) if np.max(rms_lo) > 0 else 1
+    mid_max = np.max(rms_mid) if np.max(rms_mid) > 0 else 1
+    hi_max = np.max(rms_hi) if np.max(rms_hi) > 0 else 1
+
+    # ── 비트 트래킹 ─────────────────────────────────────────────────
+    tempo, beat_frames = librosa.beat.beat_track(y=y, sr=sr, hop_length=hop)
+    tempo_val = float(np.atleast_1d(tempo)[0])
+    beat_frames = beat_frames[beat_frames < n]
+    print(f"[BEAT] {tempo_val:.0f}BPM  {len(beat_frames)} beats")
+
+    # ── 센트로이드 ───────────────────────────────────────────────────
+    centroid = librosa.feature.spectral_centroid(y=y, sr=sr, hop_length=hop)[0][:n]
+    c_nz = centroid[centroid > 0]
+    c_min = np.percentile(c_nz, 5) if len(c_nz) > 0 else 0
+    c_max = np.percentile(c_nz, 95) if len(c_nz) > 0 else 1
+    c_norm = np.clip((centroid - c_min) / (c_max - c_min + 1e-6), 0, 1)
+    c_smooth = uniform_filter1d(c_norm, size=int(fps * 0.15))
+    print(f"[CENT] {c_min:.0f}~{c_max:.0f}Hz")
+
+    # ═══════════════════════════════════════════════════════════════════
+    # L motor: 킥/베이스 이벤트 (기저 없음)
+    # ═══════════════════════════════════════════════════════════════════
+    out_l = np.zeros(n, dtype=np.float64)
+
+    # L 비트 킥: 비트 프레임에서 묵직한 펀치
+    # 긴 디케이 (200ms sustain + 250ms decay = 450ms total)
+    beat_set = set(beat_frames.tolist())
+    for bi in beat_frames:
+        lo_strength = min(rms_lo[bi] / lo_max * 2.0, 1.0)
+        mid_add = rms_mid[bi] / mid_max * 0.3  # mid 밴드도 약간 반영
+        strength = min(lo_strength + mid_add, 1.0)
+        if strength < 0.05:
+            continue
+        # 센트로이드: 어두울수록 L 부스트
+        dark_factor = 1.0 + (1.0 - c_smooth[bi]) * 0.2  # 1.0~1.2
+        peak = (140 + strength * 115) * dark_factor  # 140~255
+        peak = min(peak, 255)
+        # 모터 물리: 어택1f + 서스테인3f + 긴 디케이10f (=280ms)
+        env = _make_envelope(peak, attack_f=1, sustain_f=3, decay_f=10, max_len=n - bi)
+        _apply_envelope(out_l, bi, env)
+
+    # L 비비트 저음 온셋 (비트 외 추가 킥)
+    lo_onsets = librosa.onset.onset_detect(y=y_lo, sr=sr, hop_length=hop, backtrack=False)
+    lo_onsets = lo_onsets[lo_onsets < n]
+    lo_oe = librosa.onset.onset_strength(y=y_lo, sr=sr, hop_length=hop)[:n]
+    lo_oe_max = np.percentile(lo_oe[lo_oe > 0], 90) if np.any(lo_oe > 0) else 1
+
+    for oi in lo_onsets:
+        if any(abs(oi - b) <= 3 for b in beat_set):
+            continue
+        strength = min(lo_oe[oi] / lo_oe_max * 1.3, 1.0)
+        if strength < 0.12:
+            continue
+        dark_factor = 1.0 + (1.0 - c_smooth[oi]) * 0.15
+        peak = min((90 + strength * 90) * dark_factor, 200)  # 90~200
+        # 비비트는 약간 짧게
+        env = _make_envelope(peak, attack_f=1, sustain_f=2, decay_f=7, max_len=n - oi)
+        _apply_envelope(out_l, oi, env)
+
+    # L mid 밴드 온셋 (저음이 약한 구간에서 mid로 보충)
+    mid_onsets = librosa.onset.onset_detect(y=y_mid, sr=sr, hop_length=hop, backtrack=False)
+    mid_onsets = mid_onsets[mid_onsets < n]
+    for oi in mid_onsets:
+        if out_l[oi] > 60:  # 이미 킥이 있으면 스킵
+            continue
+        strength = min(rms_mid[oi] / mid_max * 1.2, 1.0)
+        if strength < 0.15:
+            continue
+        peak = 50 + strength * 70  # 50~120
+        env = _make_envelope(peak, attack_f=2, sustain_f=2, decay_f=6, max_len=n - oi)
+        _apply_envelope(out_l, oi, env)
+
+    # ═══════════════════════════════════════════════════════════════════
+    # R motor: 멜로디/보컬 이벤트 (기저 없음)
+    # ═══════════════════════════════════════════════════════════════════
+    out_r = np.zeros(n, dtype=np.float64)
+
+    # R 고음 노트 탭 (긴 디케이)
+    hi_onsets = librosa.onset.onset_detect(y=y_hi, sr=sr, hop_length=hop, backtrack=False)
+    hi_onsets = hi_onsets[hi_onsets < n]
+    hi_oe = librosa.onset.onset_strength(y=y_hi, sr=sr, hop_length=hop)[:n]
+    hi_oe_max = np.percentile(hi_oe[hi_oe > 0], 90) if np.any(hi_oe > 0) else 1
+
+    for oi in hi_onsets:
+        strength = min(hi_oe[oi] / hi_oe_max * 1.3, 1.0)
+        if strength < 0.08:
+            continue
+        # 센트로이드: 밝을수록 R 부스트
+        bright_factor = 1.0 + c_smooth[oi] * 0.2  # 1.0~1.2
+        peak = min((80 + strength * 120) * bright_factor, 200)  # 80~200
+        # 멜로디: 소프트 어택 + 긴 서스테인 + 긴 디케이 (총 ~360ms)
+        env = _make_envelope(peak, attack_f=2, sustain_f=3, decay_f=13, max_len=n - oi)
+        _apply_envelope(out_r, oi, env)
+
+    # R mid 밴드 보충 (고음이 약한 구간)
+    for oi in mid_onsets:
+        if out_r[oi] > 50:
+            continue
+        strength = min(rms_mid[oi] / mid_max * 1.0, 1.0)
+        if strength < 0.15:
+            continue
+        peak = 40 + strength * 60  # 40~100
+        env = _make_envelope(peak, attack_f=2, sustain_f=2, decay_f=8, max_len=n - oi)
+        _apply_envelope(out_r, oi, env)
+
+    # ═══════════════════════════════════════════════════════════════════
+    # 최종
+    # ═══════════════════════════════════════════════════════════════════
+    out_l[rms_full < silence_thresh] = 0
+    out_r[rms_full < silence_thresh] = 0
+
+    int_l = np.clip(out_l, 0, 255).astype(np.uint8)
+    int_r = np.clip(out_r, 0, 255).astype(np.uint8)
+
+    # 통계
+    corr = np.corrcoef(int_l.astype(float), int_r.astype(float))[0, 1]
+    sil_l = int(np.sum(int_l == 0))
+    sil_r = int(np.sum(int_r == 0))
+    evt_l = int(np.sum(int_l > 80))
+    evt_r = int(np.sum(int_r > 80))
+    nz_l = int_l[int_l > 0]
+    nz_r = int_r[int_r > 0]
+
+    print(f"\n[RESULT] {n}프레임 ({n/fps:.1f}초)")
+    print(f"  L: silence={sil_l}({sil_l/n*100:.0f}%) events(>80)={evt_l}({evt_l/n*100:.0f}%) mean={nz_l.mean():.0f}")
+    print(f"  R: silence={sil_r}({sil_r/n*100:.0f}%) events(>80)={evt_r}({evt_r/n*100:.0f}%) mean={nz_r.mean():.0f}")
+    print(f"  L/R corr: {corr:.2f}")
 
     return int_l, int_r
 
 
-# ── bin 파일 저장 (channels=2, interleaved L/R) ──────────────────────
-def save_bin(int_l: np.ndarray, int_r: np.ndarray, out_path: str, fps: int):
-    n_frames = len(int_l)
-
-    # payload: [L0, R0, L1, R1, ...]
-    payload = np.empty(n_frames * 2, dtype=np.uint8)
+def save_bin(int_l, int_r, out_path, fps):
+    n = len(int_l)
+    payload = np.empty(n * 2, dtype=np.uint8)
     payload[0::2] = int_l
     payload[1::2] = int_r
-
-    header = struct.pack("<4sBHIB", MAGIC, 1, fps, n_frames, CHANNELS)
-    data   = header + payload.tobytes()
-
+    header = struct.pack("<4sBHIB", MAGIC, 1, fps, n, CHANNELS)
+    data = header + payload.tobytes()
     Path(out_path).write_bytes(data)
-    print(f"[SAVE] {out_path} ({len(data)} bytes, channels={CHANNELS})")
+    print(f"[SAVE] {out_path} ({len(data)} bytes)")
     return data
 
 
-# ── ESP32 시리얼 전송 ────────────────────────────────────────────────
-def send_to_esp32(data: bytes, port: str, baudrate: int = 921600,
-                  chunk_size: int = 256, delay_s: float = 0.003):
+def send_to_esp32(data, port, baudrate=921600, chunk_size=256, delay_s=0.003):
     try:
         import serial
     except ImportError:
-        print("[ERR] 필요 패키지 없음: pip install pyserial")
-        sys.exit(1)
-
+        print("[ERR] pip install pyserial"); sys.exit(1)
     if data[:4] != MAGIC:
-        print("[ERR] VIB1 헤더 없음")
-        sys.exit(1)
-
-    # 헤더 파싱해서 정보 출력
-    _, ver, fps, n_frames, ch = struct.unpack_from("<4sBHIB", data, 0)
-    print(f"\n[SEND] 포트: {port}  baudrate: {baudrate}")
-    print(f"[SEND] fps={fps}  frames={n_frames}  channels={ch}  "
-          f"재생시간={n_frames/fps:.1f}s")
-    print(f"[SEND] 파일 크기: {len(data)} bytes")
-
+        print("[ERR] VIB1 헤더 없음"); sys.exit(1)
+    _, ver, fps, nf, ch = struct.unpack_from("<4sBHIB", data, 0)
+    print(f"\n[SEND] port={port} fps={fps} frames={nf} 재생={nf/fps:.1f}s")
     with serial.Serial(port, baudrate=baudrate, timeout=0.2, write_timeout=5) as ser:
-        print("[SEND] 포트 열림 - ESP32 대기 중 (2초)...")
-        time.sleep(2.0)
-        ser.reset_input_buffer()
-        ser.reset_output_buffer()
-
-        total = len(data)
-        sent  = 0
-
-        print("[SEND] 전송 시작")
+        print("[SEND] ESP32 대기 (2초)..."); time.sleep(2.0)
+        ser.reset_input_buffer(); ser.reset_output_buffer()
+        total, sent = len(data), 0
         while sent < total:
             end = min(sent + chunk_size, total)
-            n   = ser.write(data[sent:end])
-            ser.flush()
-            sent += n
-
+            w = ser.write(data[sent:end]); ser.flush(); sent += w
             pct = sent / total * 100
             if pct % 10 < (chunk_size / total * 100):
-                print(f"[SEND] {sent}/{total} bytes ({pct:.0f}%)")
-
+                print(f"  {sent}/{total} ({pct:.0f}%)")
             time.sleep(delay_s)
-
-        print("[SEND] 전송 완료")
-        print("[SEND] ESP32 로그 수신 중 (15초)...\n")
-
-        end_time = time.time() + 15
-        while time.time() < end_time:
+        print("[SEND] 완료 — 로그 (15초)\n")
+        end_t = time.time() + 15
+        while time.time() < end_t:
             if ser.in_waiting:
-                msg = ser.read(ser.in_waiting).decode("utf-8", errors="ignore")
-                print(msg, end="", flush=True)
+                print(ser.read(ser.in_waiting).decode("utf-8", errors="ignore"),
+                      end="", flush=True)
             time.sleep(0.05)
+    print("\n[DONE]")
 
-    print("\n[DONE] 완료")
 
-
-# ── 메인 ────────────────────────────────────────────────────────────
 def main():
-    parser = argparse.ArgumentParser(
-        description="MP3/WAV → L/R 진동 패턴 변환 + ESP32 전송 (2ch)"
-    )
-    parser.add_argument("input",
-                        help="입력 파일 (.mp3/.wav 또는 --send-only 시 .bin)")
-    parser.add_argument("--out",       default=None,
-                        help="출력 bin 파일 경로 (기본: 입력파일명.bin)")
-    parser.add_argument("--fps",       type=int, default=50,
-                        help="프레임 레이트 Hz (기본: 50)")
-    parser.add_argument("--port",      default=None,
-                        help="시리얼 포트 (예: COM3 / /dev/ttyUSB0)")
-    parser.add_argument("--baud",      type=int, default=921600,
-                        help="baudrate (기본: 921600)")
-    parser.add_argument("--send-only", action="store_true",
-                        help="변환 없이 기존 bin 파일만 전송")
-    args = parser.parse_args()
+    p = argparse.ArgumentParser(description="audio→haptic v10 (event-only + 3band + beat + centroid)")
+    p.add_argument("input")
+    p.add_argument("--out", default=None)
+    p.add_argument("--fps", type=int, default=50)
+    p.add_argument("--low-cut", type=int, default=DEFAULT_LOW_CUT, help="kick cutoff (default: 150)")
+    p.add_argument("--high-cut", type=int, default=DEFAULT_HIGH_CUT, help="melody cutoff (default: 500)")
+    p.add_argument("--port", default=None)
+    p.add_argument("--baud", type=int, default=921600)
+    p.add_argument("--send-only", action="store_true")
+    a = p.parse_args()
+    inp = Path(a.input)
 
-    in_path = Path(args.input)
+    if a.send_only:
+        if not inp.exists(): print(f"[ERR] {inp}"); sys.exit(1)
+        if not a.port: print("[ERR] --port 필요"); sys.exit(1)
+        send_to_esp32(inp.read_bytes(), a.port, a.baud); return
+    if inp.suffix.lower() not in SUPPORTED_AUDIO:
+        print(f"[ERR] 지원: {SUPPORTED_AUDIO}"); sys.exit(1)
 
-    # ── send-only 모드 ───────────────────────────────────────────────
-    if args.send_only:
-        if not in_path.exists():
-            print(f"[ERR] 파일 없음: {in_path}")
-            sys.exit(1)
-        if not args.port:
-            print("[ERR] --port 필요")
-            sys.exit(1)
-        data = in_path.read_bytes()
-        send_to_esp32(data, args.port, args.baud)
-        return
+    out = a.out or str(inp.with_suffix(".bin"))
+    print(f"\n{'='*55}")
+    print(f"  audio_to_esp32 v10 — event-only + 3band/beat/centroid")
+    print(f"  NO base vibration. Events only.")
+    print(f"  L = kick (<{a.low_cut}Hz) + beat")
+    print(f"  R = melody (>{a.high_cut}Hz) + brightness")
+    print(f"  입력: {inp}  출력: {out}")
+    print(f"{'='*55}\n")
 
-    # ── 변환 모드 ────────────────────────────────────────────────────
-    if in_path.suffix.lower() not in SUPPORTED_AUDIO:
-        print(f"[ERR] 지원 형식: {SUPPORTED_AUDIO}")
-        sys.exit(1)
-
-    out_path = args.out or str(in_path.with_suffix(".bin"))
-
-    print(f"\n{'='*50}")
-    print(f"  입력  : {in_path}")
-    print(f"  출력  : {out_path}")
-    print(f"  fps   : {args.fps} Hz")
-    print(f"  채널  : {CHANNELS} (L/R 스테레오)")
-    print(f"  전송  : {args.port or '없음 (저장만)'}")
-    print(f"{'='*50}\n")
-
-    int_l, int_r = audio_to_intensity_stereo(str(in_path), args.fps)
-    data         = save_bin(int_l, int_r, out_path, args.fps)
-
-    if args.port:
-        send_to_esp32(data, args.port, args.baud)
+    int_l, int_r = convert(str(inp), a.fps, a.low_cut, a.high_cut)
+    data = save_bin(int_l, int_r, out, a.fps)
+    if a.port:
+        send_to_esp32(data, a.port, a.baud)
     else:
-        print("\n[INFO] --port 없음 → bin 저장만 완료")
-        print(f"[INFO] 전송하려면: python audio_to_esp32.py {out_path} --port COM3 --send-only")
+        print(f"\n[INFO] 전송: python audio_to_esp32_v10.py {out} --port COM3 --send-only")
 
 
 if __name__ == "__main__":
