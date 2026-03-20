@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import HeaderActionGroup from "../Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../Main/Header/HeaderProfileButton";
 import { useUser } from "../../context/UserContext";
-import logoIcon from "../../assets/images/logoIcon.png";
+import logoIcon from "../../assets/images/LogoIcon.png";
 
 type ViewerHeaderProps = {
   onBack: () => void;
