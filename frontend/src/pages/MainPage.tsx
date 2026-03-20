@@ -87,7 +87,7 @@ export default function MainPage() {
           videos: videos.map((v) => {
             const uploader = members.find((m) => m.nickname === v.uploaderName);
             return {
-              id: v.videoId,
+              id: v.albumVideoId,
               title: v.title,
               thumbnail: v.thumbnailUrl ?? "",
               duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
