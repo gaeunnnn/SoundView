@@ -34,13 +34,16 @@ class RabbitMQClient:
             await self.connection.close()
             logger.info("🔌 RabbitMQ 연결 종료")
 
-    async def consume(self, callback_func):
+    async def consume(self, callback_func, queue_name: str = None):
         """메시지를 큐에서 수신합니다. Subscribe"""
         if not self.channel:
             await self.connect()
+
+        # queue_name이 명시되지 않으면 .env의 기본 큐 사용
+        target_queue = queue_name or settings.RABBITMQ_QUEUE_NAME
         
         try:
-            queue = await self.channel.get_queue(settings.RABBITMQ_QUEUE_NAME)
+            queue = await self.channel.declare_queue(target_queue, durable=True)            
             await queue.consume(callback_func)
         
             logger.info("✅ RabbitMQ Consumer 구동 완료")

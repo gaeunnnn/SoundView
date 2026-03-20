@@ -17,12 +17,17 @@ async def process_mq_message(message: aio_pika.Message):
             data = json.loads(body)
             logger.info(f"수신된 메시지: {data}")
             
-            # 1. Spring Boot에서 넘어온 camelCase 키로 데이터 추출
+            # Spring Boot에서 넘어온 camelCase 키로 데이터 추출
             raw_video_id = data.get("videoId")
-            video_url = data.get("videoUrl")
+            video_key = data.get("videoKey")
 
             # id가 0일 수도 있으므로 None으로 체크
-            if raw_video_id is not None and video_url:
+            if raw_video_id is not None and video_key:
+                # baseurl + key를 활용해서 url 조합
+                base_url = settings.VIDEO_BASE_URL.rstrip('/')
+                clean_key = video_key.lstrip('/')
+                video_url = f"{base_url}/{clean_key}"
+
                 video_id = str(raw_video_id)    # videoId 변환
                 logger.info(f"VideoService 파이프라인 시작 (ID: {video_id})")
 

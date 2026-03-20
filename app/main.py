@@ -12,8 +12,11 @@ from app.services.mq_handler import process_mq_message
 async def lifespan(app: FastAPI):
     print("RabbitMQ 연결 및 Consumer 구동 준비...")
 
+    # 싱글톤 클라이언트 연결
     await rabbitmq_client.connect()
-    await rabbitmq_client.consume(process_mq_message)
+
+    # 첫번째 큐 구독
+    await rabbitmq_client.consume(process_mq_message, queue_name=settings.RABBITMQ_QUEUE_NAME)
 
     yield
 
