@@ -1,6 +1,7 @@
 // 라우트 경로를 연결하는 앱 엔트리 파일
 import { Route, Routes } from "react-router-dom";
 import LoginPage from "./pages/LoginPage";
+import LoginPage2 from "./pages/LoginPage2";
 import MainPage from "./pages/MainPage";
 import ViewerPage from "./pages/ViewerPage";
 import UploadPage from "./pages/UploadPage";
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/edit" element={<EditPage />} />
           <Route path="/oauth" element={<OAuthCallbackPage />} />
           <Route path="/test" element={<TestPage />} />
+          <Route path="/login2" element={<LoginPage2 />} />
         </Routes>
         <UploadProgressPip />
       </UploadProvider>

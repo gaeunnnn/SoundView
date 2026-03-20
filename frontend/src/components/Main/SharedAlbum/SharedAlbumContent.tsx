@@ -1,5 +1,6 @@
 // 공유 앨범 콘텐츠 영역 컴포넌트
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Search, SlidersHorizontal, Users, Upload, Copy, Check } from "lucide-react";
 import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAlbum";
 import type { VideoItem } from "../../../types/video";
@@ -26,6 +27,8 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
   const [showImport, setShowImport] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const participantRef = useRef<HTMLDivElement>(null);
+  const participantBtnRef = useRef<HTMLButtonElement>(null);
+  const [participantPos, setParticipantPos] = useState<{ top: number; left: number } | null>(null);
 
   // album이 바뀌면 videos 초기화
   useEffect(() => {
@@ -137,20 +140,31 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
               {/* 참여자 배지 */}
               <div ref={participantRef} className="relative">
                 <button
+                  ref={participantBtnRef}
                   type="button"
-                  onClick={() => setShowParticipants((p) => !p)}
+                  onClick={() => {
+                    if (!showParticipants && participantBtnRef.current) {
+                      const r = participantBtnRef.current.getBoundingClientRect();
+                      setParticipantPos({ top: r.bottom + 6, left: r.left });
+                    }
+                    setShowParticipants((p) => !p);
+                  }}
                   className="flex items-center gap-1.5 rounded-full bg-[#F1F5F9] px-2.5 py-0.5 text-xs font-medium text-[#64748B] transition-colors hover:bg-[#E2E8F0]"
                 >
                   <Users size={11} />
                   {album.participants.length}명
                 </button>
 
-                {showParticipants && (
-                  <div className="absolute left-0 top-8 z-30 w-64 rounded-2xl border border-[#E8EDF4] bg-white p-4 shadow-lg sm:w-72">
+                {showParticipants && participantPos && createPortal(
+                  <div
+                    ref={participantRef}
+                    className="fixed z-[9999] w-64 rounded-2xl border border-[#E8EDF4] bg-white p-4 shadow-lg sm:w-72"
+                    style={{ top: participantPos.top, left: participantPos.left }}
+                  >
                     <p className="mb-3 text-xs font-semibold text-[#94A3B8]">
                       참여자 {album.participants.length}명
                     </p>
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 max-h-[168px] overflow-y-auto">
                       {[...album.participants]
                         .sort((a, b) => {
                           const aIsMe = a.code === me?.userCode;
@@ -163,12 +177,20 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
                           const isMe = p.code === me?.userCode;
                           return (
                         <li key={p.id} className="flex items-center gap-2.5 overflow-hidden">
-                          <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                            style={{ backgroundColor: p.avatarColor }}
-                          >
-                            {p.name[0]}
-                          </div>
+                          {p.profileImageUrl ? (
+                            <img
+                              src={p.profileImageUrl}
+                              alt={p.name}
+                              className="h-8 w-8 shrink-0 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div
+                              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                              style={{ backgroundColor: p.avatarColor }}
+                            >
+                              {p.name[0]}
+                            </div>
+                          )}
                           <span className="truncate text-sm font-medium text-[#1E293B]">
                             {p.name}
                           </span>
@@ -203,7 +225,8 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
                           );
                         })}
                     </ul>
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             </div>

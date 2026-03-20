@@ -3,6 +3,7 @@ export type Participant = {
   id: number;
   name: string;
   avatarColor: string;
+  profileImageUrl?: string | null;
   isMe?: boolean;
   code?: string;
 };

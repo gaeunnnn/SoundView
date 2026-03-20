@@ -57,6 +57,6 @@ export default function ViewerPage() {
           <CommentSection videoId={video.id} reactions={reactions} onReact={handleReact} />
         </div>
       </div>
-    </div>
+     </div>
   );
 }

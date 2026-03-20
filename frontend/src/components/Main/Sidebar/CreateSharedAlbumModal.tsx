@@ -9,6 +9,7 @@ type Friend = {
   name: string;
   code: string;
   avatarColor: string;
+  profileImageUrl?: string | null;
 };
 
 const AVATAR_COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
@@ -59,6 +60,7 @@ export default function CreateSharedAlbumModal({
         name: searchResult.nickname,
         code: searchResult.userCode,
         avatarColor: getAvatarColor(searchResult.userId),
+        profileImageUrl: searchResult.profileImageUrl,
       },
     ]);
     setSearchResult(null);
@@ -135,12 +137,20 @@ export default function CreateSharedAlbumModal({
           {/* 검색 결과 */}
           {searchResult && (
             <div className="mt-2 flex items-center gap-3 rounded-xl border border-[#E2E8F0] px-4 py-3">
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                style={{ backgroundColor: getAvatarColor(searchResult.userId) }}
-              >
-                {searchResult.nickname[0]}
-              </div>
+              {searchResult.profileImageUrl ? (
+                <img
+                  src={searchResult.profileImageUrl}
+                  alt={searchResult.nickname}
+                  className="h-9 w-9 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                  style={{ backgroundColor: getAvatarColor(searchResult.userId) }}
+                >
+                  {searchResult.nickname[0]}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-[#1E293B]">{searchResult.nickname}</p>
                 <p className="truncate text-xs text-[#94A3B8]"># {searchResult.userCode}</p>
@@ -175,12 +185,20 @@ export default function CreateSharedAlbumModal({
                     idx !== selected.length - 1 ? "border-b border-[#F1F5F9]" : "",
                   ].join(" ")}
                 >
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
-                    style={{ backgroundColor: friend.avatarColor }}
-                  >
-                    {friend.name[0]}
-                  </div>
+                  {friend.profileImageUrl ? (
+                    <img
+                      src={friend.profileImageUrl}
+                      alt={friend.name}
+                      className="h-9 w-9 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
+                      style={{ backgroundColor: friend.avatarColor }}
+                    >
+                      {friend.name[0]}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#1E293B]">{friend.name}</p>
                     <p className="truncate text-xs text-[#94A3B8]"># {friend.code}</p>
