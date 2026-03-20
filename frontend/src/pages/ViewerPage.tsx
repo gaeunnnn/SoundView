@@ -5,12 +5,13 @@ import type { ViewerVideo, EmojiReaction } from "../types/viewer";
 import ViewerHeader from "../components/Viewer/ViewerHeader";
 import VideoPlayer from "../components/Viewer/VideoPlayer";
 import CommentSection from "../components/Viewer/CommentSection";
+import { addVideoReaction, deleteVideoReaction } from "../api/video";
 
 const PRESET_EMOJIS: EmojiReaction[] = [
-  { emoji: "👍", count: 2, reacted: false },
-  { emoji: "❤️", count: 1, reacted: false },
+  { emoji: "👍", count: 0, reacted: false },
+  { emoji: "❤️", count: 0, reacted: false },
   { emoji: "😂", count: 0, reacted: false },
-  { emoji: "🔥", count: 3, reacted: false },
+  { emoji: "🔥", count: 0, reacted: false },
   { emoji: "😮", count: 0, reacted: false },
 ];
 
@@ -26,14 +27,39 @@ export default function ViewerPage() {
     ? (video.uploadedBy.isMe ? "나" : video.uploadedBy.name)
     : "나";
 
-  const handleReact = (emoji: string) => {
-    setReactions((prev) =>
-      prev.map((r) =>
-        r.emoji === emoji
-          ? { ...r, reacted: !r.reacted, count: r.reacted ? Math.max(0, r.count - 1) : r.count + 1 }
-          : r
-      )
-    );
+  const handleReact = async (emoji: string) => {
+    const target = reactions.find((r) => r.emoji === emoji);
+    if (!target) return;
+
+    if (target.reacted) {
+      // 이미 반응한 경우 → DELETE 호출 후 count 감소
+      try {
+        await deleteVideoReaction(video.id, emoji);
+        setReactions((prev) =>
+          prev.map((r) =>
+            r.emoji === emoji
+              ? { ...r, reacted: false, count: Math.max(0, r.count - 1) }
+              : r
+          )
+        );
+      } catch {
+        // 삭제 실패 시 상태 유지
+      }
+    } else {
+      // 아직 반응하지 않은 경우 → POST 호출 후 서버 응답의 count 반영
+      try {
+        const res = await addVideoReaction(video.id, emoji);
+        setReactions((prev) =>
+          prev.map((r) =>
+            r.emoji === emoji
+              ? { ...r, reacted: true, count: res.count }
+              : r
+          )
+        );
+      } catch {
+        // 추가 실패 시 상태 유지
+      }
+    }
   };
 
   return (
