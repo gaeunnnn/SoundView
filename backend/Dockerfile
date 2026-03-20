@@ -21,8 +21,8 @@ WORKDIR /app
 # 빌드된 jar 파일 복사
 COPY --from=builder /app/build/libs/*.jar app.jar
 
-# 젠킨스가 런타임에 주입할 .env 파일 복사
-COPY ../.env .env
+# ✨ 수정된 부분: 젠킨스가 런타임에 주입할 .env 파일 복사 (경로 수정)
+COPY .env .env
 
 # 실행 (스프링이 .env를 읽도록 강제)
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.import=optional:file:.env"]
