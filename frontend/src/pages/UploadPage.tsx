@@ -7,6 +7,7 @@ import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUpload } from "../context/UploadContext";
 import { useUser } from "../context/UserContext";
 import logoIcon from "../assets/images/LogoIcon.png";
+import { uploadVideoMultipart } from "../utils/uploadMultipart";
 
 const STAGES = [
   { minProgress: 0,  maxProgress: 20,  label: "영상을 업로드하는 중입니다...",          sub: "파일을 서버로 전송하고 있습니다" },
@@ -32,6 +33,8 @@ export default function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [videoTitle, setVideoTitle] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 업로드 완료 시 자막 수정 페이지로 이동
@@ -57,6 +60,9 @@ export default function UploadPage() {
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
     setUploadedVideo(url, file.type);
+    // 파일명에서 확장자를 제거한 값을 기본 제목으로 설정
+    setVideoTitle(file.name.replace(/\.[^/.]+$/, ""));
+    setUploadError(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -81,21 +87,37 @@ export default function UploadPage() {
     if (file) handleFile(file);
   };
 
-  const handleStartUpload = () => {
-    if (!selectedFile) return;
+  const handleStartUpload = async () => {
+    if (!selectedFile || !videoTitle.trim()) return;
+    setUploadError(null);
     startUpload(selectedFile.name);
 
-    // 진행률 시뮬레이션 (~10초)
-    let current = 0;
-    intervalRef.current = setInterval(() => {
-      current += 1;
-      if (current >= 100) {
-        current = 100;
-        clearInterval(intervalRef.current!);
-        finishUpload();
-      }
-      updateProgress(Math.floor(current));
-    }, 100);
+    try {
+      // S3 멀티파트 업로드 실행
+      // onProgress 콜백의 0-100 값을 화면 진행률의 0-20% 구간에 매핑합니다.
+      // (0-20%: 실제 업로드, 20-100%: 서버 AI 처리 시뮬레이션)
+      await uploadVideoMultipart(selectedFile, videoTitle.trim(), (uploadProgress) => {
+        updateProgress(Math.floor(uploadProgress * 0.2));
+      });
+
+      // 업로드 완료 후 서버 AI 처리 단계 시뮬레이션 (20-100% 구간)
+      let current = 20;
+      intervalRef.current = setInterval(() => {
+        current += 1;
+        if (current >= 100) {
+          current = 100;
+          clearInterval(intervalRef.current!);
+          finishUpload();
+        }
+        updateProgress(current);
+      }, 100);
+    } catch (error) {
+      // 업로드 실패 시 어느 단계에서 실패했는지 에러 메시지에 포함됩니다.
+      const message =
+        error instanceof Error ? error.message : "업로드 중 오류가 발생했습니다.";
+      resetUpload();
+      setUploadError(message);
+    }
   };
 
   const handleReset = () => {
@@ -103,6 +125,8 @@ export default function UploadPage() {
     resetUpload();
     setSelectedFile(null);
     setPreviewUrl(null);
+    setVideoTitle("");
+    setUploadError(null);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -253,7 +277,7 @@ export default function UploadPage() {
 
               {selectedFile ? (
                 /* 파일 선택 완료 */
-                <div className="flex flex-col items-center gap-4 text-center">
+                <div className="flex flex-col items-center gap-4 text-center w-full max-w-sm px-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#D1FAE5]">
                     <CheckCircle2 size={30} className="text-[#059669]" strokeWidth={1.5} />
                   </div>
@@ -263,6 +287,25 @@ export default function UploadPage() {
                       {formatSize(selectedFile.size)}
                     </p>
                   </div>
+                  {/* 영상 제목 입력 (initiate API의 title 필드) */}
+                  <div className="w-full" onClick={(e) => e.stopPropagation()}>
+                    <label className="block text-left text-xs font-medium text-[#475569] mb-1">
+                      영상 제목
+                    </label>
+                    <input
+                      type="text"
+                      value={videoTitle}
+                      onChange={(e) => setVideoTitle(e.target.value)}
+                      placeholder="영상 제목을 입력하세요"
+                      className="w-full rounded-xl border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#111827] placeholder-[#94A3B8] outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
+                    />
+                  </div>
+                  {/* 에러 메시지 */}
+                  {uploadError && (
+                    <p className="w-full rounded-xl bg-[#FEF2F2] px-3 py-2 text-left text-xs text-[#DC2626]">
+                      {uploadError}
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -273,8 +316,9 @@ export default function UploadPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); handleStartUpload(); }}
-                      className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8]"
+                      onClick={(e) => { e.stopPropagation(); void handleStartUpload(); }}
+                      disabled={!videoTitle.trim()}
+                      className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <CloudUpload size={14} strokeWidth={2.5} />
                       자막 생성 시작
