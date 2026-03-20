@@ -1,5 +1,5 @@
 // 상단 헤더 좌측의 로고와 서비스명을 렌더링하는 컴포넌트 파일
-import logoIcon from "../../../assets/images/logoIcon.png";
+import logoIcon from "../../../assets/images/LogoIcon.png";
 
 type HeaderBrandProps = {
   title?: string;

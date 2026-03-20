@@ -6,7 +6,7 @@ import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUpload } from "../context/UploadContext";
 import { useUser } from "../context/UserContext";
-import logoIcon from "../assets/images/logoIcon.png";
+import logoIcon from "../assets/images/LogoIcon.png";
 
 const STAGES = [
   { minProgress: 0,  maxProgress: 20,  label: "영상을 업로드하는 중입니다...",          sub: "파일을 서버로 전송하고 있습니다" },
