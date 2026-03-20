@@ -3,6 +3,8 @@ import logging
 import aio_pika
 
 from app.services.video_service import VideoService
+from app.core.config import settings
+
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ async def process_mq_message(message: aio_pika.Message):
             # id가 0일 수도 있으므로 None으로 체크
             if raw_video_id is not None and video_key:
                 # baseurl + key를 활용해서 url 조합
-                base_url = settings.VIDEO_BASE_URL.rstrip('/')
+                base_url = settings.S3_BASE_URL.rstrip('/')
                 clean_key = video_key.lstrip('/')
                 video_url = f"{base_url}/{clean_key}"
 
