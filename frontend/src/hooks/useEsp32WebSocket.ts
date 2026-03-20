@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-// ESP32 IP와 포트만 여기서 변경하면 됨
-const ESP32_WS_URL = "ws://192.168.0.10:81";
+const ESP32_WS_URL = "ws://10.105.102.88:8765";
 const RECONNECT_DELAY_MS = 2000;
 
 type Status = "connecting" | "connected" | "disconnected" | "error";
@@ -66,14 +65,21 @@ export function useEsp32WebSocket(
     // 바이너리 수신 타입을 ArrayBuffer로 설정 (진동 chunk 수신용)
     ws.binaryType = "arraybuffer";
 
+    // readyState 숫자 → 텍스트 변환 헬퍼
+    const readyStateText = (state: number): string =>
+      ["CONNECTING", "OPEN", "CLOSING", "CLOSED"][state] ?? String(state);
+
     ws.onopen = () => {
-      console.log("[WS] 연결 성공");
+      console.log("[WS] WebSocket 연결 성공");
+      console.log("[WS] readyState:", readyStateText(ws.readyState)); // OPEN
       onStatusChange("connected");
-      clearReconnectTimer(); // 연결 성공 시 재연결 타이머 제거
+      clearReconnectTimer();
     };
 
     ws.onclose = (event: CloseEvent) => {
-      console.log("[WS] 연결 종료. code:", event.code, "reason:", event.reason);
+      console.log("[WS] WebSocket 연결 종료");
+      console.log("[WS] close code:", event.code, "| reason:", event.reason || "(없음)");
+      console.log("[WS] readyState:", readyStateText(ws.readyState)); // CLOSED
       onStatusChange("disconnected");
 
       // 수동 disconnect가 아닌 경우에만 자동 재연결
@@ -83,13 +89,14 @@ export function useEsp32WebSocket(
     };
 
     ws.onerror = (error: Event) => {
-      console.error("[WS] 에러 발생:", error);
+      // 연결 실패 시에도 onerror → onclose 순서로 호출됨
+      console.error("[WS] WebSocket 에러 발생:", error);
+      console.log("[WS] readyState:", readyStateText(ws.readyState));
       onStatusChange("error");
-      // onerror 후 onclose도 호출되므로 여기서는 재연결 예약하지 않음
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      console.log("[WS] 수신:", event.data);
+      console.log("[WS] 메시지 수신:", event.data);
       if (onMessage) {
         onMessage(event.data);
       }

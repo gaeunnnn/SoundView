@@ -6,6 +6,7 @@ import ViewerPage from "./pages/ViewerPage";
 import UploadPage from "./pages/UploadPage";
 import EditPage from "./pages/EditPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
+import TestPage from "./pages/TestPage";
 import { UploadProvider } from "./context/UploadContext";
 import { VideosProvider } from "./context/VideosContext";
 import { UserProvider } from "./context/UserContext";
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/edit" element={<EditPage />} />
           <Route path="/oauth" element={<OAuthCallbackPage />} />
+          <Route path="/test" element={<TestPage />} />
         </Routes>
         <UploadProgressPip />
       </UploadProvider>
