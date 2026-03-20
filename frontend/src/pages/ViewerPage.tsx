@@ -31,6 +31,8 @@ export default function ViewerPage() {
     const target = reactions.find((r) => r.emoji === emoji);
     if (!target) return;
 
+    console.log("[리액션] videoId:", video.id, "emoji:", emoji, "현재 reacted:", target.reacted);
+
     if (target.reacted) {
       // 이미 반응한 경우 → DELETE 호출 후 count 감소
       try {
@@ -42,8 +44,8 @@ export default function ViewerPage() {
               : r
           )
         );
-      } catch {
-        // 삭제 실패 시 상태 유지
+      } catch (err) {
+        console.error("[리액션 삭제 실패]", err);
       }
     } else {
       // 아직 반응하지 않은 경우 → POST 호출 후 서버 응답의 count 반영
@@ -56,8 +58,8 @@ export default function ViewerPage() {
               : r
           )
         );
-      } catch {
-        // 추가 실패 시 상태 유지
+      } catch (err) {
+        console.error("[리액션 추가 실패]", err);
       }
     }
   };

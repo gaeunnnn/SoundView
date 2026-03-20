@@ -75,6 +75,7 @@ export const getAlbumVideoCount = (albumId: number): Promise<AlbumVideoCount> =>
 
 
 export type AlbumVideo = {
+  albumVideoId: number;
   videoId: number;
   title: string;
   thumbnailUrl: string | null;

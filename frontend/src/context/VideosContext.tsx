@@ -31,7 +31,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
       const data = await getAlbumVideos(albumId);
       setVideos(
         data.map((v) => ({
-          id: v.videoId,
+          id: v.albumVideoId,
           title: v.title,
           thumbnail: v.thumbnailUrl ?? "",
           duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
