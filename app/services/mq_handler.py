@@ -26,15 +26,17 @@ async def process_mq_message(message: aio_pika.Message):
             # id가 0일 수도 있으므로 None으로 체크
             if raw_video_id is not None and video_key:
                 # baseurl + key를 활용해서 url 조합
-                base_url = settings.S3_BASE_URL.rstrip('/')
-                clean_key = video_key.lstrip('/')
-                video_url = f"{base_url}/{clean_key}"
+                # base_url = settings.AWS_S3_ENDPOINT.rstrip('/')
+                # clean_key = video_key.lstrip('/')
+                # video_url = f"{base_url}/{clean_key}"
+
+                
 
                 video_id = str(raw_video_id)    # videoId 변환
                 logger.info(f"VideoService 파이프라인 시작 (ID: {video_id})")
 
                 # 비즈니스 로직 호출
-                result = await video_service.process_video(video_id, video_url)
+                result = await video_service.process_video(video_id, video_key)
                 logger.info(f"처리가 완료되었습니다: {result}")
             else:
                 logger.warning("메시지에 videoId 또는 videoUrl이 없습니다.")

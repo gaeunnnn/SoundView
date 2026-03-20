@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     AWS_S3_ENDPOINT: str     # 예: https://s3.ap-northeast-2.amazonaws.com (또는 MinIO URL)
     AWS_S3_ACCESS_KEY: str
     AWS_S3_SECRET_KEY: str
-    AWS_S3_BUCKET_NAME: str = "results"
+    AWS_S3_BUCKET_NAME: str
+    AWS_REGION: str
     
     # Spring Boot 설정
     SPRING_BOOT_API_URL: str
@@ -33,7 +34,7 @@ class Settings(BaseSettings):
     RABBITMQ_QUEUE_NAME: str
 
     # S3의 기본 URL
-    S3_BASE_URL: str
+    # S3_BASE_URL: str
 
 
     @property

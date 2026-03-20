@@ -29,40 +29,43 @@ class StorageService:
         suffix = Path(video_url).suffix or ".mp4"
         temp_file = NamedTemporaryFile(delete=False, suffix=suffix)
         temp_path = temp_file.name      # 경로 미리 저장
+        temp_file.close()
 
-        # 타임아웃 설정(대용량 파일 다운로드 고려)
-        timeout = httpx.Timeout(60.0, read=300.0)
+        # AWS 설정값 가지고오기
+        bucket = settings.AWS_S3_BUCKET_NAME
+        endpoint = settings.AWS_S3_ENDPOINT
+        session = aioboto3.Session()
 
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                # 메모리 관리를 위해 stream 방식으로 다운로드 요청
-                async with client.stream("GET", video_url) as response:
-                    response.raise_for_status()  # 200 OK가 아니면 예외 발생
+            async with session.client(
+                's3',
+                endpoint_url=endpoint,
+                aws_access_key_id=settings.AWS_S3_ACCESS_KEY,
+                aws_secret_access_key=settings.AWS_S3_SECRET_KEY,
+                region_name=settings.AWS_REGION
+            ) as s3:
 
-                    # 스트림 데이터를 8KB 청크 단위로 디스크에 기록
-                    async for chunk in response.aiter_bytes(chunk_size=8192):
-                        temp_file.write(chunk)
+                # aioboto3가 내부적으로 메모리 최적화 및 멀티파트 다운로드를 알아서 수행
+                await s3.download_file(bucket, video_url, temp_path)
 
-            temp_file.close()
-
-            # 파일 용량 검증(0바이트 or 지나치게 작은 깨진 파일 필터링)
             file_size = os.path.getsize(temp_path)
-            
+
             if file_size < 1024:
                 raise ValueError(f"다운로드한 파일이 너무 작습니다: {file_size} bytes")
 
-            print(f"[StorageService] 영상 다운로드 완료 (저장 경로: {temp_path})")
-
+            logger.info(f"[StorageService] 영상 다운로드 완료 (저장 경로: {temp_path})")
+            
             return temp_path
 
-        except httpx.HTTPError as e:
-            temp_file.close()
+        except ClientError as e:
             self.cleanup(temp_path)
-            raise RuntimeError(f"S3 다운로드 중 HTTP 네트워크 오류 발생: {str(e)}")
+            logger.error(f"[StorageService] S3 접근 권한 거부 또는 에러 발생(IAM 키 확인 필요): {e}")
+            raise RuntimeError(f"S3 파일 다운로드 실패 (403/404): {e}")
         except Exception as e:
-            temp_file.close()
             self.cleanup(temp_path)
+            logger.error(f"[StorageService] 영상 다운로드 중 알 수 없는 에러 발생: {e}")
             raise Exception(f"영상 다운로드 실패: {str(e)}")
+
 
     async def upload_results(self, video_id: str, subtitle_result: list, vibration_result: list, sound_event_result: list) -> tuple[str, str, str]:
         """
