@@ -73,25 +73,14 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
 
       {/* 하단 정보 영역 */}
       <div className="flex flex-col px-3.5 pt-2.5 pb-2">
-        {/* 업로더 + 제목 + 메뉴 */}
+        {/* 제목 + 메뉴 */}
         <div className="flex items-center justify-between">
-          <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-              style={{ backgroundColor: video.uploadedBy.avatarColor }}
-            >
-              {video.uploadedBy.name[0]}
-            </div>
-            <div className="min-w-0">
-              <VideoTitleEditor
-                title={video.title}
-                onCommit={(newTitle) => onRenameTitle?.(video.id, newTitle)}
-                accentColor="#10B981"
-              />
-              <p className="text-[11px] font-medium text-[#94A3B8]">
-                {video.uploadedBy.isMe ? "나" : video.uploadedBy.name} · {video.date}
-              </p>
-            </div>
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <VideoTitleEditor
+              title={video.title}
+              onCommit={(newTitle) => onRenameTitle?.(video.id, newTitle)}
+              accentColor="#10B981"
+            />
           </div>
 
           {/* 내 영상일 때만 메뉴 */}
@@ -119,8 +108,31 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
             </div>
           )}
         </div>
+        {/* 날짜 + 업로더 프로필 */}
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-medium text-[#94A3B8]">{video.date}</p>
+          <div className="flex items-center gap-1">
+            {video.uploadedBy.profileImageUrl ? (
+              <img
+                src={video.uploadedBy.profileImageUrl}
+                alt={video.uploadedBy.name}
+                className="h-6 w-6 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                style={{ backgroundColor: video.uploadedBy.avatarColor }}
+              >
+                {video.uploadedBy.name[0]}
+              </div>
+            )}
+            <span className="text-[11px] font-medium text-[#94A3B8]">
+              {video.uploadedBy.isMe ? "나" : video.uploadedBy.name}
+            </span>
+          </div>
+        </div>
 
-        {/* 반응 + 댓글 수 */}
+        {/* 반응 + 댓글 수 + 업로더 */}
         <div className="mt-2 flex items-center justify-between border-t border-[#F1F5F9] pt-2">
           {/* 반응 이모지 목록 + 추가 버튼 */}
           <div className="flex items-center gap-1 flex-wrap">

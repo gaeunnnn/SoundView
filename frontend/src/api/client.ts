@@ -36,9 +36,10 @@ apiClient.interceptors.response.use(
       return apiClient(original);
     } catch {
       refreshSubscribers = [];
-      const loginPath = (import.meta.env.VITE_BASE_PATH ?? "") + "/";
-      if (window.location.pathname !== loginPath) {
-        window.location.replace(loginPath);
+      const base = import.meta.env.VITE_BASE_PATH ?? "";
+      const loginPaths = [base + "/", base + "/login2"];
+      if (!loginPaths.includes(window.location.pathname)) {
+        window.location.replace(base + "/");
       }
       return Promise.reject(error);
     } finally {
