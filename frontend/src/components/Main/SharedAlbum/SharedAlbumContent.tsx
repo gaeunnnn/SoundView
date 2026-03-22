@@ -7,7 +7,8 @@ import type { VideoItem } from "../../../types/video";
 import SharedVideoCard from "./SharedVideoCard";
 import ImportVideoModal from "./ImportVideoModal";
 import { getMyAlbumVideos, addVideosToAlbum } from "../../../api/album";
-import { addVideoReaction, deleteVideoReaction, updateVideoTitle, deleteVideo } from "../../../api/video";
+import { addVideoReaction, deleteVideoReaction, updateVideoTitle } from "../../../api/video";
+import { removeAlbumVideo } from "../../../api/albumVideo";
 import { useUser } from "../../../context/UserContext";
 
 type Tab = "all" | "mine";
@@ -52,59 +53,74 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     return () => document.removeEventListener("mousedown", handle);
   }, [showParticipants]);
 
-  const handleReact = (videoId: number, emoji: string) => {
-    setVideos((prev) =>
-      prev.map((v) => {
-        if (v.id !== videoId) return v;
-        const existing = v.reactions.find((r) => r.emoji === emoji);
-        if (existing) {
-          if (existing.reacted) {
-            deleteVideoReaction(videoId, emoji).catch(() => {});
-          } else {
-            addVideoReaction(videoId, emoji).catch(() => {});
-          }
-          return {
-            ...v,
-            reactions: v.reactions.map((r) =>
-              r.emoji === emoji
-                ? {
-                    ...r,
-                    reacted: !r.reacted,
-                    count: r.reacted ? r.count - 1 : r.count + 1,
-                  }
-                : r
-            ),
-          };
-        }
-        // 새 이모지 추가
-        addVideoReaction(videoId, emoji).catch(() => {});
-        return {
-          ...v,
-          reactions: [
-            ...v.reactions,
-            { emoji, count: 1, reacted: true },
-          ],
-        };
-      })
-    );
+  const handleReact = async (videoId: number, emoji: string) => {
+    const video = videos.find((v) => v.id === videoId);
+    if (!video) return;
+    const existing = video.reactions.find((r) => r.emoji === emoji);
+
+    if (existing?.reacted) {
+      // 이미 반응한 경우 → DELETE 후 count 감소
+      try {
+        await deleteVideoReaction(videoId, emoji);
+        setVideos((prev) =>
+          prev.map((v) =>
+            v.id !== videoId ? v : {
+              ...v,
+              reactions: v.reactions.map((r) =>
+                r.emoji === emoji
+                  ? { ...r, reacted: false, count: Math.max(0, r.count - 1) }
+                  : r
+              ),
+            }
+          )
+        );
+      } catch (err) {
+        console.error("[공유앨범 리액션 삭제 실패]", err);
+      }
+    } else {
+      // 반응하지 않은 경우 → POST 후 서버 응답의 count 반영
+      try {
+        const res = await addVideoReaction(videoId, emoji);
+        setVideos((prev) =>
+          prev.map((v) => {
+            if (v.id !== videoId) return v;
+            const hasEmoji = v.reactions.some((r) => r.emoji === emoji);
+            return {
+              ...v,
+              reactions: hasEmoji
+                ? v.reactions.map((r) =>
+                    r.emoji === emoji ? { ...r, reacted: true, count: res.count } : r
+                  )
+                : [...v.reactions, { emoji, count: res.count, reacted: true }],
+            };
+          })
+        );
+      } catch (err) {
+        console.error("[공유앨범 리액션 추가 실패]", err);
+      }
+    }
   };
 
   const meParticipant = album.participants.find((p) => p.code === me?.userCode);
 
-  const handleRenameVideo = (videoId: number, newTitle: string) => {
-    updateVideoTitle(videoId, newTitle).catch(() => {});
+  const handleRenameVideo = (albumVideoId: number, newTitle: string) => {
+    // videos.id(videoId)로 수정 API 호출 — albumVideoId(id)가 아님
+    const target = videos.find((v) => v.id === albumVideoId);
+    if (target) updateVideoTitle(target.videoId, newTitle).catch(() => {});
     setVideos((prev) =>
-      prev.map((v) => (v.id === videoId ? { ...v, title: newTitle } : v))
+      prev.map((v) => (v.id === albumVideoId ? { ...v, title: newTitle } : v))
     );
   };
 
-  const handleDeleteVideo = async (videoId: number) => {
-    await deleteVideo(videoId).catch(() => {});
-    setVideos((prev) => prev.filter((v) => v.id !== videoId));
+  const handleDeleteVideo = async (albumVideoId: number) => {
+    // 공유 앨범에서만 제거 — 영상 자체는 삭제되지 않음
+    await removeAlbumVideo(albumVideoId).catch(() => {});
+    setVideos((prev) => prev.filter((v) => v.id !== albumVideoId));
   };
 
   const handleImport = async (selected: VideoItem[]) => {
-    const videoIds = selected.map((v) => v.id);
+    // videos.id(videoId)로 앨범에 추가 — albumVideoId(id)가 아님
+    const videoIds = selected.map((v) => v.videoId);
     await addVideosToAlbum(album.id, videoIds).catch(() => {});
     const newSharedVideos: SharedVideoItem[] = selected.map((v) => ({
       ...v,
@@ -239,7 +255,8 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
               if (!myAlbumId || myAlbumId <= 0 || !Number.isFinite(myAlbumId)) { setShowImport(true); return; }
               getMyAlbumVideos(myAlbumId).then((data) => {
                 setMyVideos(data.map((v) => ({
-                  id: v.videoId,
+                  id: v.videoId,      // MyAlbumVideo는 albumVideoId가 없으므로 videoId 사용
+                  videoId: v.videoId, // addVideosToAlbum에 전달할 videos.id
                   title: v.title,
                   thumbnail: v.thumbnailUrl ?? "",
                   duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",

@@ -288,6 +288,7 @@ export default function EditPage() {
     // 내 앨범에 영상 추가
     addVideo({
       id: Date.now(),
+      videoId: Date.now(), // 업로드 후 실제 videos.id가 확정되므로 임시값 (새로고침 시 fetchVideos로 갱신됨)
       title: saveName.trim(),
       date: new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").replace(/\.$/, ""),
       duration,

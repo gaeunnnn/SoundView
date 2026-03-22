@@ -88,6 +88,7 @@ export default function MainPage() {
             const uploader = members.find((m) => m.nickname === v.uploaderName);
             return {
               id: v.albumVideoId,
+              videoId: v.videoId,
               title: v.title,
               thumbnail: v.thumbnailUrl ?? "",
               duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
