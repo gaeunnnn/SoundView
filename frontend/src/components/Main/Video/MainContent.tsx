@@ -72,7 +72,9 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   const handleConfirmDelete = async () => {
     if (deleteTargetId !== null) {
-      await deleteVideo(deleteTargetId).catch(() => {});
+      // videos.id(videoId)로 삭제 API 호출 — albumVideoId(id)가 아님
+      const target = videos.find((v) => v.id === deleteTargetId);
+      if (target) await deleteVideo(target.videoId).catch(() => {});
       removeVideo(deleteTargetId);
     }
     setDeleteTargetId(null);
@@ -80,7 +82,11 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   const handleConfirmShare = async (albumIds: number[]) => {
     if (shareTargetId !== null) {
-      await Promise.all(albumIds.map((id) => addVideosToAlbum(id, [shareTargetId]).catch(() => {})));
+      // videos.id(videoId)로 공유 — albumVideoId(id)가 아님
+      const target = videos.find((v) => v.id === shareTargetId);
+      if (target) {
+        await Promise.all(albumIds.map((id) => addVideosToAlbum(id, [target.videoId]).catch(() => {})));
+      }
     }
     setShareTargetId(null);
   };

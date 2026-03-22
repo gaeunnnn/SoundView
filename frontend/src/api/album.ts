@@ -37,9 +37,9 @@ export type LeaveAlbumResponse = {
   message: string;
 };
 
-// DELETE /api/albums/{albumId} — 공유 앨범 나가기
+// DELETE /api/albums/{albumId}/leave — 공유 앨범 나가기
 export const leaveAlbum = (albumId: number): Promise<LeaveAlbumResponse> =>
-  apiClient.delete<LeaveAlbumResponse>(`/api/albums/${albumId}`).then((res) => res.data);
+  apiClient.delete<LeaveAlbumResponse>(`/api/albums/${albumId}/leave`).then((res) => res.data);
 
 
 export type UpdatedAlbum = {

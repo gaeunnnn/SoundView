@@ -32,6 +32,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
       setVideos(
         data.map((v) => ({
           id: v.albumVideoId,
+          videoId: v.videoId,
           title: v.title,
           thumbnail: v.thumbnailUrl ?? "",
           duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
@@ -49,13 +50,17 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeVideo = (id: number) => {
+    const target = videos.find((v) => v.id === id);
     setVideos((prev) => prev.filter((v) => v.id !== id));
-    deleteVideo(id).catch(console.error);
+    // videos.id(videoId)로 삭제 — albumVideoId(id)가 아님
+    if (target) deleteVideo(target.videoId).catch(console.error);
   };
 
   // PATCH /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영
   const renameVideo = async (id: number, title: string) => {
-    await updateVideoTitle(id, title);
+    const target = videos.find((v) => v.id === id);
+    // videos.id(videoId)로 수정 — albumVideoId(id)가 아님
+    if (target) await updateVideoTitle(target.videoId, title);
     setVideos((prev) => prev.map((v) => (v.id === id ? { ...v, title } : v)));
   };
 

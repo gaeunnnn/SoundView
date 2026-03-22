@@ -15,7 +15,8 @@ export type EmojiReaction = {
 };
 
 export type SharedVideoItem = {
-  id: number;
+  id: number;      // album_videos.id — 리액션, 댓글, 목록 필터링용
+  videoId: number; // videos.id — 삭제, 제목 수정용
   title: string;
   date: string;
   duration: string;
