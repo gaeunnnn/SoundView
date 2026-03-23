@@ -52,7 +52,7 @@ export default function VideoCard({
       {/* 썸네일 영역 */}
       <div
         className="relative aspect-video cursor-pointer overflow-hidden bg-[#0F172A]"
-        onClick={() => navigate("/viewer", { state: { video } })}
+        onClick={() => navigate("/viewer", { state: { video, isMyAlbum: true } })}
       >
         {video.thumbnail && (
           <img
