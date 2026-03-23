@@ -209,4 +209,40 @@ public class NotificationService {
 
         notification.markAsRead();
     }
+
+    public void sendVideoCompleted(Long userId, Long videoId){
+
+        SseEmitter emitter = emitterRepository.get(userId);
+
+        if(emitter == null) return;
+
+        try{
+            emitter.send(
+                    SseEmitter.event()
+                            .name("VIDEO_COMPLETED")
+                            .data(Map.of(
+                                    "videoId", videoId,
+                                    "status", "COMPLETED"
+                            ))
+            );
+        } catch (IOException e){
+            emitterRepository.delete(userId);
+        }
+    }
+
+    public void notifyVideoCompleted(Long userId, Long videoId){
+
+        User user = userRepository.findById(userId).orElseThrow();
+
+        Notification notification = Notification.builder()
+                .user(user)
+                .type(NotificationType.VIDEO_COMPLETED)
+                .message("영상 처리가 완료되었습니다")
+                .targetId(videoId)
+                .build();
+
+        notificationRepository.save(notification);
+
+        sendVideoCompleted(userId, videoId);
+    }
 }

@@ -8,5 +8,5 @@ import lombok.Getter;
 public class VideoProcessMessage {
 
     private Long videoId;
-    private String videoUrl;
+    private String videoKey;
 }
