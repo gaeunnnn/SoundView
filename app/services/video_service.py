@@ -58,12 +58,12 @@ class VideoService:
             )
 
             # 4. 후처리 — S3에 결과 업로드 (분리 업로드)
-            subtitle_url, vibration_url, sound_event_url = await self.storage.upload_results(
+            subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key = await self.storage.upload_results(
                 video_id, subtitle_result, vibration_result, sound_event_result
             )
 
             # 5. Spring Boot 완료 콜백
-            await self.callback.notify_complete(video_id, subtitle_url, vibration_url, sound_event_url)
+            await self.callback.notify_complete(video_id, subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key)
 
             return {
                 "video_id": video_id,

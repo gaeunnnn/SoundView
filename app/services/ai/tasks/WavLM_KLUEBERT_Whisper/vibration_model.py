@@ -201,10 +201,6 @@ class VibrationModel(BaseAIModel[Dict[str, np.ndarray], Dict[str, Any]]):
         header = struct.pack("<4sBHIB", b"VIB1", 1, fps, n, 2)
         bin_data = header + payload.tobytes()
 
-        # JSON 직렬화를 위해 bytes 객체를 base64 문자열로 인코딩합니다.
-        import base64
-        bin_b64 = base64.b64encode(bin_data).decode('utf-8')
-
         return {
             "duration": duration,
             "start": 0.0,
@@ -212,5 +208,5 @@ class VibrationModel(BaseAIModel[Dict[str, np.ndarray], Dict[str, Any]]):
             "fps": fps,
             "total_frames": n,
             "frames": frames,
-            "bin": bin_b64,
+            "bin": bin_data,
         }

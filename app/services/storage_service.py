@@ -68,35 +68,39 @@ class StorageService:
             raise Exception(f"영상 다운로드 실패: {str(e)}")
 
 
-    async def upload_results(self, video_id: str, subtitle_result: list, vibration_result: list, sound_event_result: list) -> tuple[str, str, str]:
+    async def upload_results(self, video_id: str, subtitle_result: list, vibration_result: Dict[str, Any], sound_event_result: list) -> tuple[str, str, str, str]:
         """
-        처리 결과(자막, 진동, 효과음) JSON을 각각 MinIO에 업로드하고 접근 URL 튜플을 반환합니다.
+        처리 결과(자막, 진동 JSON, 진동 BIN, 효과음)를 각각 MinIO에 업로드하고 접근 S3 Key 튜플을 반환합니다.
         """
 
         # 테스트용 코드, 임시 url을 반환함.
-        logger.info(f"[StorageService] 테스트용 임시 비디오 {video_id}의 자막 파일 업로드 시작")
-        # Spring Boot로 넘겨줄 S3 Object Key (URL 전체가 아닌 Key만 넘기는 것이 정석입니다)
+        logger.info(f"[StorageService] 테스트용 비디오 {video_id}의 결과 파일 가짜(Mock) 업로드 시작")
         subtitle_key = f"results/{video_id}_subtitle.json"
-        vibration_key = f"results/{video_id}_vibration.json"
+        vibration_json_key = f"results/{video_id}_vibration.json"
+        vibration_bin_key = f"results/{video_id}_vibration.bin"
         sound_event_key = f"results/{video_id}_sound_event.json"
-        logger.info(f"[StorageService] 가짜(Mock) S3 업로드 완료 처리: {subtitle_key}")
         
-        # 실제 URL이 아닌 Object Key를 튜플로 반환
-        return subtitle_key, vibration_key, sound_event_key
-
+        # 실제 URL이 아닌 Object Key를 반환
+        return subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key
 
         # 실제로 서비스하는 코드, S3에 데이터를 저장함.
         #==================================================
-        logger.info(f"[StorageService] 비디오 {video_id}의 자막 파일 업로드 시작")
+        logger.info(f"[StorageService] 비디오 {video_id}의 결과 파일 S3 업로드 시작")
 
         bucket = settings.AWS_S3_BUCKET_NAME
         endpoint = settings.AWS_S3_ENDPOINT
+        
+        # 바이너리 데이터(bytes)만 따로 추출
+        vibration_bin_data = vibration_result.pop("bin", None) if isinstance(vibration_result, dict) else None
 
         upload_tasks = {
             f"results/{video_id}_subtitle.json": subtitle_result,
             f"results/{video_id}_vibration.json": vibration_result,
             f"results/{video_id}_sound_event.json": sound_event_result
         }
+
+        if vibration_bin_data is not None:
+            upload_tasks[f"results/{video_id}_vibration.bin"] = vibration_bin_data
 
         uploaded_urls = []
         session = aioboto3.Session()
@@ -110,26 +114,34 @@ class StorageService:
                 aws_secret_access_key=settings.AWS_S3_SECRET_KEY
             ) as s3:
 
-                # 매핑된 3개의 파일(자막, 진동, 효과음)을 순차적으로 업로드
                 for object_key, data in upload_tasks.items():
-                    # 리스트/딕셔너리 데이터를 JSON 문자열로 변환 후 UTF-8 바이트로 인코딩 (한글 깨짐 방지)
-                    json_body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+                    if object_key.endswith('.bin'):
+                        body = data
+                        content_type = 'application/octet-stream'
+                    else:
+                        # 리스트/딕셔너리 데이터를 JSON 문자열로 변환 후 UTF-8 바이트로 인코딩
+                        body = json.dumps(data, ensure_ascii=False).encode('utf-8')
+                        content_type = 'application/json'
 
-                    # 로컬에 임시 파일을 만들지 안고 메모리에서 S3 버킷으로 직접 전송
+                    # 로컬에 임시 파일을 만들지 않고 메모리에서 S3 버킷으로 직접 전송
                     await s3.put_object(
                         Bucket=bucket,
                         Key=object_key,
-                        Body=json_body,
-                        ContentType='application/json'
+                        Body=body,
+                        ContentType=content_type
                     )
 
-                    # 반환할 URL 조립
                     file_url = f"{endpoint}/{bucket}/{object_key}"
                     uploaded_urls.append(file_url)
 
                     logger.info(f"[StorageService] S3/MinIO 업로드 완료: {object_key}")
         
-            return tuple(uploaded_urls)
+            subtitle_key_out = f"results/{video_id}_subtitle.json"
+            vibration_json_key_out = f"results/{video_id}_vibration.json"
+            vibration_bin_key_out = f"results/{video_id}_vibration.bin"
+            sound_event_key_out = f"results/{video_id}_sound_event.json"
+            
+            return subtitle_key_out, vibration_json_key_out, vibration_bin_key_out, sound_event_key_out
         
         except ClientError as e:
             logger.error(f"[StorageService] S3/MinIO 업로드 중 AWS 클라이언트 에러 발생: {e}")
