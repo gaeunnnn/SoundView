@@ -84,4 +84,19 @@ public class VideoController {
         return videoService.getStatus(videoId);
     }
 
+    @Operation(summary = "영상 상세 조회")
+    @GetMapping("/videos/{videoId}")
+    public VideoDetailResponse getVideoDetail(
+            @PathVariable Long videoId
+    ) {
+        return videoService.getVideoDetail(videoId);
+    }
+
+    @GetMapping("/videos/{videoId}/full")
+    public VideoFullResponse getVideoFull(
+            @PathVariable Long videoId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return videoService.getVideoFull(videoId, principal.getId());
+    }
 }
