@@ -71,10 +71,12 @@ public class VideoReactionService {
     public VideoReactionSummaryResponse getReactions(Long videoId, Long userId) {
 
         // 전체 리액션
-        List<VideoReaction> reactions = reactionRepository.findByAlbumVideoId(videoId);
+        List<VideoReaction> reactions =
+                reactionRepository.findByAlbumVideo_Video_Id(videoId);
 
         // 내가 누른 리액션
-        List<VideoReaction> myReactions = reactionRepository.findByAlbumVideoIdAndUserId(videoId, userId);
+        List<VideoReaction> myReactions =
+                reactionRepository.findByAlbumVideo_Video_IdAndUserId(videoId, userId);
 
         Set<String> myEmojiSet = myReactions.stream()
                 .map(VideoReaction::getEmoji)
