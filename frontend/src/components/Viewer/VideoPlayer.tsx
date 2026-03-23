@@ -182,6 +182,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPlayingRef = useRef(false);
 
   // ── currentSec 변경 시 자막/효과음 업데이트 ──────────────
   useEffect(() => {
@@ -200,6 +201,15 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
     document.addEventListener("fullscreenchange", handleChange);
     return () => document.removeEventListener("fullscreenchange", handleChange);
   }, []);
+
+  // isPlayingRef 동기화 + 정지 시 컨트롤 복원
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+    if (!isPlaying) {
+      setShowControls(true);
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    }
+  }, [isPlaying]);
 
   // video 재생/정지
   useEffect(() => {
@@ -231,12 +241,14 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    controlsTimerRef.current = setTimeout(() => setShowControls(false), 2000);
+    controlsTimerRef.current = setTimeout(() => {
+      if (isPlayingRef.current) setShowControls(false);
+    }, 2000);
   }, []);
 
   const handleMouseMove = useCallback(() => {
-    if (isFullscreen) resetControlsTimer();
-  }, [isFullscreen, resetControlsTimer]);
+    resetControlsTimer();
+  }, [resetControlsTimer]);
 
   // 키보드 단축키
   useEffect(() => {
@@ -301,6 +313,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const handlePlayPause = async () => {
     const nextPlaying = !isPlaying;
     resetOverlayTimer();
+    if (nextPlaying) resetControlsTimer();
 
     // 재생 시작이고 ESP 연결 상태일 때: 데이터 전송 후 버퍼 완료 대기
     if (nextPlaying && isConnected) {
@@ -328,7 +341,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   };
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) setCurrentSec(Math.floor(videoRef.current.currentTime));
+    if (videoRef.current) setCurrentSec(videoRef.current.currentTime);
   };
 
   const progress = totalSec > 0 ? (currentSec / totalSec) * 100 : 0;
@@ -414,7 +427,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
 
         {/* ── 효과음 오버레이 (상단 중앙, 리퀴드글라스) ── */}
         {emojiOn && activeSoundEvents.length > 0 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+          <div className={["absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-opacity duration-500", showControls ? "opacity-100" : "opacity-0"].join(" ")}>
             {/* SVG distortion filter */}
             <svg style={{ display: "none" }}>
               <filter id="vp-glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">

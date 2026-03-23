@@ -82,20 +82,17 @@ export default function PlayerControls({
   const effectiveVolume = isMuted ? 0 : volume;
   const enabledEvents = emojiOn ? soundEvents.filter((e) => e.enabled) : [];
 
-  const hidden = isFullscreen && !showControls;
+  const hidden = !showControls;
 
   return (
-    <div className={[
-      "absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/90 via-black/40 to-transparent px-4 pb-3 pt-10 transition-opacity duration-500",
-      hidden ? "opacity-0 pointer-events-none" : "opacity-100",
-    ].join(" ")}>
+    <div className={["absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/90 via-black/40 to-transparent px-4 pb-3 pt-10 transition-opacity duration-500", hidden ? "opacity-0 pointer-events-none" : "opacity-100"].join(" ")}>
       {/* 프로그레스 바 */}
       <div
         ref={progressRef}
         className="group relative mb-3 h-1.5 w-full cursor-pointer rounded-full bg-white/20 hover:h-2.5 transition-all"
         onClick={onProgressClick}
       >
-        <div className="h-full rounded-full bg-[#2563EB] relative" style={{ width: `${progress}%` }}>
+        <div className="h-full rounded-full bg-[#2563EB] relative" style={{ width: `${progress}%`, transition: "width 0.25s linear" }}>
           <div className="absolute right-0 top-1/2 -translate-y-1/2 h-3.5 w-3.5 rounded-full bg-white opacity-0 group-hover:opacity-100 shadow" />
         </div>
 

@@ -43,7 +43,7 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
       const data = await getAlbumVideos(albumId);
       console.log("[fetchVideos] 응답 영상 수:", data.length, data);
       const fetched = data.map((v) => ({
-        id: v.albumVideoId,
+        id: v.videoId,
         videoId: v.videoId,
         title: v.title,
         thumbnail: v.thumbnailUrl ?? "",
@@ -72,9 +72,17 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
   // PATCH /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영
   const renameVideo = async (id: number, title: string) => {
     const target = videos.find((v) => v.id === id);
-    // 데모 영상(id=-1)은 API 호출하지 않음
-    if (target && target.videoId > 0) await updateVideoTitle(target.videoId, title);
+    // 낙관적 업데이트: 먼저 로컬 상태 반영
     setVideos((prev) => prev.map((v) => (v.id === id ? { ...v, title } : v)));
+    // 데모 영상(id=-1)은 API 호출하지 않음
+    if (!target || target.videoId <= 0) return;
+    try {
+      await updateVideoTitle(target.videoId, title);
+    } catch (err) {
+      console.error("[renameVideo] API 실패 — videoId:", target.videoId, err);
+      // 실패 시 원래 제목으로 롤백
+      setVideos((prev) => prev.map((v) => (v.id === id ? { ...v, title: target.title } : v)));
+    }
   };
 
   return (

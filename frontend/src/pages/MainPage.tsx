@@ -125,7 +125,7 @@ export default function MainPage() {
           videos: videos.map((v) => {
             const uploader = members.find((m) => m.nickname === v.uploaderName);
             return {
-              id: v.albumVideoId,
+              id: v.videoId,
               videoId: v.videoId,
               title: v.title,
               thumbnail: v.thumbnailUrl ?? "",
