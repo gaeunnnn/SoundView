@@ -13,7 +13,7 @@ import { useUser } from "../context/UserContext";
 import PlayerOverlay from "../components/Viewer/PlayerOverlay";
 import type { SoundEvent } from "../constants/edit";
 import { useUpload } from "../context/UploadContext";
-import { useVideos } from "../context/VideosContext";
+import { updateVideoTitle } from "../api/video";
 
 function formatTime(sec: number) {
   const m = Math.floor(sec / 60);
@@ -80,18 +80,15 @@ function EventList({
 export default function EditPage() {
   const navigate = useNavigate();
   const { me } = useUser();
-  const { uploadedVideoUrl, uploadedFileType, fileName: uploadedFileName } = useUpload();
-  const { addVideo } = useVideos();
+  const { uploadedVideoUrl, uploadedFileType, uploadedVideoId, uploadedTitle } = useUpload();
 
   const isRealFile = !!uploadedVideoUrl && uploadedFileType.startsWith("video/");
   const mediaUrl = uploadedVideoUrl ?? "";
-  const mediaTitle = uploadedFileName
-    ? uploadedFileName.replace(/\.[^/.]+$/, "") // 확장자 제거
-    : "";
+  const mediaTitle = uploadedTitle;
 
   const [events, setEvents] = useState<SoundEvent[]>([]);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [currentSec, setCurrentSec] = useState(226);
+  const [currentSec, setCurrentSec] = useState(0);
   const [hoveredDotId, setHoveredDotId] = useState<number | null>(null);
   const [subtitleOn, setSubtitleOn] = useState(true);
   const [emojiOn, setEmojiOn] = useState(true);
@@ -102,6 +99,11 @@ export default function EditPage() {
   const [showControls, setShowControls] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState(mediaTitle);
+
+  // uploadedTitle이 Context에서 늦게 반영될 경우를 대비해 동기화
+  useEffect(() => {
+    if (mediaTitle) setSaveName(mediaTitle);
+  }, [mediaTitle]);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showOverlay, setShowOverlay] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -283,18 +285,12 @@ export default function EditPage() {
     setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, enabled: !ev.enabled } : ev)));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!saveName.trim()) return;
-    // 내 앨범에 영상 추가
-    addVideo({
-      id: Date.now(),
-      videoId: Date.now(), // 업로드 후 실제 videos.id가 확정되므로 임시값 (새로고침 시 fetchVideos로 갱신됨)
-      title: saveName.trim(),
-      date: new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" }).replace(/\. /g, ".").replace(/\.$/, ""),
-      duration,
-      thumbnail: mediaUrl,
-      uploaderName: me?.nickname ?? "",
-    });
+    // 제목이 변경된 경우 PATCH /api/videos/{videoId}로 업데이트
+    if (uploadedVideoId && saveName.trim() !== uploadedTitle) {
+      await updateVideoTitle(uploadedVideoId, saveName.trim()).catch(console.error);
+    }
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);

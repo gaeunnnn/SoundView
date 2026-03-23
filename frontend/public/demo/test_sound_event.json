@@ -1,0 +1,68 @@
+[
+  {
+    "start": 0.0,
+    "end": 24.0,
+    "event": "🔊 Motor vehicle (road)",
+    "event_en": "Motor vehicle (road)"
+  },
+  {
+    "start": 0.0,
+    "end": 24.0,
+    "event": "💨 바람 소리",
+    "event_en": "Wind"
+  },
+  {
+    "start": 0.0,
+    "end": 16.48,
+    "event": "🔊 Wind noise (microphone)",
+    "event_en": "Wind noise (microphone)"
+  },
+  {
+    "start": 10.0,
+    "end": 24.0,
+    "event": "🛣️ 도로 소음",
+    "event_en": "Traffic noise, roadway noise"
+  },
+  {
+    "start": 10.56,
+    "end": 10.88,
+    "event": "🔊 Walk, footsteps",
+    "event_en": "Walk, footsteps"
+  },
+  {
+    "start": 11.2,
+    "end": 11.4,
+    "event": "🔊 Walk, footsteps",
+    "event_en": "Walk, footsteps"
+  },
+  {
+    "start": 11.52,
+    "end": 14.12,
+    "event": "🚗 자동차 소리",
+    "event_en": "Car"
+  },
+  {
+    "start": 12.72,
+    "end": 20.68,
+    "event": "🔊 Car passing by",
+    "event_en": "Car passing by"
+  },
+  {
+    "start": 14.72,
+    "end": 24.0,
+    "event": "🚗 자동차 소리",
+    "event_en": "Car"
+  },
+  {
+    "start": 16.64,
+    "end": 24.0,
+    "event": "🔊 Wind noise (microphone)",
+    "event_en": "Wind noise (microphone)"
+  },
+  {
+    "start": 22.6,
+    "end": 23.16,
+    "event": "🔊 Car passing by",
+    "event_en": "Car passing by"
+  }
+]

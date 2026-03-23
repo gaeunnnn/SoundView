@@ -11,11 +11,13 @@ import TestPage from "./pages/TestPage";
 import { UploadProvider } from "./context/UploadContext";
 import { VideosProvider } from "./context/VideosContext";
 import { UserProvider } from "./context/UserContext";
+import { EspProvider } from "./context/EspContext";
 import UploadProgressPip from "./components/Upload/UploadProgressPip";
 
 export default function App() {
   return (
     <UserProvider>
+    <EspProvider>
     <VideosProvider>
       <UploadProvider>
         <Routes>
@@ -31,6 +33,7 @@ export default function App() {
         <UploadProgressPip />
       </UploadProvider>
     </VideosProvider>
+    </EspProvider>
     </UserProvider>
   );
 }

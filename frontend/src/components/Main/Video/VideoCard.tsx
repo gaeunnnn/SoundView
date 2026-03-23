@@ -54,11 +54,13 @@ export default function VideoCard({
         className="relative aspect-video cursor-pointer overflow-hidden bg-[#0F172A]"
         onClick={() => navigate("/viewer", { state: { video } })}
       >
-        <img
-          src={video.thumbnail}
-          alt={video.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-80"
-        />
+        {video.thumbnail && (
+          <img
+            src={video.thumbnail}
+            alt={video.title}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-80"
+          />
+        )}
         {/* 재생 버튼 — hover 시 중앙 */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/40">

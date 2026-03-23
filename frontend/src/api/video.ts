@@ -12,6 +12,19 @@ export type ReactionResponse = {
   count: number;
 };
 
+export type ReactionsResponse = {
+  videoId: number;
+  reactions: { emoji: string; count: number; selected: boolean }[];
+};
+
+// GET /api/videos/{videoId}/reaction — 리액션 목록 조회 (videoId는 album_videos.id)
+export const getVideoReactions = (videoId: number): Promise<ReactionsResponse> =>
+  apiClient.get<ReactionsResponse>(`/api/videos/${videoId}/reaction`).then((res) => res.data);
+
+// GET /api/videos/{videoId}/status — 영상 처리 상태 조회
+export const getVideoStatus = (videoId: number): Promise<{ status: string }> =>
+  apiClient.get<{ status: string }>(`/api/videos/${videoId}/status`).then((res) => res.data);
+
 // PATCH /api/videos/{videoId} — 영상 제목 수정
 export const updateVideoTitle = (videoId: number, title: string): Promise<UpdatedVideo> =>
   apiClient.patch<UpdatedVideo>(`/api/videos/${videoId}`, { title }).then((res) => res.data);

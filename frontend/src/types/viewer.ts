@@ -5,6 +5,7 @@ export type ViewerVideo = {
   date: string;
   duration: string;
   thumbnail: string;
+  videoUrl?: string;
   uploadedBy?: { name: string; isMe?: boolean };
 };
 

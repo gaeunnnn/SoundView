@@ -38,35 +38,50 @@ export function splitFileIntoChunks(file: File, chunkSize: number): Blob[] {
 // - 백엔드 인증 헤더(쿠키 등)를 포함하지 않습니다.
 //   presigned URL 자체에 AWS 서명 정보가 포함되어 있기 때문입니다.
 // - S3 CORS 설정에서 ExposeHeaders: ["ETag"]가 필요합니다.
-export async function uploadPartToS3(
+// - fetch 대신 XHR을 사용해 바이트 단위 업로드 진행률을 추적합니다.
+export function uploadPartToS3(
   presignedUrl: string,
   chunk: Blob,
-  partNumber: number
+  partNumber: number,
+  onProgress?: (bytesLoaded: number) => void
 ): Promise<string> {
-  const response = await fetch(presignedUrl, {
-    method: "PUT",
-    body: chunk,
-    // credentials 미지정: S3에 쿠키/인증 헤더를 전송하지 않음
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", presignedUrl);
+
+    // 바이트 단위 업로드 진행률 콜백
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(e.loaded);
+      };
+    }
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // S3 응답 헤더에서 ETag 추출
+        // S3는 ETag를 따옴표로 감싸서 반환합니다. 예: "82b7844a62a3cc9bf60ad941c069beb4"
+        const rawETag = xhr.getResponseHeader("ETag");
+        if (!rawETag) {
+          reject(new Error(
+            `파트 ${partNumber}의 ETag를 응답 헤더에서 읽을 수 없습니다. ` +
+            "S3 버킷 CORS 설정의 ExposeHeaders에 ETag가 포함되어 있는지 확인하세요."
+          ));
+        } else {
+          // 따옴표 제거 후 반환: "82b7844a..." -> 82b7844a...
+          resolve(rawETag.replace(/"/g, ""));
+        }
+      } else {
+        reject(new Error(
+          `파트 ${partNumber} S3 업로드 실패: HTTP ${xhr.status} ${xhr.statusText}`
+        ));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error(`파트 ${partNumber} 네트워크 오류`));
+    xhr.ontimeout = () => reject(new Error(`파트 ${partNumber} 업로드 시간 초과`));
+
+    xhr.send(chunk);
   });
-
-  if (!response.ok) {
-    throw new Error(
-      `파트 ${partNumber} S3 업로드 실패: HTTP ${response.status} ${response.statusText}`
-    );
-  }
-
-  // S3 응답 헤더에서 ETag 추출
-  // S3는 ETag를 따옴표로 감싸서 반환합니다. 예: "82b7844a62a3cc9bf60ad941c069beb4"
-  const rawETag = response.headers.get("ETag");
-  if (!rawETag) {
-    throw new Error(
-      `파트 ${partNumber}의 ETag를 응답 헤더에서 읽을 수 없습니다. ` +
-        "S3 버킷 CORS 설정의 ExposeHeaders에 ETag가 포함되어 있는지 확인하세요."
-    );
-  }
-
-  // 따옴표 제거 후 반환: "82b7844a..." -> 82b7844a...
-  return rawETag.replace(/"/g, "");
 }
 
 // S3 멀티파트 업로드 전체 흐름을 조율하는 함수
@@ -81,11 +96,12 @@ export async function uploadPartToS3(
 // onProgress: 업로드 진행률 콜백 (0-100 정수)
 //   - 파트 업로드 완료마다 0-90% 범위로 보고
 //   - complete API 성공 시 100% 보고
+// videoId(videos.id)를 반환합니다. EditPage에서 제목 수정 API 호출 시 사용합니다.
 export async function uploadVideoMultipart(
   file: File,
   title: string,
   onProgress?: (progress: number) => void
-): Promise<void> {
+): Promise<number> {
   // 1단계: 청크 크기 계산 및 파일 분할
   const chunkSize = calculateChunkSize(file.size);
   const chunks = splitFileIntoChunks(file, chunkSize);
@@ -115,17 +131,19 @@ export async function uploadVideoMultipart(
   }
 
   // 3단계: 모든 파트를 S3에 병렬 업로드
-  // 각 파트 완료 시 진행률을 0-90% 범위로 보고합니다.
+  // XHR onprogress로 파트별 바이트 업로드량을 추적하여 전체 진행률을 계산합니다.
+  // 전체 진행률 범위: 0-90% (complete 호출 후 100%)
   onProgress?.(0);
-  let completedCount = 0;
+  const bytesPerPart = new Array(partCount).fill(0);
+  const totalBytes = file.size;
 
   const partUploadPromises = chunks.map(
     (chunk, index): Promise<UploadPart> =>
-      uploadPartToS3(presignedUrls[index], chunk, index + 1).then((eTag) => {
-        completedCount += 1;
-        onProgress?.(Math.floor((completedCount / partCount) * 90));
-        return { partNumber: index + 1, eTag };
-      })
+      uploadPartToS3(presignedUrls[index], chunk, index + 1, (bytesLoaded) => {
+        bytesPerPart[index] = bytesLoaded;
+        const totalLoaded = bytesPerPart.reduce((a, b) => a + b, 0);
+        onProgress?.(Math.floor((totalLoaded / totalBytes) * 90));
+      }).then((eTag) => ({ partNumber: index + 1, eTag }))
   );
 
   let parts: UploadPart[];
@@ -154,4 +172,5 @@ export async function uploadVideoMultipart(
   }
 
   onProgress?.(100);
+  return videoId;
 }

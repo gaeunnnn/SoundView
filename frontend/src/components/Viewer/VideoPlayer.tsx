@@ -4,6 +4,73 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ViewerVideo, EmojiReaction } from "../../types/viewer";
 import PlayerOverlay from "./PlayerOverlay";
 import PlayerControls from "./PlayerControls";
+import { useEsp } from "../../context/EspContext";
+
+// ── 타입 ──────────────────────────────────────────────────
+type VibrationSample = { timestamp: number; intensity_l: number; intensity_r: number };
+
+type SubtitleEntry = {
+  start: number;
+  end: number;
+  text: string;
+  emotion: string;
+  confidence: number;
+};
+
+type SoundEventEntry = {
+  start: number;
+  end: number;
+  event: string;
+  event_en: string;
+};
+
+// ── 로더 ──────────────────────────────────────────────────
+async function loadVibrationBin(url: string): Promise<VibrationSample[]> {
+  const res = await fetch(url);
+  const buf = await res.arrayBuffer();
+  const view = new DataView(buf);
+  const samples: VibrationSample[] = [];
+  for (let i = 0; i + 6 <= buf.byteLength; i += 6) {
+    samples.push({
+      timestamp: view.getFloat32(i, true),
+      intensity_l: view.getUint8(i + 4),
+      intensity_r: view.getUint8(i + 5),
+    });
+  }
+  return samples;
+}
+
+// intensity_l/r 쌍만 추출한 전송용 바이너리 생성 (2B × N)
+function buildVibPayload(samples: VibrationSample[]): Uint8Array {
+  const buf = new Uint8Array(samples.length * 2);
+  samples.forEach((s, i) => {
+    buf[i * 2]     = s.intensity_l;
+    buf[i * 2 + 1] = s.intensity_r;
+  });
+  return buf;
+}
+
+// 제어 명령 ─────────────────────────────────────────────
+// [0xFF, 0xFF, ...payload]  전체 데이터 전송
+// [0x01, idxHi, idxLo]     재생 시작 (샘플 인덱스 uint16 big-endian)
+// [0x02]                    일시정지 (모터 정지)
+function cmdData(payload: Uint8Array): Uint8Array {
+  const out = new Uint8Array(2 + payload.length);
+  out[0] = 0xFF; out[1] = 0xFF;
+  out.set(payload, 2);
+  return out;
+}
+function cmdPlay(sampleIdx: number): Uint8Array {
+  return new Uint8Array([0x01, (sampleIdx >> 8) & 0xFF, sampleIdx & 0xFF]);
+}
+function cmdPause(): Uint8Array {
+  return new Uint8Array([0x02]);
+}
+
+async function loadJson<T>(url: string): Promise<T> {
+  const res = await fetch(url);
+  return res.json();
+}
 
 function parseDuration(dur: string): number {
   const parts = dur.split(":").map(Number);
@@ -12,6 +79,18 @@ function parseDuration(dur: string): number {
   return 0;
 }
 
+// emotion 문자열에서 이모지 매핑
+const EMOTION_EMOJI: Record<string, string> = {
+  "Happy (행복)": "😄",
+  "Sad (슬픔)": "😢",
+  "Angry (분노)": "😠",
+  "Fear (불안)": "😨",
+  "Surprise (당황)": "😮",
+  "Disgust (혐오)": "🤢",
+  "Neutral (중립)": "😐",
+};
+
+// ── 컴포넌트 ──────────────────────────────────────────────
 type VideoPlayerProps = {
   video: ViewerVideo;
   reactions: EmojiReaction[];
@@ -20,8 +99,71 @@ type VideoPlayerProps = {
 
 export default function VideoPlayer({ video, reactions: _reactions, onReact: _onReact }: VideoPlayerProps) {
   const totalSec = parseDuration(video.duration);
+  const { isConnected, send, sendAndFlush } = useEsp();
+  const [vibBuffering, setVibBuffering] = useState(false);
 
-  const [isPlaying, setIsPlaying] = useState(true);
+  // 진동 데이터
+  const vibSamplesRef = useRef<VibrationSample[]>([]);
+
+  // 자막 / 효과음 데이터
+  const [subtitles, setSubtitles] = useState<SubtitleEntry[]>([]);
+  const [soundEvents, setSoundEvents] = useState<SoundEventEntry[]>([]);
+
+  // 현재 시간 기준 활성 항목
+  const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleEntry | null>(null);
+  const [activeSoundEvents, setActiveSoundEvents] = useState<SoundEventEntry[]>([]);
+
+  const vibPayloadRef = useRef<Uint8Array | null>(null);
+
+  // ── 데이터 로드만 (전송은 재생 버튼 클릭 시) ────────────────
+  useEffect(() => {
+    if (!video.videoUrl) return;
+    const base = video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "");
+
+    loadVibrationBin(`${base}/test_vibration.bin`)
+      .then((s) => {
+        vibSamplesRef.current = s;
+        vibPayloadRef.current = buildVibPayload(s);
+      })
+      .catch(() => {});
+
+    loadJson<SubtitleEntry[]>(`${base}/test_subtitle.json`)
+      .then(setSubtitles)
+      .catch(() => {});
+
+    loadJson<SoundEventEntry[]>(`${base}/test_sound_event.json`)
+      .then(setSoundEvents)
+      .catch(() => {});
+  }, [video.videoUrl]);
+
+  // ── seek 완료 시 ESP에 새 위치로 PLAY 재전송 ──────────────
+  useEffect(() => {
+    if (!isConnected) return;
+    const el = videoRef.current;
+    if (!el) return;
+
+    const onSeeked = () => {
+      if (!el.paused) {
+        const idx = Math.min(
+          Math.round(el.currentTime / 0.02),
+          (vibSamplesRef.current.length || 1) - 1
+        );
+        send(cmdPlay(idx));
+        console.log("[VIB] SEEKED → PLAY idx:", idx);
+      }
+    };
+
+    el.addEventListener("seeked", onSeeked);
+    return () => el.removeEventListener("seeked", onSeeked);
+  }, [isConnected, send]);
+
+  // 뷰어 언마운트(페이지 이탈) 시에만 정지 명령
+  useEffect(() => {
+    return () => { send(cmdPause()); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 플레이어 상태 ─────────────────────────────────────────
+  const [isPlaying, setIsPlaying] = useState(false);
   const [currentSec, setCurrentSec] = useState(0);
   const [volume, setVolume] = useState(80);
   const [isMuted, setIsMuted] = useState(false);
@@ -36,27 +178,48 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
 
   const progressRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 전체화면 변경 감지
+  // ── currentSec 변경 시 자막/효과음 업데이트 ──────────────
+  useEffect(() => {
+    const t = currentSec;
+    setCurrentSubtitle(subtitles.find((s) => t >= s.start && t < s.end) ?? null);
+    setActiveSoundEvents(soundEvents.filter((e) => t >= e.start && t < e.end));
+  }, [currentSec, subtitles, soundEvents]);
+
+  // ── 전체화면 감지 ─────────────────────────────────────────
   useEffect(() => {
     const handleChange = () => {
       const fs = !!document.fullscreenElement;
       setIsFullscreen(fs);
-      if (!fs) setShowControls(true); // 전체화면 종료 시 항상 표시
+      if (!fs) setShowControls(true);
     };
     document.addEventListener("fullscreenchange", handleChange);
     return () => document.removeEventListener("fullscreenchange", handleChange);
   }, []);
 
+  // video 재생/정지
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (isPlaying) el.play().catch(() => {});
+    else el.pause();
+  }, [isPlaying]);
+
+  // 볼륨
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.volume = isMuted ? 0 : volume / 100;
+    el.muted = isMuted;
+  }, [volume, isMuted]);
+
   const handleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      playerRef.current?.requestFullscreen();
-    } else {
-      document.exitFullscreen();
-    }
+    if (!document.fullscreenElement) playerRef.current?.requestFullscreen();
+    else document.exitFullscreen();
   };
 
   const resetOverlayTimer = useCallback(() => {
@@ -81,108 +244,237 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       switch (e.key) {
-        case " ":
-        case "k":
-          e.preventDefault();
-          setIsPlaying((p) => !p);
-          resetOverlayTimer();
-          break;
+        case " ": case "k":
+          e.preventDefault(); setIsPlaying((p) => !p); resetOverlayTimer(); break;
         case "ArrowRight":
           e.preventDefault();
-          setCurrentSec((prev) => Math.min(totalSec, prev + 5));
+          if (videoRef.current) videoRef.current.currentTime = Math.min(videoRef.current.duration || totalSec, videoRef.current.currentTime + 5);
+          else setCurrentSec((p) => Math.min(totalSec, p + 5));
           break;
         case "ArrowLeft":
           e.preventDefault();
-          setCurrentSec((prev) => Math.max(0, prev - 5));
+          if (videoRef.current) videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
+          else setCurrentSec((p) => Math.max(0, p - 5));
           break;
         case "ArrowUp":
           e.preventDefault();
-          setVolume((prev) => { const next = Math.min(100, prev + 5); setIsMuted(false); return next; });
-          break;
+          setVolume((p) => { const n = Math.min(100, p + 5); setIsMuted(false); return n; }); break;
         case "ArrowDown":
           e.preventDefault();
-          setVolume((prev) => { const next = Math.max(0, prev - 5); if (next === 0) setIsMuted(true); return next; });
-          break;
-        case "f":
-        case "F":
-          e.preventDefault();
-          handleFullscreen();
-          break;
-        case "c":
-        case "C":
-          if (isFullscreen) {
-            e.preventDefault();
-            setShowSidePanel((p) => !p);
-          }
-          break;
+          setVolume((p) => { const n = Math.max(0, p - 5); if (n === 0) setIsMuted(true); return n; }); break;
+        case "f": case "F": e.preventDefault(); handleFullscreen(); break;
+        case "c": case "C":
+          if (isFullscreen) { e.preventDefault(); setShowSidePanel((p) => !p); } break;
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [totalSec, resetOverlayTimer, isFullscreen]);
 
-  // 타이머 재생
+  // 타이머 재생 (videoUrl 없을 때만)
   useEffect(() => {
+    if (video.videoUrl) return;
     if (isPlaying) {
       intervalRef.current = setInterval(() => {
-        setCurrentSec((prev) => {
-          if (prev >= totalSec) {
-            setIsPlaying(false);
-            return totalSec;
-          }
-          return prev + 1;
-        });
+        setCurrentSec((p) => { if (p >= totalSec) { setIsPlaying(false); return totalSec; } return p + 1; });
       }, 1000);
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current);
     }
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isPlaying, totalSec]);
-
-  // 진동: 비어있음 (sound events API 연결 후 활성화)
+  }, [isPlaying, totalSec, video.videoUrl]);
 
   const handleProgressClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current) return;
     const rect = progressRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    setCurrentSec(Math.floor(ratio * totalSec));
+    const newSec = Math.floor(ratio * totalSec);
+    if (videoRef.current) videoRef.current.currentTime = newSec;
+    setCurrentSec(newSec);
   }, [totalSec]);
 
   const handleSkip = (sec: number) => {
-    setCurrentSec((prev) => Math.max(0, Math.min(totalSec, prev + sec)));
+    if (videoRef.current) videoRef.current.currentTime = Math.max(0, Math.min(videoRef.current.duration || totalSec, videoRef.current.currentTime + sec));
+    else setCurrentSec((p) => Math.max(0, Math.min(totalSec, p + sec)));
   };
 
-  const handlePlayPause = () => {
-    setIsPlaying((p) => !p);
+  const handlePlayPause = async () => {
+    const nextPlaying = !isPlaying;
     resetOverlayTimer();
+
+    // 재생 시작이고 ESP 연결 상태일 때: 데이터 전송 후 버퍼 완료 대기
+    if (nextPlaying && isConnected) {
+      const payload = vibPayloadRef.current;
+      if (payload) {
+        setVibBuffering(true);
+        try {
+          await sendAndFlush(cmdData(payload));
+          console.log("[VIB] 전체 데이터 전송 완료:", payload.length, "bytes");
+        } finally {
+          setVibBuffering(false);
+        }
+        const idx = Math.min(
+          Math.round((videoRef.current?.currentTime ?? 0) / 0.02),
+          (vibSamplesRef.current.length || 1) - 1
+        );
+        send(cmdPlay(idx));
+      }
+    }
+
+    // 정지 시 ESP에 pause 명령
+    if (!nextPlaying && isConnected) send(cmdPause());
+
+    setIsPlaying(nextPlaying);
+  };
+
+  const handleTimeUpdate = () => {
+    if (videoRef.current) setCurrentSec(Math.floor(videoRef.current.currentTime));
   };
 
   const progress = totalSec > 0 ? (currentSec / totalSec) * 100 : 0;
 
+  // 프로그레스 바용 효과음 도트 (PlayerControls의 SoundEvent 형태로 변환)
+  const soundEventDots = emojiOn ? soundEvents.map((e, i) => ({
+    id: i,
+    timeSec: e.start,
+    timeLabel: `${e.start.toFixed(1)}s`,
+    emoji: e.event.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊",
+    description: e.event_en,
+    enabled: true,
+  })) : [];
+
   return (
     <div className="flex flex-1 h-full overflow-hidden bg-[#0F172A]">
-      {/* 플레이어 캔버스 */}
       <div
         ref={playerRef}
         className="relative flex flex-1 items-center justify-center overflow-hidden bg-[#0F172A]"
         onMouseMove={handleMouseMove}
         style={{ cursor: isFullscreen && !showControls ? "none" : "default" }}
       >
-        <img
-          src={video.thumbnail}
-          alt={video.title}
-          className="max-h-full max-w-full object-contain select-none"
-          onClick={handlePlayPause}
-          style={{ cursor: "pointer" }}
-        />
+        {/* 영상 or 썸네일 */}
+        {video.videoUrl ? (
+          <video
+            ref={videoRef}
+            src={video.videoUrl}
+            className="max-h-full max-w-full object-contain"
+            onClick={handlePlayPause}
+            onTimeUpdate={handleTimeUpdate}
+            onEnded={() => setIsPlaying(false)}
+            style={{ cursor: "pointer" }}
+            playsInline
+          />
+        ) : (
+          <img
+            src={video.thumbnail}
+            alt={video.title}
+            className="max-h-full max-w-full object-contain select-none"
+            onClick={handlePlayPause}
+            style={{ cursor: "pointer" }}
+          />
+        )}
 
-        <PlayerOverlay
-          isPlaying={isPlaying}
-          showOverlay={showOverlay}
-          onToggle={handlePlayPause}
-        />
+        <PlayerOverlay isPlaying={isPlaying} showOverlay={showOverlay} onToggle={handlePlayPause} />
 
-        {/* 전체화면 전용 읽기 전용 소리 패널 */}
+        {/* 진동 데이터 버퍼링 중 오버레이 */}
+        {vibBuffering && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
+            <div className="flex gap-1.5 mb-3">
+              <span className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce [animation-delay:0ms]" />
+              <span className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce [animation-delay:150ms]" />
+              <span className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce [animation-delay:300ms]" />
+            </div>
+            <p className="text-xs font-medium text-white/80">진동 데이터 전송 중...</p>
+          </div>
+        )}
+
+        {/* ── 자막 오버레이 ── */}
+        {subtitleOn && currentSubtitle && (
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 pointer-events-none">
+            {/* 감정 이모지 */}
+            <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
+              <span className="text-base leading-none">
+                {EMOTION_EMOJI[currentSubtitle.emotion] ?? "😐"}
+              </span>
+              <span className="text-[11px] font-medium text-white/80">
+                {currentSubtitle.emotion.replace(/ \(.+\)/, "")}
+              </span>
+              <span className="text-[10px] text-white/50">
+                {currentSubtitle.confidence.toFixed(0)}%
+              </span>
+            </div>
+            {/* 자막 텍스트 */}
+            <div
+              className="rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-lg"
+              style={{ background: "rgba(0,0,0,0.7)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
+            >
+              {currentSubtitle.text}
+            </div>
+          </div>
+        )}
+
+        {/* ── 효과음 오버레이 (상단 중앙, 리퀴드글라스) ── */}
+        {emojiOn && activeSoundEvents.length > 0 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+            {/* SVG distortion filter */}
+            <svg style={{ display: "none" }}>
+              <filter id="vp-glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+                <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence" />
+                <feComponentTransfer in="turbulence" result="mapped">
+                  <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
+                  <feFuncG type="gamma" amplitude="0" exponent="1" offset="0" />
+                  <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5" />
+                </feComponentTransfer>
+                <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
+                <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lightingColor="white" result="specLight">
+                  <fePointLight x="-200" y="-200" z="300" />
+                </feSpecularLighting>
+                <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
+                <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G" />
+              </filter>
+            </svg>
+
+            {/* 리퀴드글라스 컨테이너 */}
+            <div
+              className="relative flex overflow-hidden rounded-3xl"
+              style={{
+                boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)",
+              }}
+            >
+              {/* Glass layer 1 — blur + distortion */}
+              <div
+                className="absolute inset-0 z-0 rounded-3xl overflow-hidden"
+                style={{
+                  backdropFilter: "blur(3px)",
+                  filter: "url(#vp-glass-distortion)",
+                  isolation: "isolate",
+                }}
+              />
+              {/* Glass layer 2 — white tint */}
+              <div
+                className="absolute inset-0 z-10 rounded-3xl"
+                style={{ background: "rgba(255,255,255,0.18)" }}
+              />
+              {/* Glass layer 3 — inner highlight */}
+              <div
+                className="absolute inset-0 z-20 rounded-3xl overflow-hidden"
+                style={{
+                  boxShadow:
+                    "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)",
+                }}
+              />
+              {/* 이모지 목록 */}
+              <div className="relative z-30 flex items-center gap-1 px-3 py-2">
+                {activeSoundEvents.slice(0, 6).map((e, i) => (
+                  <span key={i} className="text-xl leading-none select-none" title={e.event_en}>
+                    {e.event.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊"}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 전체화면 전용 사이드패널 */}
         {isFullscreen && (
           <div
             className={[
@@ -191,7 +483,6 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
               (showControls || showSidePanel) ? "opacity-100" : "opacity-0 pointer-events-none",
             ].join(" ")}
           >
-            {/* 토글 탭 */}
             <button
               type="button"
               onClick={() => setShowSidePanel((p) => !p)}
@@ -204,12 +495,8 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
                 borderRight: "none",
               }}
             >
-              {showSidePanel
-                ? <ChevronRight size={14} className="text-white/80" />
-                : <ChevronLeft size={14} className="text-white/80" />}
+              {showSidePanel ? <ChevronRight size={14} className="text-white/80" /> : <ChevronLeft size={14} className="text-white/80" />}
             </button>
-
-            {/* 패널 본체 */}
             <div
               className="flex flex-1 flex-col overflow-hidden"
               style={{
@@ -219,14 +506,28 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
                 borderLeft: "1px solid rgba(255,255,255,0.12)",
               }}
             >
-              <div
-                className="flex shrink-0 items-center gap-2 px-4 py-3"
-                style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}
-              >
+              <div className="flex shrink-0 items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
                 <div className="h-2 w-2 rounded-full bg-[#10B981]" />
                 <span className="text-sm font-semibold text-white">인식된 소리</span>
               </div>
-              <div className="flex-1 overflow-y-auto" />
+              {/* 효과음 목록 */}
+              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+                {soundEvents.map((e, i) => (
+                  <div
+                    key={i}
+                    className={[
+                      "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors",
+                      currentSec >= e.start && currentSec < e.end
+                        ? "bg-[#10B981]/20 text-[#6EE7B7]"
+                        : "text-white/40",
+                    ].join(" ")}
+                  >
+                    <span>{e.event.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊"}</span>
+                    <span className="truncate">{e.event_en}</span>
+                    <span className="ml-auto shrink-0 tabular-nums text-[10px]">{e.start.toFixed(1)}s</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -250,8 +551,8 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
           onMuteToggle={() => setIsMuted((m) => !m)}
           onVolumeChange={(v) => { setVolume(v); setIsMuted(v === 0); }}
           onShowVolumeChange={setShowVolume}
-          onReset={() => setCurrentSec(0)}
-          soundEvents={[]}
+          onReset={() => { if (videoRef.current) videoRef.current.currentTime = 0; setCurrentSec(0); }}
+          soundEvents={soundEventDots}
           onSubtitleToggle={() => setSubtitleOn((v) => !v)}
           onEmojiToggle={() => setEmojiOn((v) => !v)}
           onVibrateToggle={() => setVibrateOn((v) => !v)}
