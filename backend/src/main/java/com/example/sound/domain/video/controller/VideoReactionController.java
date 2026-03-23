@@ -3,6 +3,7 @@ package com.example.sound.domain.video.controller;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.video.dto.VideoReactionRequest;
 import com.example.sound.domain.video.dto.VideoReactionResponse;
+import com.example.sound.domain.video.dto.VideoReactionSummaryResponse;
 import com.example.sound.domain.video.service.VideoReactionService;
 import com.example.sound.global.auth.oauth.CustomUserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,5 +42,17 @@ public class VideoReactionController {
         videoReactionService.removeReaction(videoId, principal.getId(), emoji);
 
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "영상 리액션 조회")
+    @GetMapping("/{videoId}/reaction")
+    public ResponseEntity<VideoReactionSummaryResponse> getReactions(
+            @PathVariable Long videoId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ){
+        VideoReactionSummaryResponse response =
+                videoReactionService.getReactions(videoId, principal.getId());
+
+        return ResponseEntity.ok(response);
     }
 }
