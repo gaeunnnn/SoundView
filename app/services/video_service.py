@@ -49,11 +49,11 @@ class VideoService:
 
             # 4. AI 추론 — 세 모델을 병렬 실행 (하나라도 실패 시 전체 예외 발생)
             #    SubtitleModel : 원본 오디오 사용 (배경음 포함 원본, AI 자체 노이즈 캔슬링/VAD 최적화)
-            #    VibrationModel: 오디오의 목적에 맞는 트랙만 사용 (예: vocals)
+            #    VibrationModel: VoiceSeparator에서 분리된 전체 4-stem 딕셔너리 사용
             #    SoundEventModel: 배경음 전용 분류 분석 (no_vocals)
             subtitle_result, vibration_result, sound_event_result = await asyncio.gather(
                 self.subtitle_model.predict(audio_array),
-                self.vibration_model.predict(tracks["no_vocals"]),
+                self.vibration_model.predict(tracks),
                 self.sound_event_model.predict(tracks["no_vocals"])
             )
 

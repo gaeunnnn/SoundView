@@ -95,7 +95,14 @@ class VoiceSeparator:
             down = torchaudio.functional.resample(mono.cpu(), self.SAMPLE_RATE, sr)
             return down.squeeze().numpy().astype(np.float32)
 
+        drums_idx = stem_names.index("drums")
+        bass_idx = stem_names.index("bass")
+        other_idx = stem_names.index("other")
+
         return {
             "vocals": to_mono_array(vocals_tensor),
             "no_vocals": to_mono_array(no_vocals_tensor),
+            "drums": to_mono_array(sources[0, drums_idx]),
+            "bass": to_mono_array(sources[0, bass_idx]),
+            "other": to_mono_array(sources[0, other_idx]),
         }
