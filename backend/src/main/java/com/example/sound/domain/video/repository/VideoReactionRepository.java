@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface VideoReactionRepository extends JpaRepository<VideoReaction, Long> {
@@ -33,4 +34,9 @@ public interface VideoReactionRepository extends JpaRepository<VideoReaction, Lo
     );
 
     void deleteByAlbumVideoId(Long albumVideoId);
+
+
+    List<VideoReaction> findByAlbumVideoId(Long videoId);
+
+    List<VideoReaction> findByAlbumVideoIdAndUserId(Long videoId, Long userId);
 }
