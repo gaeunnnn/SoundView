@@ -6,11 +6,17 @@ import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.domain.video.dto.VideoReactionRequest;
 import com.example.sound.domain.video.dto.VideoReactionResponse;
+import com.example.sound.domain.video.dto.VideoReactionSummaryResponse;
 import com.example.sound.domain.video.entity.VideoReaction;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,5 +64,39 @@ public class VideoReactionService {
                 userId,
                 emoji
         );
+    }
+
+    @Transactional(readOnly = true)
+    public VideoReactionSummaryResponse getReactions(Long videoId, Long userId) {
+
+        // 전체 리액션
+        List<VideoReaction> reactions = reactionRepository.findByAlbumVideoId(videoId);
+
+        // 내가 누른 리액션
+        List<VideoReaction> myReactions = reactionRepository.findByAlbumVideoIdAndUserId(videoId, userId);
+
+        Set<String> myEmojiSet = myReactions.stream()
+                .map(VideoReaction::getEmoji)
+                .collect(Collectors.toSet());
+
+        // emoji별 count
+        Map<String, Long> countMap = reactions.stream()
+                .collect(Collectors.groupingBy(
+                        VideoReaction::getEmoji,
+                        Collectors.counting()
+                ));
+
+        List<VideoReactionSummaryResponse.ReactionInfo> result = countMap.entrySet().stream()
+                .map(entry -> VideoReactionSummaryResponse.ReactionInfo.builder()
+                        .emoji(entry.getKey())
+                        .count(entry.getValue())
+                        .selected(myEmojiSet.contains(entry.getKey()))
+                        .build())
+                .toList();
+
+        return VideoReactionSummaryResponse.builder()
+                .videoId(videoId)
+                .reactions(result)
+                .build();
     }
 }
