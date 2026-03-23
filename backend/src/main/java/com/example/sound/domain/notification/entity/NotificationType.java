@@ -4,5 +4,6 @@ public enum NotificationType {
 
     ALBUM_INVITE,
     ALBUM_VIDEO_ADDED,
-    VIDEO_COMMENT
+    VIDEO_COMMENT,
+    VIDEO_COMPLETED
 }

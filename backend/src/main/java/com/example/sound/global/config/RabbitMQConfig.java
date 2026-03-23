@@ -10,33 +10,60 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class RabbitMQConfig {
 
+    // Exchange
     public static final String EXCHANGE = "video.exchange";
-    public static final String QUEUE = "video.queue";
-    public static final String ROUTING_KEY = "video.process";
 
+    // 🔥 Queue 2개
+    public static final String REQUEST_QUEUE = "video.request.queue";
+    public static final String RESPONSE_QUEUE = "video.response.queue";
+
+    // 🔥 Routing Key 2개
+    public static final String REQUEST_KEY = "video.request";
+    public static final String RESPONSE_KEY = "video.response";
+
+    // Exchange
     @Bean
     public DirectExchange exchange() {
         return new DirectExchange(EXCHANGE);
     }
 
+    // Request Queue
     @Bean
-    public Queue queue() {
-        return QueueBuilder.durable(QUEUE).build();
+    public Queue requestQueue() {
+        return QueueBuilder.durable(REQUEST_QUEUE).build();
     }
 
+    // Response Queue
     @Bean
-    public Binding binding() {
+    public Queue responseQueue() {
+        return QueueBuilder.durable(RESPONSE_QUEUE).build();
+    }
+
+    // Request Binding
+    @Bean
+    public Binding requestBinding() {
         return BindingBuilder
-                .bind(queue())
+                .bind(requestQueue())
                 .to(exchange())
-                .with(ROUTING_KEY);
+                .with(REQUEST_KEY);
     }
 
+    // Response Binding
+    @Bean
+    public Binding responseBinding() {
+        return BindingBuilder
+                .bind(responseQueue())
+                .to(exchange())
+                .with(RESPONSE_KEY);
+    }
+
+    // JSON Converter
     @Bean
     public Jackson2JsonMessageConverter messageConverter() {
         return new Jackson2JsonMessageConverter();
     }
 
+    // RabbitTemplate
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
