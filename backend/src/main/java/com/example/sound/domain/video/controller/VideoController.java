@@ -95,8 +95,9 @@ public class VideoController {
     @GetMapping("/videos/{videoId}/full")
     public VideoFullResponse getVideoFull(
             @PathVariable Long videoId,
+            @RequestParam Long albumId,
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return videoService.getVideoFull(videoId, principal.getId());
+        return videoService.getVideoFull(videoId, albumId, principal.getId());
     }
 }

@@ -26,23 +26,18 @@ public class VideoDetailResponse {
     private String vibrationBinaryUrl;
     private String soundEventUrl;
 
-    public static VideoDetailResponse from(Video v, String domain) {
+    public static VideoDetailResponse from(Video v, com.example.sound.global.util.CloudFrontSigner signer) {
         return VideoDetailResponse.builder()
                 .videoId(v.getId())
                 .title(v.getTitle())
-                .videoUrl(toUrl(domain, v.getVideoS3Key()))
-                .thumbnailUrl(toUrl(domain, v.getThumbnailS3Key()))
+                .videoUrl(signer.generateSignedUrl(v.getVideoS3Key()))
+                .thumbnailUrl(signer.generatePublicUrl(v.getThumbnailS3Key()))
                 .durationSec(v.getDurationSec())
                 .status(v.getStatus().name())
-                .subtitleUrl(toUrl(domain, v.getSubtitleS3Key()))
-                .vibrationUrl(toUrl(domain, v.getVibrationS3Key()))
-                .vibrationBinaryUrl(toUrl(domain, v.getVibrationBinaryS3Key()))
-                .soundEventUrl(toUrl(domain, v.getSoundEventS3Key()))
+                .subtitleUrl(signer.generateSignedUrl(v.getSubtitleS3Key()))
+                .vibrationUrl(signer.generateSignedUrl(v.getVibrationS3Key()))
+                .vibrationBinaryUrl(signer.generateSignedUrl(v.getVibrationBinaryS3Key()))
+                .soundEventUrl(signer.generateSignedUrl(v.getSoundEventS3Key()))
                 .build();
-    }
-
-    private static String toUrl(String domain, String key) {
-        if (key == null) return null;
-        return domain + "/" + key;
     }
 }
