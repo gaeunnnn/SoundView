@@ -28,28 +28,31 @@ public class VideoReactionService {
     private final UserRepository userRepository;
 
     @Transactional
-    public VideoReactionResponse addReaction(Long videoId, Long userId, VideoReactionRequest request) {
+    public VideoReactionResponse addReaction(Long albumVideoId, Long userId, VideoReactionRequest request) {
 
-        AlbumVideo video = albumVideoRepository.findById(videoId)
+        AlbumVideo albumVideo = albumVideoRepository.findById(albumVideoId)
                 .orElseThrow(() -> new RuntimeException("영상 없음"));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("유저 없음"));
 
-        reactionRepository.findByAlbumVideoIdAndUserIdAndEmoji(videoId, userId, request.getEmoji())
+        reactionRepository.findByAlbumVideoIdAndUserIdAndEmoji(albumVideoId, userId, request.getEmoji())
                 .ifPresent(r -> {
                     throw new RuntimeException("이미 리액션 존재");
                 });
 
         VideoReaction reaction = VideoReaction.builder()
-                .albumVideo(video)
+                .albumVideo(albumVideo)
                 .user(user)
                 .emoji(request.getEmoji())
                 .build();
 
         reactionRepository.save(reaction);
 
-        long count = reactionRepository.countByAlbumVideoIdAndEmoji(videoId, request.getEmoji());
+        long count = reactionRepository.countByAlbumVideoIdAndEmoji(
+                albumVideoId,
+                request.getEmoji()
+        );
 
         return VideoReactionResponse.builder()
                 .emoji(request.getEmoji())
@@ -58,10 +61,10 @@ public class VideoReactionService {
     }
 
     @Transactional
-    public void removeReaction(Long videoId, Long userId, String emoji) {
+    public void removeReaction(Long albumVideoId, Long userId, String emoji) {
 
         reactionRepository.deleteByAlbumVideoIdAndUserIdAndEmoji(
-                videoId,
+                albumVideoId,
                 userId,
                 emoji
         );
