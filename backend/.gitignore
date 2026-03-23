@@ -39,5 +39,6 @@ out/
 # env
 ../.env
 .env.*
+.env
 
 
