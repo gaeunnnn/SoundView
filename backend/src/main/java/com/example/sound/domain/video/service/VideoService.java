@@ -236,4 +236,80 @@ public class VideoService {
 
         video.markFailed(reason);
     }
+
+    public VideoDetailResponse getVideoDetail(Long videoId) {
+
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        // 실패
+        if (video.getStatus() == VideoStatus.FAILED) {
+            return VideoDetailResponse.builder()
+                    .videoId(video.getId())
+                    .title(video.getTitle())
+                    .status(video.getStatus().name())
+                    .failReason(
+                            video.getFailReason() != null ? video.getFailReason().name() : null
+                    )
+                    .build();
+        }
+
+        // 처리 중
+        if (video.getStatus() != VideoStatus.COMPLETED) {
+            return VideoDetailResponse.builder()
+                    .videoId(video.getId())
+                    .title(video.getTitle())
+                    .status(video.getStatus().name())
+                    .build();
+        }
+
+        // 완료
+        return VideoDetailResponse.from(video, cloudFrontDomain);
+    }
+
+    @Transactional(readOnly = true)
+    public VideoFullResponse getVideoFull(Long videoId, Long userId) {
+
+        // 1. 영상
+        VideoDetailResponse videoDetail = getVideoDetail(videoId);
+
+        // 2. 댓글
+        List<VideoCommentResponse> comments =
+                videoCommentRepository.findByVideoId(videoId);
+
+        // 3. 리액션 count
+        List<Object[]> results =
+                videoReactionRepository.countReactions(videoId);
+
+        // 4. 내가 누른 리액션
+        List<String> myReactions =
+                videoReactionRepository.findMyReactions(videoId, userId);
+
+        // 5. DTO 변환
+        List<VideoReactionSummaryResponse.ReactionInfo> reactionInfos =
+                results.stream()
+                        .map(r -> {
+                            String emoji = (String) r[0];
+                            Long count = (Long) r[1];
+
+                            return VideoReactionSummaryResponse.ReactionInfo.builder()
+                                    .emoji(emoji)
+                                    .count(count)
+                                    .selected(myReactions.contains(emoji))
+                                    .build();
+                        })
+                        .toList();
+
+        VideoReactionSummaryResponse summary =
+                VideoReactionSummaryResponse.builder()
+                        .videoId(videoId)
+                        .reactions(reactionInfos)
+                        .build();
+
+        return VideoFullResponse.builder()
+                .video(videoDetail)
+                .comments(comments)
+                .reactionSummary(summary)
+                .build();
+    }
 }
