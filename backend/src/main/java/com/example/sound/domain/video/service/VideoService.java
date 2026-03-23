@@ -2,6 +2,7 @@ package com.example.sound.domain.video.service;
 
 import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
+import com.example.sound.domain.notification.service.NotificationService;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
 import com.example.sound.domain.video.dto.*;
@@ -31,6 +32,7 @@ public class VideoService {
     private final UserRepository userRepository;
     private final RabbitTemplate rabbitTemplate;
     private final S3UploadService s3UploadService;
+    private final NotificationService notificationService;
 
     @Value("${spring.cloud.aws.cloudfront.domain}")
     private String cloudFrontDomain;
@@ -173,65 +175,52 @@ public class VideoService {
         // 2. 상태 변경 (PENDING -> PROCESSING)
         video.markProcessing();
 
-        // 3. TODO: RabbitMQ 연동 (다음 단계에서 진행 예정)
-    }
-
-    // 영상 생성 -> pending
-    @Transactional
-    public Long createVideo(Long userId, String title) {
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
-
-        Video video = Video.builder()
-                .uploader(user)
-                .title(title)
-                .build();
-
-        videoRepository.save(video);
-
-        return video.getId();
-    }
-
-    // 영상 업로드 완료 -> processing
-    @Transactional
-    public void markUploadComplete(Long videoId, Long userId, String videoS3Key){
-
-        Video video = videoRepository.findById(videoId)
-                .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
-
-        if (!video.getUploader().getId().equals(userId)) {
-            throw new IllegalArgumentException("업로드 완료 처리 권한 없음");
-        }
-
-        // 영상 S3 Key 저장
-        video.updateVideoS3Key(videoS3Key);
-
-        // 상태 변경
-        video.markProcessing();
-
-        // MQ 메시지 발행 (AI 서버는 Full URL이 필요할 수 있으므로 변환하여 전송)
-        String fullVideoUrl = "https://" + cloudFrontDomain + "/" + videoS3Key;
-
+        // 3.MQ 발행
         VideoProcessMessage message = VideoProcessMessage.builder()
                 .videoId(video.getId())
-                .videoUrl(fullVideoUrl)
+                .videoKey(video.getVideoS3Key())
                 .build();
 
         rabbitTemplate.convertAndSend(
                 RabbitMQConfig.EXCHANGE,
-                RabbitMQConfig.ROUTING_KEY,
+                RabbitMQConfig.REQUEST_KEY,
                 message
         );
     }
 
+
     // 완료 처리 -> AI 콜백
     @Transactional
-    public void completeVideo(Long videoId, String subtitleS3Key) {
+    public void completeVideo(
+            Long videoId,
+            String subtitleS3Key,
+            String vibrationS3Key,
+            String vibrationBinaryS3Key,
+            String soundEventS3Key,
+            Double durationSec
+    ) {
+
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
 
+        if (video.getStatus() != VideoStatus.PROCESSING) {
+            return;
+        }
+
         video.markCompleted(subtitleS3Key);
+
+        video.updateVibrationKey(vibrationS3Key);
+        video.updateVibrationBinaryKey(vibrationBinaryS3Key);
+        video.updateSoundEventKey(soundEventS3Key);
+
+        if (durationSec != null) {
+            video.updateDuration(durationSec);
+        }
+
+        notificationService.notifyVideoCompleted(
+                video.getUploader().getId(),
+                video.getId()
+        );
     }
 
     // 실패 처리
@@ -240,6 +229,10 @@ public class VideoService {
 
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new IllegalArgumentException("영상 없음"));
+
+        if (video.getStatus() == VideoStatus.COMPLETED) {
+            return;
+        }
 
         video.markFailed(reason);
     }
