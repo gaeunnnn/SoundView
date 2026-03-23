@@ -60,15 +60,6 @@ public class VideoController {
         return videoService.getMyVideosInAlbum(albumId, principal.getId());
     }
 
-    @Operation(summary = "영상 생성 (업로드 준비, 상태: PENDING)")
-    @PostMapping("/videos")
-    public Long createVideo(
-            @AuthenticationPrincipal CustomUserPrincipal principal,
-            @RequestParam String title
-    ) {
-        return videoService.createVideo(principal.getId(), title);
-    }
-
     @Operation(summary = "S3 멀티파트 업로드 시작 (Presigned URL 발급)")
     @PostMapping("/videos/upload/initiate")
     public VideoUploadInitiateResponse initiateUpload(
@@ -87,28 +78,10 @@ public class VideoController {
         videoService.completeVideoUpload(principal.getId(), request);
     }
 
-    @Operation(summary = "영상 업로드 완료 처리 (상태: PROCESSING)")
-    @PostMapping("/videos/{videoId}/upload-complete")
-    public void uploadComplete(
-            @PathVariable Long videoId,
-            @RequestParam String videoS3Key,
-            @AuthenticationPrincipal CustomUserPrincipal principal
-    ) {
-        videoService.markUploadComplete(videoId, principal.getId(), videoS3Key);
-    }
-
     @Operation(summary = "영상 처리 상태 조회")
     @GetMapping("/videos/{videoId}/status")
     public VideoStatus getStatus(@PathVariable Long videoId) {
         return videoService.getStatus(videoId);
     }
 
-    @Operation(summary = "AI 처리 완료 콜백 (상태: COMPLETED)")
-    @PutMapping("/videos/{videoId}/complete")
-    public void complete(
-            @PathVariable Long videoId,
-            @RequestParam String subtitleS3Key
-    ) {
-        videoService.completeVideo(videoId, subtitleS3Key);
-    }
 }
