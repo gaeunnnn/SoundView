@@ -32,6 +32,7 @@ venv/
 # 특정 테스트 파일
 dummy_video.wav
 test_ai_models.py
+test_local_pipeline.py
 
 # 미디어 파일 (오디오, 비디오, 이미지 등 용량 큰 데이터)
 *.wav
