@@ -4,6 +4,7 @@ import com.example.sound.domain.album.entity.AlbumVideo;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.user.entity.User;
 import com.example.sound.domain.user.repository.UserRepository;
+import com.example.sound.domain.video.dto.VideoFullResponse;
 import com.example.sound.domain.video.dto.VideoReactionRequest;
 import com.example.sound.domain.video.dto.VideoReactionResponse;
 import com.example.sound.domain.video.dto.VideoReactionSummaryResponse;
