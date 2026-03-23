@@ -3,6 +3,7 @@ package com.example.sound.domain.video.entity;
 import com.example.sound.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -41,6 +42,12 @@ public class Video {
     @Column(name = "vibration_s3_key", length = 500)
     private String vibrationS3Key;
 
+    @Column(name = "vibration_binary_s3_key", length = 500)
+    private String vibrationBinaryS3Key;
+
+    @Column(name = "sound_event_s3_key", length = 500)
+    private String soundEventS3Key;
+
     @Column(name = "upload_id", length = 255)
     private String uploadId;
 
@@ -61,13 +68,16 @@ public class Video {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // =====================
+    // Lifecycle
+    // =====================
+
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
         this.createdAt = now;
         this.updatedAt = now;
 
-        // status가 없으면 기본값 PENDING
         if (this.status == null) {
             this.status = VideoStatus.PENDING;
         }
@@ -78,6 +88,10 @@ public class Video {
         this.updatedAt = LocalDateTime.now();
     }
 
+    // =====================
+    // Update Methods
+    // =====================
+
     public void updateTitle(String title){
         this.title = title;
     }
@@ -86,12 +100,32 @@ public class Video {
         this.videoS3Key = videoS3Key;
     }
 
+    public void updateDuration(Double duration) {
+        this.durationSec = duration != null ? BigDecimal.valueOf(duration) : null;
+    }
+
+    public void updateVibrationKey(String key) {
+        this.vibrationS3Key = key;
+    }
+
+    public void updateVibrationBinaryKey(String key) {
+        this.vibrationBinaryS3Key = key;
+    }
+
+    public void updateSoundEventKey(String key) {
+        this.soundEventS3Key = key;
+    }
+
+    // =====================
+    // Status Methods
+    // =====================
+
     // 업로드 완료 → AI 처리 시작
     public void markProcessing() {
         this.status = VideoStatus.PROCESSING;
     }
 
-    // AI 처리 완료 → 결과 S3 Key 저장
+    // AI 처리 완료
     public void markCompleted(String subtitleS3Key) {
         if (subtitleS3Key == null) {
             throw new IllegalArgumentException("결과 없이 완료 불가");
@@ -101,11 +135,11 @@ public class Video {
         this.subtitleS3Key = subtitleS3Key;
     }
 
-    // 처리 실패 → 상태 + 원인 저장
+    // 처리 실패
     public void markFailed(VideoFailReason reason) {
         this.status = VideoStatus.FAILED;
         this.failReason = reason;
-        this.subtitleS3Key = null; // 혹시 남아있던 값 제거
+        this.subtitleS3Key = null;
     }
 
     // 멀티파트 세션 정보 저장
