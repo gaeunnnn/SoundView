@@ -10,6 +10,7 @@ import { getMyAlbumVideos, addVideosToAlbum } from "../../../api/album";
 import { addVideoReaction, deleteVideoReaction, updateVideoTitle } from "../../../api/video";
 import { removeAlbumVideo } from "../../../api/albumVideo";
 import { useUser } from "../../../context/UserContext";
+import EspVibrationButton from "../../Esp32/EspVibrationButton";
 
 type Tab = "all" | "mine";
 
@@ -248,8 +249,10 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
             </div>
           </div>
 
-          {/* 가져오기 버튼 */}
-          <button
+          {/* 진동 연결 + 가져오기 버튼 */}
+          <div className="flex items-center gap-2">
+            <EspVibrationButton />
+            <button
             type="button"
             onClick={() => {
               if (!myAlbumId || myAlbumId <= 0 || !Number.isFinite(myAlbumId)) { setShowImport(true); return; }
@@ -271,6 +274,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
             <Upload size={15} strokeWidth={2.5} />
             <span className="hidden sm:inline">가져오기</span>
           </button>
+          </div>
         </div>
 
         {/* 탭 + 검색/정렬 */}

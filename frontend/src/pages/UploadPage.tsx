@@ -10,32 +10,30 @@ import logoIcon from "../assets/images/LogoIcon.png";
 import { uploadVideoMultipart } from "../utils/uploadMultipart";
 
 const STAGES = [
-  { minProgress: 0,  maxProgress: 20,  label: "영상을 업로드하는 중입니다...",          sub: "파일을 서버로 전송하고 있습니다" },
-  { minProgress: 20, maxProgress: 50,  label: "AI가 영상을 분석하고 있습니다...",       sub: "영상 속 소리를 감지하고 있습니다" },
-  { minProgress: 50, maxProgress: 80,  label: "음성을 인식하고 있습니다...",            sub: "AI가 영상 속 소리를 분석 중입니다" },
-  { minProgress: 80, maxProgress: 99,  label: "자막을 생성하고 있습니다...",            sub: "인식된 음성을 자막으로 변환 중입니다" },
-  { minProgress: 100, maxProgress: 100, label: "완료! 결과 플레이어로 전환합니다.",     sub: "AI가 영상 속 소리를 분석 중입니다" },
+  { minProgress: 0,  maxProgress: 90,  label: "영상을 업로드하는 중입니다...",   sub: "파일을 서버로 전송하고 있습니다" },
+  { minProgress: 90, maxProgress: 99,  label: "서버에 업로드를 완료하는 중...",  sub: "잠시만 기다려 주세요" },
+  { minProgress: 100, maxProgress: 100, label: "완료! 결과 플레이어로 전환합니다.", sub: "" },
 ];
 
-const STEP_ICONS = ["📁", "🔊", "🔥", "😊", "✅"];
+const STEP_ICONS = ["📁", "⏳", "✅"];
 
 function getStage(progress: number) {
-  if (progress >= 100) return STAGES[4];
+  if (progress >= 100) return STAGES[STAGES.length - 1];
   return STAGES.find((s) => progress >= s.minProgress && progress < s.maxProgress) ?? STAGES[0];
 }
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const { me } = useUser();
-  const { status, progress, setUploadedVideo, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
+  const { status, progress, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
 
   const inputRef = useRef<HTMLInputElement>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 업로드 완료 시 자막 수정 페이지로 이동
   useEffect(() => {
@@ -48,14 +46,12 @@ export default function UploadPage() {
     }
   }, [status, navigate, resetUpload]);
 
-  // 언마운트 시 interval 정리
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
   const handleFile = (file: File) => {
+    // 영상 파일 형식 검증
+    if (!file.type.startsWith("video/")) {
+      setUploadError("영상 파일만 업로드할 수 있습니다.");
+      return;
+    }
     setSelectedFile(file);
     const url = URL.createObjectURL(file);
     setPreviewUrl(url);
@@ -94,23 +90,15 @@ export default function UploadPage() {
 
     try {
       // S3 멀티파트 업로드 실행
-      // onProgress 콜백의 0-100 값을 화면 진행률의 0-20% 구간에 매핑합니다.
-      // (0-20%: 실제 업로드, 20-100%: 서버 AI 처리 시뮬레이션)
-      await uploadVideoMultipart(selectedFile, videoTitle.trim(), (uploadProgress) => {
-        updateProgress(Math.floor(uploadProgress * 0.2));
+      // XHR onprogress 기반으로 0-90%는 실제 업로드 속도에 맞게 증가하고,
+      // complete API 성공 시 100%로 완료됩니다.
+      const videoId = await uploadVideoMultipart(selectedFile, videoTitle.trim(), (uploadProgress) => {
+        updateProgress(uploadProgress);
       });
-
-      // 업로드 완료 후 서버 AI 처리 단계 시뮬레이션 (20-100% 구간)
-      let current = 20;
-      intervalRef.current = setInterval(() => {
-        current += 1;
-        if (current >= 100) {
-          current = 100;
-          clearInterval(intervalRef.current!);
-          finishUpload();
-        }
-        updateProgress(current);
-      }, 100);
+      // 업로드된 videoId와 제목을 Context에 저장 — EditPage의 제목 수정 API 호출에 사용
+      setUploadedVideoId(videoId);
+      setUploadedTitle(videoTitle.trim());
+      finishUpload();
     } catch (error) {
       // 업로드 실패 시 어느 단계에서 실패했는지 에러 메시지에 포함됩니다.
       const message =
@@ -133,7 +121,7 @@ export default function UploadPage() {
   const isUploading = status === "uploading" || status === "done";
   const stage = getStage(progress);
   const isDone = status === "done";
-  const currentStageIndex = isDone ? 4 : STAGES.findIndex((s) => progress >= s.minProgress && progress < s.maxProgress);
+  const currentStageIndex = isDone ? STAGES.length - 1 : STAGES.findIndex((s) => progress >= s.minProgress && progress < s.maxProgress);
 
   const formatSize = (bytes: number) => {
     if (bytes >= 1024 * 1024 * 1024)
@@ -270,7 +258,7 @@ export default function UploadPage() {
               <input
                 ref={inputRef}
                 type="file"
-                accept="*/*"
+                accept="video/*"
                 className="hidden"
                 onChange={handleInputChange}
               />
@@ -286,19 +274,6 @@ export default function UploadPage() {
                     <p className="mt-1 text-sm text-[#64748B]">
                       {formatSize(selectedFile.size)}
                     </p>
-                  </div>
-                  {/* 영상 제목 입력 (initiate API의 title 필드) */}
-                  <div className="w-full" onClick={(e) => e.stopPropagation()}>
-                    <label className="block text-left text-xs font-medium text-[#475569] mb-1">
-                      영상 제목
-                    </label>
-                    <input
-                      type="text"
-                      value={videoTitle}
-                      onChange={(e) => setVideoTitle(e.target.value)}
-                      placeholder="영상 제목을 입력하세요"
-                      className="w-full rounded-xl border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#111827] placeholder-[#94A3B8] outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB]"
-                    />
                   </div>
                   {/* 에러 메시지 */}
                   {uploadError && (
@@ -317,7 +292,7 @@ export default function UploadPage() {
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); void handleStartUpload(); }}
-                      disabled={!videoTitle.trim()}
+                      disabled={!selectedFile}
                       className="flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <CloudUpload size={14} strokeWidth={2.5} />
@@ -336,7 +311,7 @@ export default function UploadPage() {
                       영상을 드래그하거나 클릭하여 업로드
                     </p>
                     <p className="mt-1.5 text-sm text-[#94A3B8]">
-                      MP4, MOV, AVI 지원 · 최대 2GB
+                      MP4, MOV, AVI, MKV 등 모든 영상 형식 지원 · 최대 2GB
                     </p>
                   </div>
                   <button

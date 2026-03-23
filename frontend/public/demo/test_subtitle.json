@@ -1,0 +1,66 @@
+[
+  {
+    "start": 0.0,
+    "end": 4.0,
+    "text": "하이파이브",
+    "emotion": "Neutral (중립)",
+    "confidence": 61.8,
+    "emotions": {
+      "Angry (분노)": 5.37,
+      "Disgust (혐오)": 2.62,
+      "Fear (불안)": 1.51,
+      "Happy (행복)": 22.3,
+      "Neutral (중립)": 61.8,
+      "Sad (슬픔)": 2.21,
+      "Surprise (당황)": 4.18
+    }
+  },
+  {
+    "start": 4.0,
+    "end": 10.0,
+    "text": "하이파이브",
+    "emotion": "Neutral (중립)",
+    "confidence": 61.8,
+    "emotions": {
+      "Angry (분노)": 5.37,
+      "Disgust (혐오)": 2.62,
+      "Fear (불안)": 1.51,
+      "Happy (행복)": 22.3,
+      "Neutral (중립)": 61.8,
+      "Sad (슬픔)": 2.21,
+      "Surprise (당황)": 4.18
+    }
+  },
+  {
+    "start": 10.0,
+    "end": 16.0,
+    "text": "하이파이브",
+    "emotion": "Neutral (중립)",
+    "confidence": 61.8,
+    "emotions": {
+      "Angry (분노)": 5.37,
+      "Disgust (혐오)": 2.62,
+      "Fear (불안)": 1.51,
+      "Happy (행복)": 22.31,
+      "Neutral (중립)": 61.8,
+      "Sad (슬픔)": 2.21,
+      "Surprise (당황)": 4.18
+    }
+  },
+  {
+    "start": 16.0,
+    "end": 24.0,
+    "text": "하이파이브",
+    "emotion": "Neutral (중립)",
+    "confidence": 61.8,
+    "emotions": {
+      "Angry (분노)": 5.37,
+      "Disgust (혐오)": 2.62,
+      "Fear (불안)": 1.51,
+      "Happy (행복)": 22.31,
+      "Neutral (중립)": 61.8,
+      "Sad (슬픔)": 2.21,
+      "Surprise (당황)": 4.18
+    }
+  }
+]

@@ -11,6 +11,7 @@ import ShareToAlbumModal from "./ShareToAlbumModal";
 import { useVideos } from "../../../context/VideosContext";
 import { addVideosToAlbum } from "../../../api/album";
 import { deleteVideo } from "../../../api/video";
+import EspVibrationButton from "../../Esp32/EspVibrationButton";
 
 type MainContentProps = {
   sharedAlbums: SharedAlbumItem[];
@@ -72,9 +73,9 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   const handleConfirmDelete = async () => {
     if (deleteTargetId !== null) {
-      // videos.id(videoId)로 삭제 API 호출 — albumVideoId(id)가 아님
       const target = videos.find((v) => v.id === deleteTargetId);
-      if (target) await deleteVideo(target.videoId).catch(() => {});
+      // 데모 영상(id=-1)은 API 호출 없이 로컬에서만 제거
+      if (target && target.videoId > 0) await deleteVideo(target.videoId).catch(() => {});
       removeVideo(deleteTargetId);
     }
     setDeleteTargetId(null);
@@ -82,9 +83,9 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   const handleConfirmShare = async (albumIds: number[]) => {
     if (shareTargetId !== null) {
-      // videos.id(videoId)로 공유 — albumVideoId(id)가 아님
       const target = videos.find((v) => v.id === shareTargetId);
-      if (target) {
+      // 데모 영상(id=-1)은 공유 API 호출하지 않음
+      if (target && target.videoId > 0) {
         await Promise.all(albumIds.map((id) => addVideosToAlbum(id, [target.videoId]).catch(() => {})));
       }
     }
@@ -103,14 +104,17 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
         <div className="mx-auto max-w-[1280px] space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <VideoSectionHeader title="내 앨범" count={videos.length} />
-            <button
-              type="button"
-              onClick={() => navigate("/upload")}
-              className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#2563EB] to-[#6366F1] px-3 py-2.5 sm:px-5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:opacity-90"
-            >
-              <span className="hidden sm:inline">새 영상 변환</span>
-              <span className="sm:hidden">변환</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <EspVibrationButton />
+              <button
+                type="button"
+                onClick={() => navigate("/upload")}
+                className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[#2563EB] to-[#6366F1] px-3 py-2.5 sm:px-5 text-sm font-semibold text-white shadow-sm transition-all hover:shadow-md hover:opacity-90"
+              >
+                <span className="hidden sm:inline">새 영상 변환</span>
+                <span className="sm:hidden">변환</span>
+              </button>
+            </div>
           </div>
           <VideoToolbar
             searchKeyword={searchKeyword}

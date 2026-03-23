@@ -19,7 +19,9 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const emojiRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
+  const emojiPopupRef = useRef<HTMLDivElement>(null);
+  const [emojiPos, setEmojiPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -33,27 +35,54 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
   useEffect(() => {
     if (!showEmojiPicker) return;
     const handle = (e: MouseEvent) => {
-      if (emojiRef.current && !emojiRef.current.contains(e.target as Node)) setShowEmojiPicker(false);
+      const target = e.target as Node;
+      const inButton = emojiButtonRef.current?.contains(target);
+      const inPopup = emojiPopupRef.current?.contains(target);
+      if (!inButton && !inPopup) setShowEmojiPicker(false);
     };
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showEmojiPicker]);
 
+  // 팝업 열린 후 실제 너비 기준으로 오른쪽 overflow 보정
+  useEffect(() => {
+    if (!showEmojiPicker || !emojiPopupRef.current || !emojiPos) return;
+    const popupRect = emojiPopupRef.current.getBoundingClientRect();
+    const overflow = popupRect.right - (window.innerWidth - 8);
+    if (overflow > 0) {
+      setEmojiPos((prev) => prev ? { ...prev, left: prev.left - overflow } : prev);
+    }
+  }, [showEmojiPicker]);
+
+  const handleOpenEmojiPicker = () => {
+    if (showEmojiPicker) {
+      setShowEmojiPicker(false);
+      return;
+    }
+    const rect = emojiButtonRef.current?.getBoundingClientRect();
+    if (rect) {
+      setEmojiPos({ top: rect.top - 48, left: rect.left });
+    }
+    setShowEmojiPicker(true);
+  };
+
   // count > 0인 반응만 표시
   const visibleReactions = video.reactions.filter((r) => r.count > 0);
 
   return (
-    <article className="group overflow-hidden rounded-[22px] border border-[#E5EAF1] bg-white shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
+    <article className="group rounded-[22px] border border-[#E5EAF1] bg-white shadow-sm transition-all duration-300 hover:shadow-xl hover:-translate-y-1">
       {/* 썸네일 영역 */}
       <div
-        className="relative aspect-video cursor-pointer overflow-hidden bg-[#0F172A]"
+        className="relative aspect-video cursor-pointer overflow-hidden rounded-t-[22px] bg-[#0F172A]"
         onClick={() => navigate("/viewer", { state: { video: { ...video, uploadedBy: video.uploadedBy } } })}
       >
-        <img
-          src={video.thumbnail}
-          alt={video.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-80"
-        />
+        {video.thumbnail && (
+          <img
+            src={video.thumbnail}
+            alt={video.title}
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-80"
+          />
+        )}
         {/* 재생 버튼 */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <div className="flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm border border-white/40">
@@ -85,7 +114,7 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
 
           {/* 내 영상일 때만 메뉴 */}
           {video.uploadedBy.isMe && (
-            <div ref={menuRef} className="relative flex-shrink-0">
+            <div ref={menuRef} className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setShowMenu((prev) => !prev)}
@@ -108,6 +137,7 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
             </div>
           )}
         </div>
+
         {/* 날짜 + 업로더 프로필 */}
         <div className="flex items-center justify-between">
           <p className="text-[11px] font-medium text-[#94A3B8]">{video.date}</p>
@@ -132,7 +162,7 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
           </div>
         </div>
 
-        {/* 반응 + 댓글 수 + 업로더 */}
+        {/* 반응 + 댓글 수 */}
         <div className="mt-2 flex items-center justify-between border-t border-[#F1F5F9] pt-2">
           {/* 반응 이모지 목록 + 추가 버튼 */}
           <div className="flex items-center gap-1 flex-wrap">
@@ -154,30 +184,35 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
             ))}
 
             {/* 이모지 추가 버튼 */}
-            <div ref={emojiRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowEmojiPicker((p) => !p)}
-                className="flex h-6 w-6 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#64748B]"
-                title="반응 추가"
+            <button
+              ref={emojiButtonRef}
+              type="button"
+              onClick={handleOpenEmojiPicker}
+              className="flex h-6 w-6 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#64748B]"
+              title="반응 추가"
+            >
+              <SmilePlus size={13} strokeWidth={2} />
+            </button>
+
+            {/* 이모지 팝업 — fixed로 카드 overflow 영향 없음 */}
+            {showEmojiPicker && emojiPos && (
+              <div
+                ref={emojiPopupRef}
+                className="fixed z-50 flex gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1.5 shadow-lg"
+                style={{ top: emojiPos.top, left: emojiPos.left }}
               >
-                <SmilePlus size={13} strokeWidth={2} />
-              </button>
-              {showEmojiPicker && (
-                <div className="absolute left-0 bottom-8 z-20 flex gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1.5 shadow-lg">
-                  {EMOJI_LIST.map((emoji) => (
-                    <button
-                      key={emoji}
-                      type="button"
-                      onClick={() => { onReact(video.id, emoji); setShowEmojiPicker(false); }}
-                      className="flex h-8 w-8 items-center justify-center rounded-xl text-lg transition-all hover:bg-[#F1F5F9] hover:scale-110"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                {EMOJI_LIST.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => { onReact(video.id, emoji); setShowEmojiPicker(false); }}
+                    className="flex h-8 w-8 items-center justify-center rounded-xl text-lg transition-all hover:bg-[#F1F5F9] hover:scale-110"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 댓글 수 */}

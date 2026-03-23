@@ -7,6 +7,7 @@ export type VideoItem = {
   duration: string;
   thumbnail: string;
   uploaderName: string;
+  videoUrl?: string; // 로컬/데모 영상 URL (optional)
 };
 
 export type SortOption = "latest" | "oldest" | "title" | "uploader";

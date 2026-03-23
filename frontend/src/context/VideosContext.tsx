@@ -21,27 +21,40 @@ function formatDuration(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+const DEMO_VIDEO: VideoItem = {
+  id: -1,
+  videoId: -1,
+  title: "데모 영상",
+  date: "2026.03.23",
+  duration: "0:24",
+  thumbnail: "",
+  uploaderName: "나",
+  videoUrl: "/demo/test.mp4",
+};
+
 export function VideosProvider({ children }: { children: React.ReactNode }) {
-  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [videos, setVideos] = useState<VideoItem[]>([DEMO_VIDEO]);
 
   // GET /api/albums/{albumId}/videos — 앨범 영상 목록을 불러와 상태에 저장
   const fetchVideos = async (albumId: number) => {
     if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
+    console.log("[fetchVideos] 호출됨 albumId:", albumId);
     try {
       const data = await getAlbumVideos(albumId);
-      setVideos(
-        data.map((v) => ({
-          id: v.albumVideoId,
-          videoId: v.videoId,
-          title: v.title,
-          thumbnail: v.thumbnailUrl ?? "",
-          duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
-          date: v.createdAt.slice(0, 10).replace(/-/g, "."),
-          uploaderName: v.uploaderName,
-        }))
-      );
-    } catch {
-      setVideos([]);
+      console.log("[fetchVideos] 응답 영상 수:", data.length, data);
+      const fetched = data.map((v) => ({
+        id: v.albumVideoId,
+        videoId: v.videoId,
+        title: v.title,
+        thumbnail: v.thumbnailUrl ?? "",
+        duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
+        date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+        uploaderName: v.uploaderName,
+      }));
+      setVideos([DEMO_VIDEO, ...fetched]);
+    } catch (e) {
+      console.error("[fetchVideos] 실패:", e);
+      setVideos([DEMO_VIDEO]);
     }
   };
 
@@ -52,15 +65,15 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
   const removeVideo = (id: number) => {
     const target = videos.find((v) => v.id === id);
     setVideos((prev) => prev.filter((v) => v.id !== id));
-    // videos.id(videoId)로 삭제 — albumVideoId(id)가 아님
-    if (target) deleteVideo(target.videoId).catch(console.error);
+    // 데모 영상(id=-1)은 API 호출하지 않음
+    if (target && target.videoId > 0) deleteVideo(target.videoId).catch(console.error);
   };
 
   // PATCH /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영
   const renameVideo = async (id: number, title: string) => {
     const target = videos.find((v) => v.id === id);
-    // videos.id(videoId)로 수정 — albumVideoId(id)가 아님
-    if (target) await updateVideoTitle(target.videoId, title);
+    // 데모 영상(id=-1)은 API 호출하지 않음
+    if (target && target.videoId > 0) await updateVideoTitle(target.videoId, title);
     setVideos((prev) => prev.map((v) => (v.id === id ? { ...v, title } : v)));
   };
 

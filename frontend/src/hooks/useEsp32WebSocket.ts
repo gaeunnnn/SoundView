@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const ESP32_WS_URL = "ws://10.105.102.88:8765";
+const ESP32_WS_URL = "ws://10.134.85.88:81";
 const RECONNECT_DELAY_MS = 2000;
 
 type Status = "connecting" | "connected" | "disconnected" | "error";
@@ -9,6 +9,7 @@ interface UseEsp32WebSocketReturn {
   connect: () => void;
   disconnect: () => void;
   send: (data: Uint8Array | ArrayBuffer) => void;
+  getSocket: () => WebSocket | null;
 }
 
 /**
@@ -19,7 +20,8 @@ interface UseEsp32WebSocketReturn {
  */
 export function useEsp32WebSocket(
   onStatusChange: (status: Status) => void,
-  onMessage?: (data: ArrayBuffer | string) => void
+  onMessage?: (data: ArrayBuffer | string) => void,
+  autoConnect = true
 ): UseEsp32WebSocketReturn {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,7 +73,7 @@ export function useEsp32WebSocket(
 
     ws.onopen = () => {
       console.log("[WS] WebSocket 연결 성공");
-      console.log("[WS] readyState:", readyStateText(ws.readyState)); // OPEN
+      console.log("[WS] readyState:", readyStateText(ws.readyState));
       onStatusChange("connected");
       clearReconnectTimer();
     };
@@ -79,7 +81,7 @@ export function useEsp32WebSocket(
     ws.onclose = (event: CloseEvent) => {
       console.log("[WS] WebSocket 연결 종료");
       console.log("[WS] close code:", event.code, "| reason:", event.reason || "(없음)");
-      console.log("[WS] readyState:", readyStateText(ws.readyState)); // CLOSED
+      console.log("[WS] readyState:", readyStateText(ws.readyState));
       onStatusChange("disconnected");
 
       // 수동 disconnect가 아닌 경우에만 자동 재연결
@@ -89,10 +91,9 @@ export function useEsp32WebSocket(
     };
 
     ws.onerror = (error: Event) => {
-      // 연결 실패 시에도 onerror → onclose 순서로 호출됨
       console.error("[WS] WebSocket 에러 발생:", error);
       console.log("[WS] readyState:", readyStateText(ws.readyState));
-      onStatusChange("error");
+      // onerror 직후 onclose도 발생하므로 여기서는 별도 상태 변경 안 함
     };
 
     ws.onmessage = (event: MessageEvent) => {
@@ -136,7 +137,7 @@ export function useEsp32WebSocket(
 
   // 마운트 시 자동 연결, 언마운트 시 정리
   useEffect(() => {
-    connect();
+    if (autoConnect) connect();
     return () => {
       // 언마운트 시 재연결 타이머와 소켓 모두 정리
       clearReconnectTimer();
@@ -148,5 +149,7 @@ export function useEsp32WebSocket(
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { connect, disconnect, send };
+  const getSocket = useCallback(() => socketRef.current, []);
+
+  return { connect, disconnect, send, getSocket };
 }

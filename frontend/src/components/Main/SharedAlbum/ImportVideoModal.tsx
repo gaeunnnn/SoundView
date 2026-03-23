@@ -86,11 +86,13 @@ export default function ImportVideoModal({
               >
                 {/* 썸네일 */}
                 <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-xl bg-[#E5E7EB]">
-                  <img
-                    src={video.thumbnail}
-                    alt={video.title}
-                    className="h-full w-full object-cover"
-                  />
+                  {video.thumbnail && (
+                    <img
+                      src={video.thumbnail}
+                      alt={video.title}
+                      className="h-full w-full object-cover"
+                    />
+                  )}
                   <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1 text-[9px] font-semibold text-white">
                     {video.duration}
                   </span>
