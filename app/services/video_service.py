@@ -53,7 +53,7 @@ class VideoService:
             #    SoundEventModel: 배경음 전용 분류 분석 (no_vocals)
             subtitle_result, vibration_result, sound_event_result = await asyncio.gather(
                 self.subtitle_model.predict(audio_array),
-                self.vibration_model.predict(tracks["vocals"]),
+                self.vibration_model.predict(tracks["no_vocals"]),
                 self.sound_event_model.predict(tracks["no_vocals"])
             )
 
