@@ -92,11 +92,11 @@ public class VideoController {
         return videoService.getVideoDetail(videoId);
     }
 
-    @GetMapping("/videos/{videoId}/full")
+    @GetMapping("/videos/{albumVideoId}/full")
     public VideoFullResponse getVideoFull(
-            @PathVariable Long videoId,
+            @PathVariable Long albumVideoId,
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
-        return videoService.getVideoFull(videoId, principal.getId());
+        return videoService.getVideoFull(albumVideoId, principal.getId());
     }
 }

@@ -1,6 +1,9 @@
 package com.example.sound.domain.video.service;
 
+import com.example.sound.domain.album.entity.Album;
 import com.example.sound.domain.album.entity.AlbumVideo;
+import com.example.sound.domain.album.repository.AlbumRepository;
+import com.example.sound.domain.album.repository.AlbumUserRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.notification.service.NotificationService;
 import com.example.sound.domain.user.entity.User;
@@ -12,19 +15,23 @@ import com.example.sound.domain.video.entity.VideoStatus;
 import com.example.sound.domain.video.repository.VideoCommentRepository;
 import com.example.sound.domain.video.repository.VideoReactionRepository;
 import com.example.sound.domain.video.repository.VideoRepository;
+import com.example.sound.global.util.CloudFrontSigner;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import com.example.sound.global.config.RabbitMQConfig;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class VideoService {
 
+    private final AlbumRepository albumRepository;
+    private final AlbumUserRepository albumUserRepository;
     private final AlbumVideoRepository albumVideoRepository;
     private final VideoRepository videoRepository;
     private final VideoReactionRepository videoReactionRepository;
@@ -33,9 +40,7 @@ public class VideoService {
     private final RabbitTemplate rabbitTemplate;
     private final S3UploadService s3UploadService;
     private final NotificationService notificationService;
-
-    @Value("${spring.cloud.aws.cloudfront.domain}")
-    private String cloudFrontDomain;
+    private final CloudFrontSigner cloudFrontSigner;
 
     // 공유 앨범에서만 제거 (업로드 취소)
     @Transactional
@@ -107,7 +112,7 @@ public class VideoService {
                 videoRepository.findMyVideosInAlbum(albumId, userId);
 
         return videos.stream()
-                .map(v -> VideoResponse.from(v, cloudFrontDomain))
+                .map(v -> VideoResponse.from(v, cloudFrontSigner))
                 .toList();
     }
 
@@ -127,7 +132,7 @@ public class VideoService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
 
-        // 1. S3 Key 생성
+        // 1. S3 Key 생성 (private/ 프리픽스 포함)
         String s3Key = s3UploadService.generateS3Key(request.getFileName());
 
         // 2. S3 멀티파트 업로드 초기화 (Upload ID 발급)
@@ -175,7 +180,19 @@ public class VideoService {
         // 2. 상태 변경 (PENDING -> PROCESSING)
         video.markProcessing();
 
-        // 3.MQ 발행
+        // 3. 내 앨범에 자동 추가
+        albumRepository.findByOwnerIdAndName(userId, "내 앨범").ifPresent(album -> {
+            boolean alreadyExists = albumVideoRepository.existsByAlbumIdAndVideoId(album.getId(), video.getId());
+            if (!alreadyExists) {
+                AlbumVideo albumVideo = AlbumVideo.builder()
+                        .album(album)
+                        .video(video)
+                        .build();
+                albumVideoRepository.save(albumVideo);
+            }
+        });
+
+        // 4.MQ 발행
         VideoProcessMessage message = VideoProcessMessage.builder()
                 .videoId(video.getId())
                 .videoKey(video.getVideoS3Key())
@@ -264,28 +281,39 @@ public class VideoService {
         }
 
         // 완료
-        return VideoDetailResponse.from(video, cloudFrontDomain);
+        return VideoDetailResponse.from(video, cloudFrontSigner);
     }
 
     @Transactional(readOnly = true)
-    public VideoFullResponse getVideoFull(Long videoId, Long userId) {
+    public VideoFullResponse getVideoFull(Long albumVideoId, Long userId) {
 
-        // 1. 영상
+        // 1. albumVideoId로 연결 정보 조회
+        AlbumVideo albumVideo = albumVideoRepository.findById(albumVideoId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 영상이 앨범에 존재하지 않습니다."));
+
+        // 2. 권한 검증: 사용자가 해당 앨범의 멤버인지 확인
+        if (!albumUserRepository.existsByAlbumIdAndUserId(albumVideo.getAlbum().getId(), userId)) {
+            throw new AccessDeniedException("해당 영상에 대한 접근 권한이 없습니다.");
+        }
+
+        Long videoId = albumVideo.getVideo().getId();
+
+        // 3. 영상 상세 정보
         VideoDetailResponse videoDetail = getVideoDetail(videoId);
 
-        // 2. 댓글
+        // 4. 댓글 (albumVideoId 기준 조회)
         List<VideoCommentResponse> comments =
-                videoCommentRepository.findByVideoId(videoId);
+                videoCommentRepository.findByAlbumVideoId(albumVideoId);
 
-        // 3. 리액션 count
+        // 5. 리액션 count (albumVideoId 기준 조회)
         List<Object[]> results =
-                videoReactionRepository.countReactions(videoId);
+                videoReactionRepository.countReactionsByAlbumVideoId(albumVideoId);
 
-        // 4. 내가 누른 리액션
+        // 6. 내가 누른 리액션 (albumVideoId 기준 조회)
         List<String> myReactions =
-                videoReactionRepository.findMyReactions(videoId, userId);
+                videoReactionRepository.findMyReactionsByAlbumVideoIdAndUserId(albumVideoId, userId);
 
-        // 5. DTO 변환
+        // 7. 리액션 DTO 변환
         List<VideoReactionSummaryResponse.ReactionInfo> reactionInfos =
                 results.stream()
                         .map(r -> {

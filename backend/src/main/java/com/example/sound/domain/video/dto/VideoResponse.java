@@ -1,6 +1,7 @@
 package com.example.sound.domain.video.dto;
 
 import com.example.sound.domain.video.entity.Video;
+import com.example.sound.global.util.CloudFrontSigner;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -19,14 +20,12 @@ public class VideoResponse {
     private LocalDateTime createdAt;
     private String status;
 
-    public static VideoResponse from(Video video, String cloudFrontDomain) {
-        String baseUrl = "https://" + cloudFrontDomain + "/";
-
+    public static VideoResponse from(Video video, CloudFrontSigner signer) {
         return VideoResponse.builder()
                 .videoId(video.getId())
                 .title(video.getTitle())
-                .videoUrl(video.getVideoS3Key() != null ? baseUrl + video.getVideoS3Key() : null)
-                .thumbnailUrl(video.getThumbnailS3Key() != null ? baseUrl + video.getThumbnailS3Key() : null)
+                .videoUrl(signer.generatePublicUrl(video.getVideoS3Key()))
+                .thumbnailUrl(signer.generatePublicUrl(video.getThumbnailS3Key()))
                 .durationSec(video.getDurationSec())
                 .createdAt(video.getCreatedAt())
                 .status(video.getStatus().name())
