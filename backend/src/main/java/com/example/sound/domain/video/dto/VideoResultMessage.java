@@ -12,7 +12,7 @@ public class VideoResultMessage {
 
     private Long videoId;
 
-    @JsonProperty("duration_sec")
+    @JsonProperty("durationSec")
     private Double durationSec;
 
     private String status;
@@ -24,16 +24,16 @@ public class VideoResultMessage {
     @AllArgsConstructor
     public static class Result {
 
-        @JsonProperty("subtitle_key")
+        @JsonProperty("subtitleKey")
         private String subtitleKey;
 
-        @JsonProperty("vibration_key")
+        @JsonProperty("vibrationKey")
         private String vibrationKey;
 
-        @JsonProperty("vibrationbinary_key")
+        @JsonProperty("vibrationBinKey")
         private String vibrationBinaryKey;
 
-        @JsonProperty("sound_event_key")
+        @JsonProperty("soundEventKey")
         private String soundEventKey;
     }
 }
