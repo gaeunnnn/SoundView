@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAlbums, editAlbumTitle, leaveAlbum, createAlbum, getAlbumMembers, getAlbumVideos } from "../api/album";
-import { getVideoStatus } from "../api/video";
+import { getVideoStatus, getVideoReactions } from "../api/video";
 import { useUser } from "../context/UserContext";
 import { useVideos } from "../context/VideosContext";
 import MainHeader from "../components/Main/Header/MainHeader";
@@ -110,7 +110,10 @@ export default function MainPage() {
     setActiveSharedAlbumDetail(null);
     const albumName = sharedAlbums.find((a) => a.id === albumId)?.name ?? "";
     Promise.all([getAlbumMembers(albumId), getAlbumVideos(albumId)])
-      .then(([members, videos]) => {
+      .then(async ([members, videos]) => {
+        const reactionsList = await Promise.all(
+          videos.map((v) => getVideoReactions(v.videoId).catch(() => ({ videoId: v.videoId, reactions: [] })))
+        );
         setActiveSharedAlbumDetail({
           id: albumId,
           name: albumName,
@@ -122,8 +125,9 @@ export default function MainPage() {
             isMe: m.isMe,
             code: m.userCode,
           })),
-          videos: videos.map((v) => {
+          videos: videos.map((v, i) => {
             const uploader = members.find((m) => m.nickname === v.uploaderName);
+            const rawReactions = reactionsList[i]?.reactions ?? [];
             return {
               id: v.videoId,
               videoId: v.videoId,
@@ -138,7 +142,7 @@ export default function MainPage() {
                 profileImageUrl: uploader?.profileImageUrl ?? null,
                 isMe: uploader?.isMe ?? false,
               },
-              reactions: [],
+              reactions: rawReactions.map((r) => ({ emoji: r.emoji, count: r.count, reacted: r.selected })),
               commentCount: v.commentCount,
             };
           }),

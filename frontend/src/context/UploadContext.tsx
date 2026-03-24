@@ -1,7 +1,7 @@
 // 업로드 진행 상태를 전역으로 관리하는 컨텍스트
 import { createContext, useContext, useState } from "react";
 
-type UploadStatus = "idle" | "uploading" | "done";
+type UploadStatus = "idle" | "uploading" | "processing" | "done";
 
 type UploadContextValue = {
   status: UploadStatus;
@@ -17,6 +17,8 @@ type UploadContextValue = {
   startUpload: (fileName: string) => void;
   updateProgress: (progress: number) => void;
   finishUpload: () => void;
+  startProcessing: () => void;
+  doneUpload: () => void;
   resetUpload: () => void;
 };
 
@@ -52,6 +54,14 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   const finishUpload = () => {
     setProgress(100);
+    setStatus("uploading");
+  };
+
+  const startProcessing = () => {
+    setStatus("processing");
+  };
+
+  const doneUpload = () => {
     setStatus("done");
   };
 
@@ -65,7 +75,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <UploadContext.Provider
-      value={{ status, progress, fileName, uploadedVideoUrl, uploadedFileType, uploadedVideoId, uploadedTitle, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, resetUpload }}
+      value={{ status, progress, fileName, uploadedVideoUrl, uploadedFileType, uploadedVideoId, uploadedTitle, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, startProcessing, doneUpload, resetUpload }}
     >
       {children}
     </UploadContext.Provider>

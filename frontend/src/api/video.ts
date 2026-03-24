@@ -1,6 +1,32 @@
 // 영상 관련 API 함수를 모아두는 파일
 
 import { apiClient } from "./client";
+import type { CommentItem } from "./comment";
+
+export type VideoFullResponse = {
+  video: {
+    videoId: number;
+    title: string;
+    videoUrl: string | null;
+    thumbnailUrl: string | null;
+    subtitleUrl: string | null;
+    vibrationUrl: string | null;
+    vibrationBinaryUrl: string | null;
+    soundEventUrl: string | null;
+    durationSec: number | null;
+    status: string;
+    failReason: string | null;
+  };
+  comments: CommentItem[] | null;
+  reactionSummary: {
+    videoId: number;
+    reactions: { emoji: string; count: number; selected: boolean }[] | null;
+  } | null;
+};
+
+// GET /api/videos/{albumVideoId}/full — 영상 상세 + 댓글 + 리액션 한번에 조회
+export const getVideoFull = (albumVideoId: number): Promise<VideoFullResponse> =>
+  apiClient.get<VideoFullResponse>(`/api/videos/${albumVideoId}/full`).then((res) => res.data);
 
 export type UpdatedVideo = {
   videoId: number;

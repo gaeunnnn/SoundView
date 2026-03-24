@@ -13,7 +13,7 @@ import { useUser } from "../context/UserContext";
 import PlayerOverlay from "../components/Viewer/PlayerOverlay";
 import type { SoundEvent } from "../constants/edit";
 import { useUpload } from "../context/UploadContext";
-import { updateVideoTitle } from "../api/video";
+import { updateVideoTitle, deleteVideo } from "../api/video";
 
 function formatTime(sec: number) {
   const m = Math.floor(sec / 60);
@@ -99,6 +99,9 @@ export default function EditPage() {
   const [showControls, setShowControls] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState(mediaTitle);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
+  const savedRef = useRef(false);
 
   // uploadedTitle이 Context에서 늦게 반영될 경우를 대비해 동기화
   useEffect(() => {
@@ -158,6 +161,25 @@ export default function EditPage() {
       if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
     };
   }, []);
+
+  // 저장 없이 이탈 시 영상 삭제
+  useEffect(() => {
+    if (!uploadedVideoId) return;
+    // 브라우저 탭 닫기 / 새로고침
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (savedRef.current) return;
+      e.preventDefault();
+      // 동기 fetch로 삭제 요청 (beacon API는 DELETE 미지원이므로 경고만)
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      // 컴포넌트 언마운트(SPA 내 페이지 이동) 시 미저장이면 삭제
+      if (!savedRef.current) {
+        deleteVideo(uploadedVideoId).catch(() => {});
+      }
+    };
+  }, [uploadedVideoId]);
 
   // 재생 시뮬레이션
   useEffect(() => {
@@ -285,12 +307,28 @@ export default function EditPage() {
     setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, enabled: !ev.enabled } : ev)));
   };
 
+  // 저장 없이 이탈 시도 — uploadedVideoId가 있으면 확인 모달, 없으면 바로 이동
+  const handleNavigateAway = (target: string) => {
+    if (uploadedVideoId && !savedRef.current) {
+      setLeaveTarget(target);
+      setShowLeaveModal(true);
+    } else {
+      navigate(target);
+    }
+  };
+
+  const handleConfirmLeave = () => {
+    setShowLeaveModal(false);
+    // 삭제는 언마운트 useEffect에서 처리됨
+    navigate(leaveTarget ?? "/main");
+  };
+
   const handleSave = async () => {
     if (!saveName.trim()) return;
-    // 제목이 변경된 경우 PATCH /api/videos/{videoId}로 업데이트
     if (uploadedVideoId && saveName.trim() !== uploadedTitle) {
       await updateVideoTitle(uploadedVideoId, saveName.trim()).catch(console.error);
     }
+    savedRef.current = true;
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);
@@ -328,7 +366,7 @@ export default function EditPage() {
         <div className="flex items-center gap-4">
           <button
             type="button"
-            onClick={() => navigate("/main")}
+            onClick={() => handleNavigateAway("/main")}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563EB]">
@@ -338,7 +376,7 @@ export default function EditPage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => handleNavigateAway("/main")}
             className="flex items-center gap-1.5 text-sm font-medium text-[#64748B] transition-colors hover:text-[#111827]"
           >
             <ArrowLeft size={14} strokeWidth={2} />
@@ -687,6 +725,36 @@ export default function EditPage() {
     </div>
 
     {/* 저장 모달 */}
+    {/* 저장 없이 이탈 확인 모달 */}
+    {showLeaveModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+          <div className="px-5 py-5">
+            <h2 className="text-base font-semibold text-[#111827]">저장하지 않고 나가시겠습니까?</h2>
+            <p className="mt-2 text-sm text-[#64748B]">
+              저장하지 않으면 업로드한 영상과 생성된 자막, 이모지, 진동 데이터가 모두 삭제됩니다.
+            </p>
+          </div>
+          <div className="flex gap-2 border-t border-[#E8EDF4] px-5 py-4">
+            <button
+              type="button"
+              onClick={() => setShowLeaveModal(false)}
+              className="flex-1 rounded-xl border border-[#E2E8F0] py-2.5 text-sm font-medium text-[#475569] hover:bg-[#F8FAFC] transition-colors"
+            >
+              계속 편집
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmLeave}
+              className="flex-1 rounded-xl bg-[#EF4444] py-2.5 text-sm font-semibold text-white hover:bg-[#DC2626] transition-colors"
+            >
+              삭제 후 나가기
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
     {showSaveModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
         <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl mx-4">

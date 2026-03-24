@@ -9,10 +9,6 @@ export type CommentItem = {
   createdAt: string;
 };
 
-// GET /api/videos/{videoId}/comments — 특정 영상 댓글 목록 조회 (videoId는 album_videos.id)
-export const getComments = (videoId: number): Promise<CommentItem[]> =>
-  apiClient.get<CommentItem[]>(`/api/videos/${videoId}/comments`).then((res) => res.data);
-
 // POST /api/videos/{videoId}/comments — 댓글 작성 (videoId는 album_videos.id)
 export const addComment = (videoId: number, content: string): Promise<CommentItem> =>
   apiClient.post<CommentItem>(`/api/videos/${videoId}/comments`, { content }).then((res) => res.data);

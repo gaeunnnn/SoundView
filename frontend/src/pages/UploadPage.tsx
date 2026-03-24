@@ -8,34 +8,56 @@ import { useUpload } from "../context/UploadContext";
 import { useUser } from "../context/UserContext";
 import logoIcon from "../assets/images/LogoIcon.png";
 import { uploadVideoMultipart } from "../utils/uploadMultipart";
+import { getVideoStatus } from "../api/video";
 
-const STAGES = [
-  { minProgress: 0,  maxProgress: 90,  label: "영상을 업로드하는 중입니다...",   sub: "파일을 서버로 전송하고 있습니다" },
-  { minProgress: 90, maxProgress: 99,  label: "서버에 업로드를 완료하는 중...",  sub: "잠시만 기다려 주세요" },
-  { minProgress: 100, maxProgress: 100, label: "완료! 결과 플레이어로 전환합니다.", sub: "" },
+const UPLOAD_STAGES = [
+  { minProgress: 0,  maxProgress: 90,  label: "영상을 업로드하는 중...",  sub: "파일을 서버로 전송하고 있습니다" },
+  { minProgress: 90, maxProgress: 100, label: "업로드 마무리 중...",       sub: "잠시만 기다려 주세요" },
+  { minProgress: 100, maxProgress: 100, label: "업로드 완료",              sub: "" },
 ];
 
-const STEP_ICONS = ["📁", "⏳", "✅"];
+// AI 처리 단계 — 순서대로 표시 (각 단계는 대략 순서대로 진행되지만 실제 완료는 COMPLETED 폴링으로 판단)
+const AI_STEPS = [
+  { icon: "🎬", label: "영상 분석 중" },
+  { icon: "📝", label: "AI 자막 생성 중" },
+  { icon: "😊", label: "이모지 생성 중" },
+  { icon: "📳", label: "진동 데이터 생성 중" },
+];
 
-function getStage(progress: number) {
-  if (progress >= 100) return STAGES[STAGES.length - 1];
-  return STAGES.find((s) => progress >= s.minProgress && progress < s.maxProgress) ?? STAGES[0];
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX = 80; // 최대 4분
+
+function getUploadStage(progress: number) {
+  if (progress >= 100) return UPLOAD_STAGES[UPLOAD_STAGES.length - 1];
+  return UPLOAD_STAGES.find((s) => progress >= s.minProgress && progress < s.maxProgress) ?? UPLOAD_STAGES[0];
 }
 
 export default function UploadPage() {
   const navigate = useNavigate();
   const { me } = useUser();
-  const { status, progress, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, resetUpload } = useUpload();
+  const { status, progress, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, startProcessing, doneUpload, resetUpload } = useUpload();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [aiStepIndex, setAiStepIndex] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // 업로드 완료 시 자막 수정 페이지로 이동
+  // AI 처리 중 단계 아이콘 순환 (4초 간격)
+  useEffect(() => {
+    if (status !== "processing") return;
+    setAiStepIndex(0);
+    const t = setInterval(() => {
+      setAiStepIndex((prev) => (prev + 1) % AI_STEPS.length);
+    }, 4000);
+    return () => clearInterval(t);
+  }, [status]);
+
+  // AI 처리 완료 시 자막 수정 페이지로 이동
   useEffect(() => {
     if (status === "done") {
       const timer = setTimeout(() => {
@@ -89,18 +111,41 @@ export default function UploadPage() {
     startUpload(selectedFile.name);
 
     try {
-      // S3 멀티파트 업로드 실행
-      // XHR onprogress 기반으로 0-90%는 실제 업로드 속도에 맞게 증가하고,
-      // complete API 성공 시 100%로 완료됩니다.
       const videoId = await uploadVideoMultipart(selectedFile, videoTitle.trim(), (uploadProgress) => {
         updateProgress(uploadProgress);
       });
-      // 업로드된 videoId와 제목을 Context에 저장 — EditPage의 제목 수정 API 호출에 사용
       setUploadedVideoId(videoId);
       setUploadedTitle(videoTitle.trim());
       finishUpload();
+
+      // S3 업로드 완료 → AI 처리(PROCESSING) 폴링 시작
+      startProcessing();
+      let count = 0;
+      const poll = async () => {
+        try {
+          const { status: videoStatus } = await getVideoStatus(videoId);
+          if (videoStatus === "COMPLETED") {
+            doneUpload();
+            return;
+          }
+          if (videoStatus === "FAILED") {
+            resetUpload();
+            setUploadError("AI 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
+            return;
+          }
+        } catch {
+          // 일시적 네트워크 오류는 무시하고 계속 폴링
+        }
+        count += 1;
+        if (count < POLL_MAX) {
+          pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+        } else {
+          resetUpload();
+          setUploadError("AI 처리 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.");
+        }
+      };
+      poll();
     } catch (error) {
-      // 업로드 실패 시 어느 단계에서 실패했는지 에러 메시지에 포함됩니다.
       const message =
         error instanceof Error ? error.message : "업로드 중 오류가 발생했습니다.";
       resetUpload();
@@ -110,6 +155,7 @@ export default function UploadPage() {
 
   const handleReset = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
     resetUpload();
     setSelectedFile(null);
     setPreviewUrl(null);
@@ -118,10 +164,10 @@ export default function UploadPage() {
     if (inputRef.current) inputRef.current.value = "";
   };
 
-  const isUploading = status === "uploading" || status === "done";
-  const stage = getStage(progress);
+  const isActive = status === "uploading" || status === "processing" || status === "done";
+  const isProcessing = status === "processing";
   const isDone = status === "done";
-  const currentStageIndex = isDone ? STAGES.length - 1 : STAGES.findIndex((s) => progress >= s.minProgress && progress < s.maxProgress);
+  const uploadStage = getUploadStage(progress);
 
   const formatSize = (bytes: number) => {
     if (bytes >= 1024 * 1024 * 1024)
@@ -169,74 +215,101 @@ export default function UploadPage() {
             </p>
           </div>
 
-          {/* 업로드 / 처리 영역 (16:9) */}
-          {isUploading ? (
-            /* 업로드 진행 중 */
+          {/* 업로드 / AI 처리 영역 */}
+          {isActive ? (
             <div className="overflow-hidden rounded-2xl border border-[#E2E8F0] bg-black">
+              {/* 미리보기 + 오버레이 */}
               <div className="relative aspect-video w-full">
-                {/* 미리보기 (이미지/영상 모두 img로 표시) */}
                 {previewUrl ? (
-                  <img
-                    src={previewUrl}
-                    alt="preview"
-                    className="h-full w-full object-cover opacity-40"
-                  />
+                  <img src={previewUrl} alt="preview" className="h-full w-full object-cover opacity-30" />
                 ) : (
                   <div className="h-full w-full bg-[#0F172A]" />
                 )}
-
-                {/* 상태 오버레이 */}
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/50">
                   {isDone ? (
                     <CheckCircle2 size={48} className="text-[#10B981]" strokeWidth={1.5} />
                   ) : (
                     <Loader2 size={48} className="animate-spin text-[#60A5FA]" strokeWidth={1.5} />
                   )}
-                  <div className="text-center">
-                    <p className="text-lg font-semibold text-white">
-                      {isDone ? "✅ " : ""}{stage.label}
-                    </p>
-                    <p className="mt-1 text-sm text-[#94A3B8]">{stage.sub}</p>
+                  <div className="text-center px-4">
+                    {isDone ? (
+                      <p className="text-lg font-semibold text-white">✅ 처리 완료! 잠시 후 이동합니다.</p>
+                    ) : isProcessing ? (
+                      <>
+                        <p className="text-lg font-semibold text-white">{AI_STEPS[aiStepIndex].icon} {AI_STEPS[aiStepIndex].label}</p>
+                        <p className="mt-1 text-sm text-[#94A3B8]">AI가 영상을 분석하고 있습니다</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-lg font-semibold text-white">{uploadStage.label}</p>
+                        <p className="mt-1 text-sm text-[#94A3B8]">{uploadStage.sub}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* 하단 진행률 바 */}
+              {/* 하단 진행 정보 */}
               <div className="bg-white px-5 py-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-[#374151] truncate max-w-[70%]">
-                    {isDone ? "✅ " : ""}{stage.label}
-                  </span>
-                  <span className="text-sm font-bold text-[#2563EB] tabular-nums">{progress}%</span>
-                </div>
-                <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
-                  <div
-                    className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-
-                {/* 단계 아이콘 */}
-                <div className="mt-3 flex items-center gap-3">
-                  {STEP_ICONS.map((icon, i) => (
-                    <span
-                      key={i}
-                      className={[
-                        "flex h-8 w-8 items-center justify-center rounded-full text-base transition-all",
-                        i <= currentStageIndex
-                          ? "bg-[#EFF6FF] opacity-100"
-                          : "bg-[#F8FAFC] opacity-30",
-                      ].join(" ")}
-                    >
-                      {icon}
-                    </span>
-                  ))}
-                  {!isDone && (
-                    <span className="ml-auto text-xs text-[#94A3B8]">
-                      1분 이상 소요될 수 있습니다
-                    </span>
-                  )}
-                </div>
+                {isProcessing || isDone ? (
+                  /* AI 처리 단계 */
+                  <>
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-[#374151]">
+                        {isDone ? "✅ AI 처리 완료" : "🤖 AI 처리 중..."}
+                      </span>
+                      {!isDone && (
+                        <span className="text-xs text-[#94A3B8]">수 분 소요될 수 있습니다</span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {AI_STEPS.map((step, i) => (
+                        <div
+                          key={step.label}
+                          className={[
+                            "flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition-all",
+                            isDone
+                              ? "bg-[#ECFDF5]"
+                              : i === aiStepIndex
+                              ? "bg-[#EFF6FF] ring-1 ring-[#93C5FD]"
+                              : i < aiStepIndex
+                              ? "bg-[#F8FAFC]"
+                              : "bg-[#F8FAFC] opacity-40",
+                          ].join(" ")}
+                        >
+                          <span className="text-xl">{step.icon}</span>
+                          <span className={[
+                            "text-[10px] font-medium leading-tight",
+                            isDone ? "text-[#059669]" : i <= aiStepIndex ? "text-[#374151]" : "text-[#94A3B8]",
+                          ].join(" ")}>
+                            {step.label}
+                          </span>
+                          {isDone && <span className="text-[10px] text-[#059669]">✓</span>}
+                          {!isDone && i === aiStepIndex && (
+                            <Loader2 size={10} className="animate-spin text-[#2563EB]" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  /* 업로드 진행 단계 */
+                  <>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-[#374151] truncate max-w-[70%]">
+                        {uploadStage.label}
+                      </span>
+                      <span className="text-sm font-bold text-[#2563EB] tabular-nums">{progress}%</span>
+                    </div>
+                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+                      <div
+                        className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-[#94A3B8]">업로드 완료 후 AI가 자막·이모지·진동 데이터를 생성합니다</p>
+                  </>
+                )}
               </div>
             </div>
           ) : (
