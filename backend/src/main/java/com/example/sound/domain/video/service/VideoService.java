@@ -1,6 +1,9 @@
 package com.example.sound.domain.video.service;
 
+import com.example.sound.domain.album.entity.Album;
 import com.example.sound.domain.album.entity.AlbumVideo;
+import com.example.sound.domain.album.repository.AlbumRepository;
+import com.example.sound.domain.album.repository.AlbumUserRepository;
 import com.example.sound.domain.album.repository.AlbumVideoRepository;
 import com.example.sound.domain.notification.service.NotificationService;
 import com.example.sound.domain.user.entity.User;
@@ -21,11 +24,14 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class VideoService {
 
+    private final AlbumRepository albumRepository;
+    private final AlbumUserRepository albumUserRepository;
     private final AlbumVideoRepository albumVideoRepository;
     private final VideoRepository videoRepository;
     private final VideoReactionRepository videoReactionRepository;
@@ -174,7 +180,19 @@ public class VideoService {
         // 2. 상태 변경 (PENDING -> PROCESSING)
         video.markProcessing();
 
-        // 3.MQ 발행
+        // 3. 내 앨범에 자동 추가
+        albumRepository.findByOwnerIdAndName(userId, "내 앨범").ifPresent(album -> {
+            boolean alreadyExists = albumVideoRepository.existsByAlbumIdAndVideoId(album.getId(), video.getId());
+            if (!alreadyExists) {
+                AlbumVideo albumVideo = AlbumVideo.builder()
+                        .album(album)
+                        .video(video)
+                        .build();
+                albumVideoRepository.save(albumVideo);
+            }
+        });
+
+        // 4.MQ 발행
         VideoProcessMessage message = VideoProcessMessage.builder()
                 .videoId(video.getId())
                 .videoKey(video.getVideoS3Key())
@@ -267,34 +285,35 @@ public class VideoService {
     }
 
     @Transactional(readOnly = true)
-    public VideoFullResponse getVideoFull(Long videoId, Long albumId, Long userId) {
+    public VideoFullResponse getVideoFull(Long albumVideoId, Long userId) {
 
-        // 🌟 3중 권한 검증: 사용자가 속한 앨범에 해당 영상이 포함되어 있는지 확인
-        AlbumVideo albumVideo = albumVideoRepository.findByAlbumIdAndVideoId(albumId, videoId)
-                .orElseThrow(() -> new AccessDeniedException("해당 앨범에 영상이 존재하지 않습니다."));
+        // 1. albumVideoId로 연결 정보 조회
+        AlbumVideo albumVideo = albumVideoRepository.findById(albumVideoId)
+                .orElseThrow(() -> new IllegalArgumentException("해당 영상이 앨범에 존재하지 않습니다."));
 
-        if (!albumVideoRepository.existsByVideoIdAndAlbumIdAndUserId(videoId, albumId, userId)) {
+        // 2. 권한 검증: 사용자가 해당 앨범의 멤버인지 확인
+        if (!albumUserRepository.existsByAlbumIdAndUserId(albumVideo.getAlbum().getId(), userId)) {
             throw new AccessDeniedException("해당 영상에 대한 접근 권한이 없습니다.");
         }
 
-        Long albumVideoId = albumVideo.getId();
+        Long videoId = albumVideo.getVideo().getId();
 
-        // 1. 영상
+        // 3. 영상 상세 정보
         VideoDetailResponse videoDetail = getVideoDetail(videoId);
 
-        // 2. 댓글 (albumVideoId 기준 조회로 수정)
+        // 4. 댓글 (albumVideoId 기준 조회)
         List<VideoCommentResponse> comments =
                 videoCommentRepository.findByAlbumVideoId(albumVideoId);
 
-        // 3. 리액션 count (albumVideoId 기준 조회로 수정)
+        // 5. 리액션 count (albumVideoId 기준 조회)
         List<Object[]> results =
                 videoReactionRepository.countReactionsByAlbumVideoId(albumVideoId);
 
-        // 4. 내가 누른 리액션 (albumVideoId 기준 조회로 수정)
+        // 6. 내가 누른 리액션 (albumVideoId 기준 조회)
         List<String> myReactions =
                 videoReactionRepository.findMyReactionsByAlbumVideoIdAndUserId(albumVideoId, userId);
 
-        // 5. DTO 변환
+        // 7. 리액션 DTO 변환
         List<VideoReactionSummaryResponse.ReactionInfo> reactionInfos =
                 results.stream()
                         .map(r -> {
