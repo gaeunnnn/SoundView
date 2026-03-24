@@ -40,8 +40,7 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
 
         logger.info("[SubtitleModel] 모델 초기화 시작... (최초 1회만 메모리 적재)")
 
-        # 1. GPU 디바이스 설정
-        os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+        # 1. GPU 디바이스 설정 (Docker Compose의 deploy.resources에서 격리 제어하므로 코드에서는 지정하지 않습니다. PyTorch 충돌 방지)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"[SubtitleModel] 사용 디바이스: {self.device}")
 
@@ -52,6 +51,7 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
 
         # 2. Faster-Whisper 모델 로드 (STT)
         logger.info("[SubtitleModel] Faster-Whisper 모델 (음성 인식) 로딩 중...")
+        logger.info("[SubtitleModel] 💡 (주의) 모델 최초 1회 로드 시 약 1.5GB를 다운로드하며 수 분이 지연될 수 있습니다.")
         # device는 "cuda" 또는 "cpu" 문자열로 지정, compute_type은 fp16(GPU) 또는 int8(CPU/GPU)
         compute_type = "float16" if torch.cuda.is_available() else "int8"
         self.whisper_model = WhisperModel("medium", device=self.device.type, compute_type=compute_type)

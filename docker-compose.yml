@@ -1,11 +1,14 @@
 services:
   soundview-server:
     image: dontwastetime/soundview-app:latest
+    build: .
     container_name: soundview-fastapi
     ports:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - huggingface_cache:/root/.cache/huggingface
     # gpu를 사용하는 설정
     deploy:
       resources:
@@ -14,3 +17,6 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+
+volumes:
+  huggingface_cache:

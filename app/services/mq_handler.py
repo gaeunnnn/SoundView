@@ -21,7 +21,7 @@ async def process_mq_message(message: aio_pika.Message):
             
             # Spring Boot에서 넘어온 camelCase 키로 데이터 추출
             raw_video_id = data.get("videoId")
-            video_key = data.get("videoKey")
+            video_key = data.get("objectKey")
 
             # id가 0일 수도 있으므로 None으로 체크
             if raw_video_id is not None and video_key:

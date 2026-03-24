@@ -18,6 +18,9 @@ COPY requirements_docker.txt .
 # 5. 윈도우 GPU 호환을 위한 파이토치 및 패키지 설치
 RUN pip install --no-cache-dir -r requirements_docker.txt --extra-index-url https://download.pytorch.org/whl/cu121
 
+# 5-1. CTranslate2(Faster-Whisper) 프레임워크가 PyTorch 내장 CUDA 라이브러리를 찾도록 경로 등록
+ENV LD_LIBRARY_PATH=/usr/local/lib/python3.9/site-packages/nvidia/cudnn/lib:/usr/local/lib/python3.9/site-packages/nvidia/cublas/lib:$LD_LIBRARY_PATH
+
 # 6. 전체 소스 코드 복사
 COPY . .
 
