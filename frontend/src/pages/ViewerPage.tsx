@@ -1,11 +1,12 @@
 // 영상 재생 페이지
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import type { ViewerVideo, EmojiReaction } from "../types/viewer";
 import ViewerHeader from "../components/Viewer/ViewerHeader";
 import VideoPlayer from "../components/Viewer/VideoPlayer";
 import CommentSection from "../components/Viewer/CommentSection";
-import { addVideoReaction, deleteVideoReaction } from "../api/video";
+import { addVideoReaction, deleteVideoReaction, getVideoFull } from "../api/video";
+import type { CommentItem } from "../api/comment";
 
 const PRESET_EMOJIS: EmojiReaction[] = [
   { emoji: "👍", count: 0, reacted: false },
@@ -21,6 +22,21 @@ export default function ViewerPage() {
   const video = location.state?.video as ViewerVideo | undefined;
   const isMyAlbum = location.state?.isMyAlbum as boolean | undefined;
   const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
+  const [comments, setComments] = useState<CommentItem[]>([]);
+
+  useEffect(() => {
+    if (!video) return;
+    getVideoFull(video.id).then((res) => {
+      // 댓글 초기화
+      setComments(res.comments ?? []);
+      // 리액션 초기화: 서버 데이터 기반으로 PRESET_EMOJIS 업데이트
+      const serverReactions = res.reactionSummary?.reactions ?? [];
+      setReactions(PRESET_EMOJIS.map((preset) => {
+        const found = serverReactions.find((r) => r.emoji === preset.emoji);
+        return found ? { emoji: found.emoji, count: found.count, reacted: found.selected } : preset;
+      }));
+    }).catch(() => {});
+  }, [video?.id]);
 
   if (!video) { navigate("/main", { replace: true }); return null; }
 
@@ -84,7 +100,7 @@ export default function ViewerPage() {
             </div>
 
             {/* 댓글 + 이모지 통합 */}
-            <CommentSection videoId={video.id} reactions={reactions} onReact={handleReact} />
+            <CommentSection videoId={video.id} initialComments={comments} reactions={reactions} onReact={handleReact} />
           </div>
         )}
       </div>

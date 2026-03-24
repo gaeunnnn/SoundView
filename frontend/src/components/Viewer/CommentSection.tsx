@@ -1,7 +1,7 @@
 // 영상 재생 페이지 우측 댓글 패널 컴포넌트 파일
 import { useEffect, useState } from "react";
 import { Send, Trash2 } from "lucide-react";
-import { getComments, addComment, deleteComment } from "../../api/comment";
+import { addComment, deleteComment } from "../../api/comment";
 import type { CommentItem } from "../../api/comment";
 import { useUser } from "../../context/UserContext";
 import type { EmojiReaction } from "../../types/viewer";
@@ -26,18 +26,19 @@ function formatTimeAgo(createdAt: string): string {
 
 type Props = {
   videoId: number;
+  initialComments: CommentItem[];
   reactions: EmojiReaction[];
   onReact: (emoji: string) => void;
 };
 
-export default function CommentSection({ videoId, reactions, onReact }: Props) {
+export default function CommentSection({ videoId, initialComments, reactions, onReact }: Props) {
   const { me } = useUser();
-  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [comments, setComments] = useState<CommentItem[]>(initialComments);
   const [commentInput, setCommentInput] = useState("");
 
   useEffect(() => {
-    getComments(videoId).then(setComments).catch(() => {});
-  }, [videoId]);
+    setComments(initialComments);
+  }, [initialComments]);
 
   const handleSend = async () => {
     const trimmed = commentInput.trim();
