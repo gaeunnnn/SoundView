@@ -23,7 +23,7 @@ class RabbitMQClient:
             self.connection = await aio_pika.connect_robust(settings.rabbitmq_url)
             self.channel = await self.connection.channel()
             self.queue = await self.channel.declare_queue(settings.RABBITMQ_QUEUE_NAME, durable=True)
-            logger.info("✅ RabbitMQ 연결 성공 및 큐 선언 완료")
+            logger.info(f"✅ RabbitMQ 연결 성공 및 큐 선언 완료, {settings.RABBITMQ_QUEUE_NAME}")
         except Exception as e:
             logger.error(f"❌ RabbitMQ 연결 실패: {e}")
             raise
@@ -46,7 +46,7 @@ class RabbitMQClient:
             queue = await self.channel.declare_queue(target_queue, durable=True)            
             await queue.consume(callback_func)
         
-            logger.info("✅ RabbitMQ Consumer 구동 완료")
+            logger.info(f"✅ RabbitMQ Consumer 구동 완료, {settings.RABBITMQ_QUEUE_NAME}")
         except Exception as e:
             logger.error(f"❌ RabbitMQ Consumer 구동 실패: {e}")
             raise

@@ -1,7 +1,10 @@
 import asyncio
 import numpy as np
 import torch
+import logging
 from typing import Dict
+
+logger = logging.getLogger(__name__)
 
 
 class VoiceSeparator:
@@ -27,10 +30,10 @@ class VoiceSeparator:
         """Demucs 모델을 최초 1회만 로드합니다."""
         if self._model is None:
             from demucs.pretrained import get_model
-            print(f"[VoiceSeparator] Demucs '{self.MODEL_NAME}' 모델 로딩 중...")
+            logger.info(f"[VoiceSeparator] Demucs '{self.MODEL_NAME}' 모델 로딩 중...")
             self._model = get_model(self.MODEL_NAME)
             self._model.eval()
-            print("[VoiceSeparator] 모델 로드 완료.")
+            logger.info("[VoiceSeparator] 모델 로드 완료.")
         return self._model
 
     async def separate(self, audio_array: np.ndarray, sr: int = 16000) -> Dict[str, np.ndarray]:
@@ -45,9 +48,9 @@ class VoiceSeparator:
             {"vocals": np.ndarray, "no_vocals": np.ndarray}
             모두 입력과 동일한 샘플링 레이트(16000Hz) / 모노 배열로 반환됩니다.
         """
-        print(f"[VoiceSeparator] 음성 분리 시작 (길이: {len(audio_array) / sr:.1f}초)")
+        logger.info(f"[VoiceSeparator] 음성 분리 시작 (길이: {len(audio_array) / sr:.1f}초)")
         result = await asyncio.to_thread(self._sync_separate, audio_array, sr)
-        print("[VoiceSeparator] 음성 분리 완료.")
+        logger.info("[VoiceSeparator] 음성 분리 완료.")
         return result
 
     def _sync_separate(self, audio_array: np.ndarray, sr: int) -> Dict[str, np.ndarray]:

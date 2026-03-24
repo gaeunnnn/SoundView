@@ -3,9 +3,12 @@ import os
 import asyncio
 import numpy as np
 import torch
+import logging
 from typing import Dict, Any, List
 
 from app.services.ai.base import BaseAIModel
+
+logger = logging.getLogger(__name__)
 
 # 프로젝트 내부의 PretrainedSED 경로 동적 연결
 PRETRAINED_SED_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "PretrainedSED")
@@ -20,7 +23,7 @@ try:
     import scipy.ndimage
     import pandas as pd
 except ImportError as e:
-    print(f"[SoundEventModel] PretrainedSED 모듈 로딩 실패: {e}")
+    logger.error(f"[SoundEventModel] PretrainedSED 모듈 로딩 실패: {e}")
 
 
 class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
@@ -40,7 +43,7 @@ class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
         if self._is_initialized:
             return
             
-        print("[SoundEventModel] 모델 초기화 시작...")
+        logger.info("[SoundEventModel] 모델 초기화 시작...")
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         try:
@@ -50,9 +53,9 @@ class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
             self.model = PredictionsWrapper(atst, checkpoint="ATST-F_strong_1")
             self.model.eval()
             self.model.to(self.device)
-            print("[SoundEventModel] ATST-F 가중치 로드 성공!")
+            logger.info("[SoundEventModel] ATST-F 가중치 로드 성공!")
         except Exception as e:
-            print(f"[ERROR] ATST-F 모델 가중치 로드 실패: {e}")
+            logger.error(f"[ERROR] ATST-F 모델 가중치 로드 실패: {e}")
             self.model = None
 
         self.sample_rate = 16000
@@ -91,7 +94,7 @@ class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
         }
 
         self._is_initialized = True
-        print("[SoundEventModel] 초기화 완료.")
+        logger.info("[SoundEventModel] 초기화 완료.")
         
     def _sync_predict(self, audio_array: np.ndarray) -> List[Dict[str, Any]]:
         if self.model is None:
@@ -159,7 +162,7 @@ class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
                         "event_en": event_en
                     })
         except Exception as e:
-            print(f"[SoundEventModel] 디코딩 에러: {e}")
+            logger.error(f"[SoundEventModel] 디코딩 에러: {e}")
 
         return results
 

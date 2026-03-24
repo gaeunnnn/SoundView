@@ -5,12 +5,14 @@ from app.api.v1.api import api_router
 
 from app.core.rabbitmq import rabbitmq_client
 from app.services.mq_handler import process_mq_message
+import logging
 
+logger = logging.getLogger(__name__)
 
 # 수명주기(lifespan) 관리 함수 정의
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("RabbitMQ 연결 및 Consumer 구동 준비...")
+    logger.info("RabbitMQ 연결 및 Consumer 구동 준비...")
 
     # 싱글톤 클라이언트 연결
     await rabbitmq_client.connect()
@@ -20,7 +22,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    print("RabbitMQ 연결 안전하게 해제 중...")
+    logger.info("RabbitMQ 연결 안전하게 해제 중...")
     await rabbitmq_client.close()
 
 def create_app() -> FastAPI:

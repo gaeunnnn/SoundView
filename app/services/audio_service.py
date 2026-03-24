@@ -2,6 +2,9 @@ import asyncio
 import subprocess
 import numpy as np
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AudioService:
@@ -30,12 +33,12 @@ class AudioService:
         if not Path(video_path).exists():
             raise FileNotFoundError(f"영상 파일을 찾을 수 없습니다: {video_path}")
 
-        print(f"[AudioService] 영상에서 음성 추출 시작: {video_path}")
+        logger.info(f"[AudioService] 영상에서 음성 추출 시작: {video_path}")
 
         # ffmpeg 파이프 실행을 별도 스레드에서 처리 (이벤트 루프 블로킹 방지)
         audio_array = await asyncio.to_thread(self._extract_with_ffmpeg, video_path)
 
-        print(f"[AudioService] 음성 추출 완료: {len(audio_array) / self.SAMPLE_RATE:.1f}초")
+        logger.info(f"[AudioService] 음성 추출 완료: {len(audio_array) / self.SAMPLE_RATE:.1f}초")
         return audio_array
 
     def _extract_with_ffmpeg(self, video_path: str) -> np.ndarray:

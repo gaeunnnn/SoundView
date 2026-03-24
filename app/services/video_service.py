@@ -1,6 +1,9 @@
 import asyncio
 import numpy as np
+import logging
 from typing import Any, Dict, Optional
+
+logger = logging.getLogger(__name__)
 from app.services.storage_service import StorageService
 from app.services.audio_service import AudioService
 from app.services.callback_service import CallbackService
@@ -19,7 +22,7 @@ class VideoService:
         self.storage = StorageService()
         self.audio = AudioService()
         self.voice_sep = VoiceSeparator()         # 공통 음성 분리 (Demucs)
-        print("[VideoService] AI 자막, 진동, 효과음 모델을 백그라운드로 로딩 시작합니다...")
+        logger.info("[VideoService] AI 자막, 진동, 효과음 모델을 백그라운드로 로딩 시작합니다...")
         self.subtitle_model = SubtitleModel()
         self.vibration_model = VibrationModel()
         self.sound_event_model = SoundEventModel()

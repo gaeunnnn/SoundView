@@ -23,7 +23,7 @@ class StorageService:
         """
         주어진 URL에서 영상을 다운로드하고 로컬 임시 경로를 반환합니다.
         """
-        print(f"Downloading video from: {video_url}")
+        logger.info(f"Downloading video from: {video_url}")
 
         # 확장자 유지하여 임시 파일 생성
         suffix = Path(video_url).suffix or ".mp4"
@@ -156,4 +156,4 @@ class StorageService:
         """
         if os.path.exists(file_path):
             os.unlink(file_path)
-            print(f"Cleaned up temporary file: {file_path}")
+            logger.info(f"Cleaned up temporary file: {file_path}")

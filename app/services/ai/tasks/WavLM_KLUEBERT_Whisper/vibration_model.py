@@ -5,6 +5,9 @@ from typing import Any, Dict, List
 import librosa
 from scipy.signal import butter, sosfilt
 from scipy.ndimage import uniform_filter1d
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.services.ai.base import BaseAIModel
 
@@ -131,13 +134,13 @@ class VibrationModel(BaseAIModel[Dict[str, np.ndarray], Dict[str, Any]]):
         self.fps = fps
 
     async def predict(self, tracks: Dict[str, np.ndarray]) -> Dict[str, Any]:
-        print("[VibrationModel] 진동 데이터 분석 중...")
+        logger.info("[VibrationModel] 진동 데이터 분석 중...")
         loop = asyncio.get_running_loop()
         try:
             results = await loop.run_in_executor(None, self._analyze_vibration, tracks)
             return results
         except Exception as e:
-            print(f"[ERR] VibrationModel: {e}")
+            logger.error(f"[ERR] VibrationModel: {e}")
             raise e
 
     def _analyze_vibration(self, stems: Dict[str, np.ndarray]) -> Dict[str, Any]:
