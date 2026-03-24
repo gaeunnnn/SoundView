@@ -195,7 +195,7 @@ public class VideoService {
         // 4.MQ 발행
         VideoProcessMessage message = VideoProcessMessage.builder()
                 .videoId(video.getId())
-                .videoKey(video.getVideoS3Key())
+                .objectKey(video.getVideoS3Key())
                 .build();
 
         rabbitTemplate.convertAndSend(

@@ -13,33 +13,28 @@ public class RabbitMQConfig {
     // Exchange
     public static final String EXCHANGE = "video.exchange";
 
-    // 🔥 Queue 2개
-    public static final String REQUEST_QUEUE = "video.request.queue";
-    public static final String RESPONSE_QUEUE = "video.response.queue";
+    public static final String REQUEST_QUEUE = "SF_queue"; // Spring → FastAPI
+    public static final String RESPONSE_QUEUE = "FS_queue"; // FastAPI → Spring
 
-    // 🔥 Routing Key 2개
-    public static final String REQUEST_KEY = "video.request";
-    public static final String RESPONSE_KEY = "video.response";
+    // Routing Key
+    public static final String REQUEST_KEY = "SF_queue";
+    public static final String RESPONSE_KEY = "FS_queue";
 
-    // Exchange
     @Bean
     public DirectExchange exchange() {
         return new DirectExchange(EXCHANGE);
     }
 
-    // Request Queue
     @Bean
     public Queue requestQueue() {
         return QueueBuilder.durable(REQUEST_QUEUE).build();
     }
 
-    // Response Queue
     @Bean
     public Queue responseQueue() {
         return QueueBuilder.durable(RESPONSE_QUEUE).build();
     }
 
-    // Request Binding
     @Bean
     public Binding requestBinding() {
         return BindingBuilder
@@ -48,7 +43,6 @@ public class RabbitMQConfig {
                 .with(REQUEST_KEY);
     }
 
-    // Response Binding
     @Bean
     public Binding responseBinding() {
         return BindingBuilder
@@ -57,13 +51,11 @@ public class RabbitMQConfig {
                 .with(RESPONSE_KEY);
     }
 
-    // JSON Converter
     @Bean
     public Jackson2JsonMessageConverter messageConverter() {
         return new Jackson2JsonMessageConverter();
     }
 
-    // RabbitTemplate
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);

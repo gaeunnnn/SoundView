@@ -6,7 +6,6 @@ import lombok.Getter;
 @Getter
 @Builder
 public class VideoProcessMessage {
-
     private Long videoId;
-    private String videoKey;
+    private String objectKey;
 }
