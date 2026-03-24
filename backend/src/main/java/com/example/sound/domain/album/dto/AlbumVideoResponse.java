@@ -20,9 +20,9 @@ public class AlbumVideoResponse {
     private LocalDateTime createdAt;
 
     // Full URL 변환 로직 (Service에서 호출)
-    public void convertToFullUrl(String cloudFrontDomain) {
+    public void convertToFullUrl(com.example.sound.global.util.CloudFrontSigner signer) {
         if (this.thumbnailS3Key != null) {
-            this.thumbnailS3Key = "https://" + cloudFrontDomain + "/" + this.thumbnailS3Key;
+            this.thumbnailS3Key = signer.generatePublicUrl(this.thumbnailS3Key);
         }
     }
 }

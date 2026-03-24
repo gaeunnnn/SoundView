@@ -108,6 +108,6 @@ public class S3UploadService {
         String uuid = UUID.randomUUID().toString();
         // 공백 및 특수문자 제거 (Sanitize)
         String sanitizedFileName = originalFileName.replaceAll("\\s+", "_");
-        return String.format("videos/%s/%s_%s", datePath, uuid, sanitizedFileName);
+        return String.format("private/videos/%s/%s_%s", datePath, uuid, sanitizedFileName);
     }
 }

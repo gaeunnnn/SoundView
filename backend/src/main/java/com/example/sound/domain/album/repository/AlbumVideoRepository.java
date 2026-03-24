@@ -40,5 +40,17 @@ GROUP BY av.id, v.title, v.thumbnailS3Key, v.durationSec, v.uploader.nickname, v
 
     boolean existsByAlbumIdAndVideoId(Long albumId, Long videoId);
 
+    @Query("""
+        SELECT COUNT(av) > 0
+        FROM AlbumVideo av
+        JOIN AlbumUser au ON au.album.id = av.album.id
+        WHERE av.video.id = :videoId
+        AND av.album.id = :albumId
+        AND au.user.id = :userId
+    """)
+    boolean existsByVideoIdAndAlbumIdAndUserId(Long videoId, Long albumId, Long userId);
+
+    java.util.Optional<AlbumVideo> findByAlbumIdAndVideoId(Long albumId, Long videoId);
+
     long countByAlbumId(Long albumId);
 }

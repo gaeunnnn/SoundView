@@ -35,6 +35,19 @@ public interface VideoCommentRepository extends JpaRepository<VideoComment, Long
         vc.createdAt
     )
     from VideoComment vc
+    where vc.albumVideo.id = :albumVideoId
+    order by vc.createdAt asc
+""")
+    List<VideoCommentResponse> findByAlbumVideoId(Long albumVideoId);
+
+    @Query("""
+    select new com.example.sound.domain.video.dto.VideoCommentResponse(
+        vc.id,
+        vc.content,
+        vc.user.nickname,
+        vc.createdAt
+    )
+    from VideoComment vc
     where vc.albumVideo.video.id = :videoId
     order by vc.createdAt asc
 """)

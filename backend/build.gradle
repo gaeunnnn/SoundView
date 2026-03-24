@@ -52,6 +52,9 @@ dependencies {
 
 	// Spring Cloud AWS (S3 & Presigner 통합 관리)
 	implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1'
+
+	// AWS CloudFront SDK (Signed URL 용)
+	implementation 'software.amazon.awssdk:cloudfront:2.25.0'
 }
 
 tasks.named('test') {

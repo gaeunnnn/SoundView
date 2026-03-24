@@ -28,4 +28,6 @@ public interface AlbumRepository extends JpaRepository<Album, Long> {
     GROUP BY a.id, a.name, a.owner.id, a.owner.nickname
 """)
     List<AlbumResponse> findAlbumsByUserId(Long userId);
+
+    java.util.Optional<com.example.sound.domain.album.entity.Album> findByOwnerIdAndName(Long ownerId, String name);
 }

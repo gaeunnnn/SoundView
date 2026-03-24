@@ -15,9 +15,7 @@ public class AlbumVideoService {
 
     private final AlbumVideoRepository albumVideoRepository;
     private final AlbumUserRepository albumUserRepository;
-
-    @Value("${spring.cloud.aws.cloudfront.domain}")
-    private String cloudFrontDomain;
+    private final com.example.sound.global.util.CloudFrontSigner cloudFrontSigner;
 
     public List<AlbumVideoResponse> getAlbumVideos(Long albumId, Long userId) {
 
@@ -26,7 +24,7 @@ public class AlbumVideoService {
         }
 
         List<AlbumVideoResponse> responses = albumVideoRepository.findVideosByAlbumId(albumId);
-        responses.forEach(r -> r.convertToFullUrl(cloudFrontDomain));
+        responses.forEach(r -> r.convertToFullUrl(cloudFrontSigner));
 
         return responses;
     }

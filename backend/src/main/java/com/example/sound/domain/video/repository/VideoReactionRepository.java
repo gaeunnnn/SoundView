@@ -48,6 +48,23 @@ public interface VideoReactionRepository extends JpaRepository<VideoReaction, Lo
     @Query("""
         select vr.emoji, count(vr)
         from VideoReaction vr
+        where vr.albumVideo.id = :albumVideoId
+        group by vr.emoji
+    """)
+    List<Object[]> countReactionsByAlbumVideoId(Long albumVideoId);
+
+
+    @Query("""
+        select vr.emoji
+        from VideoReaction vr
+        where vr.albumVideo.id = :albumVideoId
+          and vr.user.id = :userId
+    """)
+    List<String> findMyReactionsByAlbumVideoIdAndUserId(Long albumVideoId, Long userId);
+
+    @Query("""
+        select vr.emoji, count(vr)
+        from VideoReaction vr
         where vr.albumVideo.video.id = :videoId
         group by vr.emoji
     """)
