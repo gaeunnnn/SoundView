@@ -30,8 +30,6 @@ async def process_mq_message(message: aio_pika.Message):
                 # clean_key = video_key.lstrip('/')
                 # video_url = f"{base_url}/{clean_key}"
 
-                
-
                 video_id = str(raw_video_id)    # videoId 변환
                 logger.info(f"VideoService 파이프라인 시작 (ID: {video_id})")
 
