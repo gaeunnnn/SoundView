@@ -73,22 +73,23 @@ class StorageService:
         처리 결과(자막, 진동 JSON, 진동 BIN, 효과음)를 각각 MinIO에 업로드하고 접근 S3 Key 튜플을 반환합니다.
         """
 
-        # 테스트용 코드, 임시 url을 반환함.
-        logger.info(f"[StorageService] 테스트용 비디오 {video_id}의 결과 파일 가짜(Mock) 업로드 시작")
-        subtitle_key = f"results/{video_id}_subtitle.json"
-        vibration_json_key = f"results/{video_id}_vibration.json"
-        vibration_bin_key = f"results/{video_id}_vibration.bin"
-        sound_event_key = f"results/{video_id}_sound_event.json"
+        # # 테스트용 코드, 임시 url을 반환함.
+        # logger.info(f"[StorageService] 테스트용 비디오 {video_id}의 결과 파일 가짜(Mock) 업로드 시작")
+        # subtitle_key = f"results/{video_id}_subtitle.json"
+        # vibration_json_key = f"results/{video_id}_vibration.json"
+        # vibration_bin_key = f"results/{video_id}_vibration.bin"
+        # sound_event_key = f"results/{video_id}_sound_event.json"
         
-        # 실제 URL이 아닌 Object Key를 반환
-        return subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key
+        # # 실제 URL이 아닌 Object Key를 반환
+        # return subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key
 
         # 실제로 서비스하는 코드, S3에 데이터를 저장함.
         #==================================================
         logger.info(f"[StorageService] 비디오 {video_id}의 결과 파일 S3 업로드 시작")
 
         bucket = settings.AWS_S3_BUCKET_NAME
-        endpoint = settings.AWS_S3_ENDPOINT
+        # 빈 문자열("")일 경우 None으로 처리해야 aioboto3가 기본 AWS S3 리전을 정상적으로 찾아갑니다.
+        endpoint = settings.AWS_S3_ENDPOINT if settings.AWS_S3_ENDPOINT else None
         
         # 바이너리 데이터(bytes)만 따로 추출
         vibration_bin_data = vibration_result.pop("bin", None) if isinstance(vibration_result, dict) else None
@@ -96,11 +97,9 @@ class StorageService:
         upload_tasks = {
             f"results/{video_id}_subtitle.json": subtitle_result,
             f"results/{video_id}_vibration.json": vibration_result,
-            f"results/{video_id}_sound_event.json": sound_event_result
+            f"results/{video_id}_sound_event.json": sound_event_result,
+            f"results/{video_id}_vibration.bin": vibration_bin_data
         }
-
-        if vibration_bin_data is not None:
-            upload_tasks[f"results/{video_id}_vibration.bin"] = vibration_bin_data
 
         uploaded_urls = []
         session = aioboto3.Session()

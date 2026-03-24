@@ -30,9 +30,9 @@ class CallbackService:
             # 2. 공통화된 함수를 사용하여 'result_queue'로 발행
             await rabbitmq_client.send_message(
                 message=result_payload,
-                queue_name="result_queue"
+                queue_name= "FS_queue"
             )
-            logger.info(f"✅ Spring Boot 연동 완료: 'result_queue'에 완료 메시지 발행 성공 (Video ID: {video_id})")
+            logger.info(f"✅ Spring Boot 연동 완료: 'FS_queue'에 완료 메시지 발행 성공 (Video ID: {video_id})")
             
         except Exception as e:
             logger.error(f"❌ Spring Boot 통지(MQ 발행) 실패: {e}")

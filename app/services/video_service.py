@@ -67,9 +67,10 @@ class VideoService:
 
             return {
                 "video_id": video_id,
-                "subtitle_url": subtitle_url,
-                "vibration_url": vibration_url,
-                "sound_event_url": sound_event_url,
+                "subtitle_key": subtitle_key,
+                "vibration_json_key": vibration_json_key,
+                "vibration_bin_key": vibration_bin_key,
+                "sound_event_key": sound_event_key,
                 "status": "success"
             }
         finally:
