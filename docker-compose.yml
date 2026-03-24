@@ -1,0 +1,16 @@
+services:
+  soundview-server:
+    image: dontwastetime/soundview-app:latest
+    container_name: soundview-fastapi
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    # gpu를 사용하는 설정
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
