@@ -124,11 +124,11 @@ export default function PlayerControls({
       <div className="flex items-center justify-between">
         {/* 좌측 */}
         <div className="flex items-center gap-3 text-white">
-          {/* 10초 뒤로 */}
-          <button type="button" onClick={() => onSkip(-10)} className="opacity-75 hover:opacity-100 transition-opacity" title="10초 뒤로">
+          {/* 5초 뒤로 */}
+          <button type="button" onClick={() => onSkip(-5)} className="opacity-75 hover:opacity-100 transition-opacity" title="5초 뒤로">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
-              <text x="7" y="16" fontSize="6" fill="currentColor">10</text>
+              <text x="8" y="16" fontSize="6" fill="currentColor">5</text>
             </svg>
           </button>
 
@@ -145,11 +145,11 @@ export default function PlayerControls({
             )}
           </button>
 
-          {/* 10초 앞으로 */}
-          <button type="button" onClick={() => onSkip(10)} className="opacity-75 hover:opacity-100 transition-opacity" title="10초 앞으로">
+          {/* 5초 앞으로 */}
+          <button type="button" onClick={() => onSkip(5)} className="opacity-75 hover:opacity-100 transition-opacity" title="5초 앞으로">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z" />
-              <text x="7" y="16" fontSize="6" fill="currentColor">10</text>
+              <text x="8" y="16" fontSize="6" fill="currentColor">5</text>
             </svg>
           </button>
 
