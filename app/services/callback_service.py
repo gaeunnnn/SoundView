@@ -8,7 +8,7 @@ class CallbackService:
     외부 시스템(Spring Boot)로 완료 콜백을 전송하는 서비스 클래스.
     """
 
-    async def notify_complete(self, video_id: str, subtitle_key: str, vibration_json_key: str, vibration_bin_key: str, sound_event_key: str):
+    async def notify_complete(self, video_id: str, subtitle_key: str, vibration_json_key: str, vibration_bin_key: str, sound_event_key: str, duration_sec: float):
         """
         Spring Boot가 구독 중인 'result_queue'에 처리 완료 상태와 결과 S3 Key를 담은 메시지를 발행합니다.
         """
@@ -18,6 +18,7 @@ class CallbackService:
         result_payload = {
             "videoId" : video_id,
             "status" : "SUCCESS",
+            "durationSec" : duration_sec,
             "result" : {
                 "subtitleKey" : subtitle_key,
                 "vibrationKey" : vibration_json_key,

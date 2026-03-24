@@ -46,6 +46,9 @@ class VideoService:
             # 2. 전처리 — 영상에서 음성 추출 (ffmpeg 파이프, 중간 파일 없음)
             audio_array = await self.audio.extract_audio(temp_path)
 
+            # 영상 전체 길이(초) 계산
+            duration_sec = round(len(audio_array) / self.audio.SAMPLE_RATE, 2)
+
             # 3. 전처리 — 목소리(vocals) / 배경음(no_vocals) 분리 (Demucs 2-stem)
             #    각 AI 모델은 해당 트랙만 수신하여 정확도가 높아집니다.
             tracks = await self.voice_sep.separate(audio_array)
@@ -66,10 +69,11 @@ class VideoService:
             )
 
             # 5. Spring Boot 완료 콜백
-            await self.callback.notify_complete(video_id, subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key)
+            await self.callback.notify_complete(video_id, subtitle_key, vibration_json_key, vibration_bin_key, sound_event_key, duration_sec)
 
             return {
                 "video_id": video_id,
+                "duration_sec": duration_sec,
                 "subtitle_key": subtitle_key,
                 "vibration_json_key": vibration_json_key,
                 "vibration_bin_key": vibration_bin_key,
