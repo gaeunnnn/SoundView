@@ -40,26 +40,62 @@ async function loadVibrationBin(url: string): Promise<VibrationSample[]> {
   return samples;
 }
 
-// intensity_l/r 쌍만 추출한 전송용 바이너리 생성 (2B × N)
-function buildVibPayload(samples: VibrationSample[]): Uint8Array {
-  const buf = new Uint8Array(samples.length * 2);
-  samples.forEach((s, i) => {
-    buf[i * 2]     = s.intensity_l;
-    buf[i * 2 + 1] = s.intensity_r;
-  });
-  return buf;
+// ── 16-byte 프레임 빌더 ────────────────────────────────
+// 포맷:
+//   [0]     0xAA
+//   [1]     0x55
+//   [2]     seq       uint8
+//   [3-6]   ts_ms     uint32 LE
+//   [7]     sound_class uint8  (0 고정)
+//   [8]     vib_type    uint8  (0 고정)
+//   [9]     frequency   uint8  (0 고정)
+//   [10]    intensity_L uint8
+//   [11]    intensity_R uint8
+//   [12-13] duration_ms uint16 LE  (샘플 간격 20ms 고정)
+//   [14-15] checksum    uint16 LE  sum([0..13]) & 0xFFFF
+
+const FRAME_SIZE = 16;
+const SAMPLE_INTERVAL_MS = 20; // .bin 파일 샘플 간격
+
+function buildFrame(seq: number, timestampMs: number, intensityL: number, intensityR: number): Uint8Array {
+  const buf = new ArrayBuffer(FRAME_SIZE);
+  const u8 = new Uint8Array(buf);
+  const view = new DataView(buf);
+
+  u8[0]  = 0xAA;
+  u8[1]  = 0x55;
+  u8[2]  = seq & 0xFF;
+  view.setUint32(3, timestampMs >>> 0, true);
+  u8[7]  = 0;   // sound_class
+  u8[8]  = 0;   // vib_type
+  u8[9]  = 0;   // frequency
+  u8[10] = intensityL;
+  u8[11] = intensityR;
+  view.setUint16(12, SAMPLE_INTERVAL_MS, true);
+
+  let sum = 0;
+  for (let i = 0; i <= 13; i++) sum += u8[i];
+  view.setUint16(14, sum & 0xFFFF, true);
+
+  return u8;
+}
+
+// 전체 샘플을 [0xFF][0xFF][frames...] 형태로 빌드
+function buildFullPacket(samples: VibrationSample[]): Uint8Array {
+  const out = new Uint8Array(2 + samples.length * FRAME_SIZE);
+  out[0] = 0xFF;
+  out[1] = 0xFF;
+  for (let i = 0; i < samples.length; i++) {
+    const s = samples[i];
+    const tsMs = Math.round(s.timestamp * 1000);
+    out.set(buildFrame(i & 0xFF, tsMs, s.intensity_l, s.intensity_r), 2 + i * FRAME_SIZE);
+  }
+  return out;
 }
 
 // 제어 명령 ─────────────────────────────────────────────
-// [0xFF, 0xFF, ...payload]  전체 데이터 전송
-// [0x01, idxHi, idxLo]     재생 시작 (샘플 인덱스 uint16 big-endian)
-// [0x02]                    일시정지 (모터 정지)
-function cmdData(payload: Uint8Array): Uint8Array {
-  const out = new Uint8Array(2 + payload.length);
-  out[0] = 0xFF; out[1] = 0xFF;
-  out.set(payload, 2);
-  return out;
-}
+// [0x01, idxHi, idxLo]  재생 시작
+// [0x02]                 정지
 function cmdPlay(sampleIdx: number): Uint8Array {
   return new Uint8Array([0x01, (sampleIdx >> 8) & 0xFF, sampleIdx & 0xFF]);
 }
@@ -102,8 +138,9 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const { isConnected, send, sendAndFlush } = useEsp();
   const [vibBuffering, setVibBuffering] = useState(false);
 
-  // 진동 데이터
+  // 진동 데이터 (최초 1회 전송 여부)
   const vibSamplesRef = useRef<VibrationSample[]>([]);
+  const vibSentRef = useRef(false);
 
   // 자막 / 효과음 데이터
   const [subtitles, setSubtitles] = useState<SubtitleEntry[]>([]);
@@ -113,18 +150,14 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleEntry | null>(null);
   const [activeSoundEvents, setActiveSoundEvents] = useState<SoundEventEntry[]>([]);
 
-  const vibPayloadRef = useRef<Uint8Array | null>(null);
-
-  // ── 데이터 로드만 (전송은 재생 버튼 클릭 시) ────────────────
+  // ── 데이터 로드 ────────────────────────────────────────────
   useEffect(() => {
     if (!video.videoUrl) return;
     const base = video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "");
 
+    vibSentRef.current = false;
     loadVibrationBin(`${base}/test_vibration.bin`)
-      .then((s) => {
-        vibSamplesRef.current = s;
-        vibPayloadRef.current = buildVibPayload(s);
-      })
+      .then((s) => { vibSamplesRef.current = s; })
       .catch(() => {});
 
     loadJson<SubtitleEntry[]>(`${base}/test_subtitle.json`)
@@ -136,28 +169,25 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
       .catch(() => {});
   }, [video.videoUrl]);
 
-  // ── seek 완료 시 ESP에 새 위치로 PLAY 재전송 ──────────────
+  // seek 완료 시 재생 중이면 새 위치부터 cmdPlay
   useEffect(() => {
     if (!isConnected) return;
     const el = videoRef.current;
     if (!el) return;
-
     const onSeeked = () => {
       if (!el.paused) {
         const idx = Math.min(
-          Math.round(el.currentTime / 0.02),
+          Math.round(el.currentTime / (SAMPLE_INTERVAL_MS / 1000)),
           (vibSamplesRef.current.length || 1) - 1
         );
         send(cmdPlay(idx));
-        console.log("[VIB] SEEKED → PLAY idx:", idx);
       }
     };
-
     el.addEventListener("seeked", onSeeked);
     return () => el.removeEventListener("seeked", onSeeked);
   }, [isConnected, send]);
 
-  // 뷰어 언마운트(페이지 이탈) 시에만 정지 명령
+  // 뷰어 언마운트 시 정지 명령
   useEffect(() => {
     return () => { send(cmdPause()); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -183,6 +213,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isPlayingRef = useRef(false);
+  const handlePlayPauseRef = useRef<() => void>(() => {});
 
   // ── currentSec 변경 시 자막/효과음 업데이트 ──────────────
   useEffect(() => {
@@ -218,6 +249,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
     if (isPlaying) el.play().catch(() => {});
     else el.pause();
   }, [isPlaying]);
+
 
   // 볼륨
   useEffect(() => {
@@ -257,7 +289,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
       if (tag === "INPUT" || tag === "TEXTAREA") return;
       switch (e.key) {
         case " ": case "k":
-          e.preventDefault(); setIsPlaying((p) => !p); resetOverlayTimer(); break;
+          e.preventDefault(); handlePlayPauseRef.current(); resetOverlayTimer(); break;
         case "ArrowRight":
           e.preventDefault();
           if (videoRef.current) videoRef.current.currentTime = Math.min(videoRef.current.duration || totalSec, videoRef.current.currentTime + 5);
@@ -310,38 +342,42 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
     else setCurrentSec((p) => Math.max(0, Math.min(totalSec, p + sec)));
   };
 
-  const handlePlayPause = async () => {
+  const handlePlayPause = useCallback(async () => {
     const nextPlaying = !isPlaying;
     resetOverlayTimer();
     if (nextPlaying) resetControlsTimer();
 
-    // 재생 시작이고 ESP 연결 상태일 때: 데이터 전송 후 버퍼 완료 대기
     if (nextPlaying && isConnected) {
-      const payload = vibPayloadRef.current;
-      if (payload) {
+      const samples = vibSamplesRef.current;
+      if (samples.length && !vibSentRef.current) {
         setVibBuffering(true);
         try {
-          await sendAndFlush(cmdData(payload));
-          console.log("[VIB] 전체 데이터 전송 완료:", payload.length, "bytes");
+          await sendAndFlush(buildFullPacket(samples));
+          vibSentRef.current = true;
         } finally {
           setVibBuffering(false);
         }
-        const idx = Math.min(
-          Math.round((videoRef.current?.currentTime ?? 0) / 0.02),
-          (vibSamplesRef.current.length || 1) - 1
-        );
-        send(cmdPlay(idx));
       }
+      const idx = Math.min(
+        Math.round((videoRef.current?.currentTime ?? 0) / (SAMPLE_INTERVAL_MS / 1000)),
+        (vibSamplesRef.current.length || 1) - 1
+      );
+      send(cmdPlay(idx));
+    } else if (!nextPlaying && isConnected) {
+      send(cmdPause());
     }
 
-    // 정지 시 ESP에 pause 명령
-    if (!nextPlaying && isConnected) send(cmdPause());
-
     setIsPlaying(nextPlaying);
-  };
+  }, [isPlaying, isConnected, vibSentRef, sendAndFlush, send, resetOverlayTimer, resetControlsTimer]);
+
+  // handlePlayPauseRef 항상 최신 함수 참조 유지
+  useEffect(() => {
+    handlePlayPauseRef.current = handlePlayPause;
+  }, [handlePlayPause]);
 
   const handleTimeUpdate = () => {
-    if (videoRef.current) setCurrentSec(videoRef.current.currentTime);
+    if (!videoRef.current) return;
+    setCurrentSec(videoRef.current.currentTime);
   };
 
   const progress = totalSec > 0 ? (currentSec / totalSec) * 100 : 0;
@@ -372,7 +408,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
             className="max-h-full max-w-full object-contain"
             onClick={handlePlayPause}
             onTimeUpdate={handleTimeUpdate}
-            onEnded={() => setIsPlaying(false)}
+            onEnded={() => { if (isConnected) send(cmdPause()); setIsPlaying(false); }}
             style={{ cursor: "pointer" }}
             playsInline
           />
@@ -388,7 +424,6 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
 
         <PlayerOverlay isPlaying={isPlaying} showOverlay={showOverlay} onToggle={handlePlayPause} />
 
-        {/* 진동 데이터 버퍼링 중 오버레이 */}
         {vibBuffering && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
             <div className="flex gap-1.5 mb-3">
@@ -399,6 +434,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
             <p className="text-xs font-medium text-white/80">진동 데이터 전송 중...</p>
           </div>
         )}
+
 
         {/* ── 자막 오버레이 ── */}
         {subtitleOn && currentSubtitle && (
