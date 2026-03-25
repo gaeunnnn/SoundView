@@ -283,6 +283,12 @@ class VibrationModel(BaseAIModel[Dict[str, np.ndarray], Dict[str, Any]]):
         sr = 16000
         fps = self.fps
 
+        # Demucs 분리 결과에서 환경음(no_vocals) 트랙 추출
+        vocal_array = stems.get('no_vocals', np.array([], dtype=np.float32))
+        if vocal_array.size == 0:
+            # fallback: 아무 트랙이라도 사용
+            vocal_array = list(stems.values())[0]
+
         if vocal_array.ndim > 1:
             vocal_array = librosa.to_mono(vocal_array)
 
