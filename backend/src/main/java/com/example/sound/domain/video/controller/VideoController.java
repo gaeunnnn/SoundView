@@ -60,6 +60,15 @@ public class VideoController {
         return videoService.getMyVideosInAlbum(albumId, principal.getId());
     }
 
+    @Operation(summary = "자막 및 사운드 이벤트 수정을 위한 Presigned URL 발급")
+    @GetMapping("/videos/{videoId}/edit-save")
+    public VideoEditSaveResponse editSave(
+            @PathVariable Long videoId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        return videoService.generateEditSaveUrls(videoId, principal.getId());
+    }
+
     @Operation(summary = "S3 멀티파트 업로드 시작 (Presigned URL 발급)")
     @PostMapping("/videos/upload/initiate")
     public VideoUploadInitiateResponse initiateUpload(

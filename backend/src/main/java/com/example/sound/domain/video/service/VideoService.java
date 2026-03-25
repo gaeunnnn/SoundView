@@ -42,6 +42,33 @@ public class VideoService {
     private final NotificationService notificationService;
     private final CloudFrontSigner cloudFrontSigner;
 
+    /**
+     * 자막 및 사운드 이벤트 수정을 위한 Presigned URL 발급
+     */
+    @Transactional(readOnly = true)
+    public VideoEditSaveResponse generateEditSaveUrls(Long videoId, Long userId) {
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new IllegalArgumentException("영상을 찾을 수 없습니다."));
+
+        // 업로더만 수정 가능 (보안)
+        if (!video.getUploader().getId().equals(userId)) {
+            throw new AccessDeniedException("수정 권한이 없습니다.");
+        }
+
+        // 기존 S3 키가 없는 경우 (아직 처리가 안 된 영상 등)
+        if (video.getSubtitleS3Key() == null || video.getSoundEventS3Key() == null) {
+            throw new IllegalStateException("아직 수정할 수 없는 상태의 영상입니다.");
+        }
+
+        String subtitleUrl = s3UploadService.generatePresignedUrlForPut(video.getSubtitleS3Key());
+        String soundEventUrl = s3UploadService.generatePresignedUrlForPut(video.getSoundEventS3Key());
+
+        return VideoEditSaveResponse.builder()
+                .subtitleUploadUrl(subtitleUrl)
+                .soundEventUploadUrl(soundEventUrl)
+                .build();
+    }
+
     // 공유 앨범에서만 제거 (업로드 취소)
     @Transactional
     public void removeFromAlbum(Long albumVideoId, Long userId){

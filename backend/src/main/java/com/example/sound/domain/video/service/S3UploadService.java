@@ -101,6 +101,27 @@ public class S3UploadService {
     }
 
     /**
+     * 단일 파일 업로드(PUT)를 위한 Presigned URL 생성
+     */
+    public String generatePresignedUrlForPut(String s3Key) {
+        if (s3Key == null) return null;
+
+        PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(s3Key)
+                .contentType("application/json") // JSON 파일 업로드 강제
+                .build();
+
+        software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest presignRequest = 
+            software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest.builder()
+                .signatureDuration(Duration.ofMinutes(10)) // 10분 유효
+                .putObjectRequest(putObjectRequest)
+                .build();
+
+        return s3Presigner.presignPutObject(presignRequest).url().toString();
+    }
+
+    /**
      * 고유한 S3 객체 키 생성 (경로: videos/yyyy/MM/dd/UUID_fileName)
      */
     public String generateS3Key(String originalFileName) {
