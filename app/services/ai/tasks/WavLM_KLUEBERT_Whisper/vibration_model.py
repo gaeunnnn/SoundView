@@ -321,7 +321,7 @@ class VibrationModel(BaseAIModel[np.ndarray, Dict[str, Any]]):
             frames.append({
                 "timeline": round(i / fps, 3),
                 "frame": i,
-                "dBL": int(int_l[i]),+/
+                "dBL": int(int_l[i]),
                 "dBR": int(int_r[i]),
             })
 
