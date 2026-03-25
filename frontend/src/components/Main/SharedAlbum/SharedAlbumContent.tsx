@@ -261,7 +261,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
                   id: v.videoId,      // MyAlbumVideo는 albumVideoId가 없으므로 videoId 사용
                   videoId: v.videoId, // addVideosToAlbum에 전달할 videos.id
                   title: v.title,
-                  thumbnail: v.thumbnailUrl ?? "",
+                  thumbnail: v.thumbnailUrl ?? undefined,
                   duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
                   date: v.createdAt.slice(0, 10).replace(/-/g, "."),
                   uploaderName: "",

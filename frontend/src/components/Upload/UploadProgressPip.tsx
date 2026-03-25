@@ -1,21 +1,95 @@
 // 다른 페이지로 이동했을 때 떠있는 업로드 진행 PiP 팝업
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { X, Upload, Loader2 } from "lucide-react";
 import { useUpload } from "../../context/UploadContext";
+import { getVideoStatus } from "../../api/video";
 
 export default function UploadProgressPip() {
-  const { status, progress, fileName, resetUpload } = useUpload();
+  const { status, progress, fileName, uploadedVideoId, doneUpload, resetUpload } = useUpload();
   const location = useLocation();
   const navigate = useNavigate();
 
-  if ((status !== "uploading" && status !== "processing") || location.pathname === "/upload") return null;
+  // 드래그 상태
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const dragging = useRef(false);
+  const dragOffset = useRef({ x: 0, y: 0 });
+  const pipRef = useRef<HTMLDivElement>(null);
+
+  // processing 상태에서 uploadedVideoId 기반 폴링
+  useEffect(() => {
+    if (status !== "processing" || !uploadedVideoId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const videoStatus = await getVideoStatus(uploadedVideoId);
+        if (videoStatus === "COMPLETED") {
+          clearInterval(interval);
+          doneUpload();
+          resetUpload();
+          // albumVideoId를 알 수 없으므로 SSE에서 받은 값 사용 (폴링 경로는 그대로)
+          navigate("/edit");
+        } else if (videoStatus === "FAILED") {
+          clearInterval(interval);
+          resetUpload();
+        }
+      } catch {
+        // 폴링 실패 시 계속 시도
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [status, uploadedVideoId]);
+
+  // 드래그 핸들러
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!pipRef.current) return;
+    dragging.current = true;
+    const rect = pipRef.current.getBoundingClientRect();
+    dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragging.current || !pipRef.current) return;
+      const { offsetWidth: w, offsetHeight: h } = pipRef.current;
+      const x = Math.min(Math.max(0, e.clientX - dragOffset.current.x), window.innerWidth - w);
+      const y = Math.min(Math.max(0, e.clientY - dragOffset.current.y), window.innerHeight - h);
+      setPos({ x, y });
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  const isVisible =
+    (status === "uploading" || status === "processing") &&
+    location.pathname !== "/upload";
+
+  if (!isVisible) return null;
 
   const isProcessing = status === "processing";
 
+  const posStyle = pos
+    ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" }
+    : { bottom: 20, right: 20 };
+
   return (
-    <div className="fixed bottom-5 right-5 z-50 w-72 rounded-2xl border border-[#E2E8F0] bg-white shadow-2xl">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[#F1F5F9]">
+    <div
+      ref={pipRef}
+      className="fixed z-50 w-72 rounded-2xl border border-[#E2E8F0] bg-white shadow-2xl select-none"
+      style={{ ...posStyle, position: "fixed" }}
+    >
+      {/* 헤더 — 드래그 영역 */}
+      <div
+        className="flex items-center justify-between px-4 py-3 border-b border-[#F1F5F9] cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
+      >
         <div className="flex items-center gap-2">
           <div className={["flex h-7 w-7 items-center justify-center rounded-lg", isProcessing ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"].join(" ")}>
             {isProcessing
@@ -35,13 +109,7 @@ export default function UploadProgressPip() {
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => navigate("/upload")}
-            className="text-[10px] font-medium text-[#2563EB] hover:text-[#1D4ED8]"
-          >
-            보기
-          </button>
-          <button
-            type="button"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={resetUpload}
             className="flex h-5 w-5 items-center justify-center rounded-full text-[#94A3B8] hover:bg-[#F1F5F9]"
           >

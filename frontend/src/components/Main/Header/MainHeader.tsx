@@ -11,13 +11,14 @@ export default function MainHeader({
   onClickLogo,
   onClickHelp,
   onClickProfile,
+  onVideoCompleted,
 }: MainHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-[#E8EDF4] bg-white px-5 shadow-sm">
       <HeaderBrand onClick={onClickLogo} />
 
       <div className="flex items-center gap-3">
-        <HeaderActionGroup onClickHelp={onClickHelp} />
+        <HeaderActionGroup onClickHelp={onClickHelp} onVideoCompleted={onVideoCompleted} />
         <HeaderProfileButton userName={userName} userCode={userCode} profileImageUrl={profileImageUrl} onClick={onClickProfile} />
       </div>
     </header>

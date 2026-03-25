@@ -8,13 +8,16 @@ export type Notification = {
   id: number;
   type: "ALBUM_INVITE" | "ALBUM_VIDEO_ADDED" | "VIDEO_COMMENT" | string;
   message: string;
-  isRead: boolean;
+  isRead: boolean; // 프론트 내부 필드 (서버 응답의 read를 매핑)
+  read?: boolean;  // 서버 응답 필드
   createdAt: string;
 };
 
 // GET /api/notifications — 알림 목록 최신순 조회
 export const getNotifications = (): Promise<Notification[]> =>
-  apiClient.get<Notification[]>("/api/notifications").then((res) => res.data);
+  apiClient.get<Notification[]>("/api/notifications").then((res) =>
+    res.data.map((n) => ({ ...n, isRead: n.isRead ?? n.read ?? false }))
+  );
 
 // GET /api/notifications/unread-count — 읽지 않은 알림 개수 조회
 export const getUnreadCount = (): Promise<number> =>
@@ -24,26 +27,29 @@ export const getUnreadCount = (): Promise<number> =>
 export const markNotificationRead = (id: number): Promise<void> =>
   apiClient.patch(`/api/notifications/${id}/read`).then(() => {});
 
+type SseHandlers = {
+  onNotification?: (n: Notification) => void;
+  onVideoCompleted?: (videoId: number, albumVideoId?: number) => void;
+};
+
 // GET /api/notifications/subscribe — SSE 실시간 알림 구독, 반환값은 구독 해제 함수
-export const subscribeNotifications = (onNotification: (n: Notification) => void): () => void => {
+export const subscribeNotifications = ({ onNotification, onVideoCompleted }: SseHandlers): () => void => {
   const es = new EventSource(`${BASE_URL}/api/notifications/subscribe`, { withCredentials: true });
-  es.onmessage = (e) => {
+
+  const notifyEvents = ["ALBUM_INVITE", "ALBUM_VIDEO_ADDED", "VIDEO_COMMENT"] as const;
+  notifyEvents.forEach((type) => {
+    es.addEventListener(type, (e) => {
+      try { onNotification?.(JSON.parse((e as MessageEvent).data)); } catch {}
+    });
+  });
+
+  es.addEventListener("VIDEO_COMPLETED", (e) => {
     try {
-      const data = JSON.parse(e.data) as Notification;
-      onNotification(data);
-    } catch {
-      // heartbeat 등 파싱 불가 메시지 무시
-    }
-  };
-  es.addEventListener("ALBUM_INVITE", (e) => {
-    try { onNotification(JSON.parse(e.data)); } catch {}
+      const data = JSON.parse((e as MessageEvent).data) as { videoId: number; albumVideoId?: number; status: string };
+      if (data.status === "COMPLETED") onVideoCompleted?.(data.videoId, data.albumVideoId);
+    } catch {}
   });
-  es.addEventListener("ALBUM_VIDEO_ADDED", (e) => {
-    try { onNotification(JSON.parse(e.data)); } catch {}
-  });
-  es.addEventListener("VIDEO_COMMENT", (e) => {
-    try { onNotification(JSON.parse(e.data)); } catch {}
-  });
+
   es.onerror = () => es.close();
   return () => es.close();
 };

@@ -9,10 +9,12 @@ type UploadContextValue = {
   fileName: string;
   uploadedVideoUrl: string | null;
   uploadedFileType: string;
-  uploadedVideoId: number | null;
+  uploadedVideoId: number | null;       // videos.id
+  uploadedAlbumVideoId: number | null;  // album_videos.id (COMPLETED 후 세팅)
   uploadedTitle: string;
   setUploadedVideo: (url: string, fileType: string) => void;
   setUploadedVideoId: (videoId: number) => void;
+  setUploadedAlbumVideoId: (albumVideoId: number) => void;
   setUploadedTitle: (title: string) => void;
   startUpload: (fileName: string) => void;
   updateProgress: (progress: number) => void;
@@ -31,6 +33,7 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
   const [uploadedFileType, setUploadedFileType] = useState("");
   const [uploadedVideoId, setUploadedVideoIdState] = useState<number | null>(null);
+  const [uploadedAlbumVideoId, setUploadedAlbumVideoIdState] = useState<number | null>(null);
   const [uploadedTitle, setUploadedTitleState] = useState("");
 
   const setUploadedVideo = (url: string, fileType: string) => {
@@ -39,14 +42,15 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setUploadedVideoId = (videoId: number) => setUploadedVideoIdState(videoId);
+  const setUploadedAlbumVideoId = (albumVideoId: number) => setUploadedAlbumVideoIdState(albumVideoId);
   const setUploadedTitle = (title: string) => setUploadedTitleState(title);
 
   const startUpload = (name: string) => {
     setFileName(name);
     setProgress(0);
     setStatus("uploading");
-    // 새 업로드 시작 시 이전 업로드 결과 초기화
     setUploadedVideoIdState(null);
+    setUploadedAlbumVideoIdState(null);
     setUploadedTitleState("");
   };
 
@@ -69,13 +73,16 @@ export function UploadProvider({ children }: { children: React.ReactNode }) {
     setStatus("idle");
     setProgress(0);
     setFileName("");
-    // uploadedVideoId와 uploadedTitle은 EditPage에서 사용하므로 여기서 초기화하지 않음
-    // 새 업로드 시작(startUpload) 시 초기화됨
   };
 
   return (
     <UploadContext.Provider
-      value={{ status, progress, fileName, uploadedVideoUrl, uploadedFileType, uploadedVideoId, uploadedTitle, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, startProcessing, doneUpload, resetUpload }}
+      value={{
+        status, progress, fileName, uploadedVideoUrl, uploadedFileType,
+        uploadedVideoId, uploadedAlbumVideoId, uploadedTitle,
+        setUploadedVideo, setUploadedVideoId, setUploadedAlbumVideoId, setUploadedTitle,
+        startUpload, updateProgress, finishUpload, startProcessing, doneUpload, resetUpload,
+      }}
     >
       {children}
     </UploadContext.Provider>

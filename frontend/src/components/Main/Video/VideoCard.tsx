@@ -27,24 +27,34 @@ export default function VideoCard({
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
-  const handleToggle = () => {
-    if (!open && btnRef.current) {
+  const updatePos = () => {
+    if (btnRef.current) {
       const r = btnRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, left: r.right - 148 });
+      setPos({ top: r.top - 124, left: r.right - 148 });
     }
+  };
+
+  const handleToggle = () => {
+    if (!open) updatePos();
     setOpen((prev) => !prev);
   };
 
   useEffect(() => {
     if (!open) return;
-    const handle = (e: MouseEvent) => {
+    const handleScroll = () => updatePos();
+    const handleClick = (e: MouseEvent) => {
       const t = e.target as Node;
       if (menuRef.current?.contains(t)) return;
       if (btnRef.current?.contains(t)) return;
       setOpen(false);
     };
-    const timer = setTimeout(() => document.addEventListener("mousedown", handle), 0);
-    return () => { clearTimeout(timer); document.removeEventListener("mousedown", handle); };
+    window.addEventListener("scroll", handleScroll, true);
+    const timer = setTimeout(() => document.addEventListener("mousedown", handleClick), 0);
+    return () => {
+      window.removeEventListener("scroll", handleScroll, true);
+      clearTimeout(timer);
+      document.removeEventListener("mousedown", handleClick);
+    };
   }, [open]);
 
   return (

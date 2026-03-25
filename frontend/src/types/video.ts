@@ -5,7 +5,7 @@ export type VideoItem = {
   title: string;
   date: string;
   duration: string;
-  thumbnail: string;
+  thumbnail?: string;
   uploaderName: string;
   videoUrl?: string; // 로컬/데모 영상 URL (optional)
 };

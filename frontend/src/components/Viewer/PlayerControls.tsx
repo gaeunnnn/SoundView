@@ -1,6 +1,6 @@
 // 프로그레스 바와 재생 컨트롤 버튼 영역 컴포넌트 파일
 import { useState, useRef, useEffect } from "react";
-import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Vibrate, Settings } from "lucide-react";
+import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Settings } from "lucide-react";
 import type { SoundEvent } from "../../constants/edit";
 
 type PlayerControlsProps = {
@@ -14,7 +14,6 @@ type PlayerControlsProps = {
   showVolume: boolean;
   subtitleOn: boolean;
   emojiOn: boolean;
-  vibrateOn: boolean;
   soundEvents?: SoundEvent[];
   progressRef: React.RefObject<HTMLDivElement | null>;
   onProgressClick: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -26,7 +25,6 @@ type PlayerControlsProps = {
   onReset: () => void;
   onSubtitleToggle: () => void;
   onEmojiToggle: () => void;
-  onVibrateToggle: () => void;
   showControls: boolean;
   isFullscreen: boolean;
   onFullscreen: () => void;
@@ -49,7 +47,6 @@ export default function PlayerControls({
   showVolume,
   subtitleOn,
   emojiOn,
-  vibrateOn,
   soundEvents = [],
   progressRef,
   onProgressClick,
@@ -60,7 +57,6 @@ export default function PlayerControls({
   onShowVolumeChange,
   onSubtitleToggle,
   onEmojiToggle,
-  onVibrateToggle,
   showControls,
   isFullscreen,
   onFullscreen,
@@ -209,20 +205,6 @@ export default function PlayerControls({
             ].join(" ")}
           >
             <Smile size={16} />
-          </button>
-          {/* 진동 - ON: 초록색 */}
-          <button
-            type="button"
-            onClick={onVibrateToggle}
-            title="진동"
-            className={[
-              "flex items-center justify-center rounded-md p-1.5 transition-all",
-              vibrateOn
-                ? "bg-[#10B981]/20 text-[#6EE7B7] shadow-sm"
-                : "text-white/60 hover:bg-white/10 hover:text-white",
-            ].join(" ")}
-          >
-            <Vibrate size={16} />
           </button>
           <div className="w-px h-3.5 bg-white/20" />
           <div ref={shortcutsRef} className="relative">
