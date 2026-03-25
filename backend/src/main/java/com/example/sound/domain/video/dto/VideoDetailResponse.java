@@ -30,14 +30,15 @@ public class VideoDetailResponse {
         return VideoDetailResponse.builder()
                 .videoId(v.getId())
                 .title(v.getTitle())
-                .videoUrl(signer.generateSignedUrl(v.getVideoS3Key()))
+                .videoUrl(signer.generateSignedUrl(v.getVideoS3Key())) // 영상만 Signed URL (보안 유지)
                 .thumbnailUrl(signer.generatePublicUrl(v.getThumbnailS3Key()))
                 .durationSec(v.getDurationSec())
                 .status(v.getStatus().name())
-                .subtitleUrl(signer.generateSignedUrl(v.getSubtitleS3Key()))
-                .vibrationUrl(signer.generateSignedUrl(v.getVibrationS3Key()))
-                .vibrationBinaryUrl(signer.generateSignedUrl(v.getVibrationBinaryS3Key()))
-                .soundEventUrl(signer.generateSignedUrl(v.getSoundEventS3Key()))
+                // 자막, 진동 데이터 등은 연산 속도를 위해 Public URL로 변경
+                .subtitleUrl(signer.generatePublicUrl(v.getSubtitleS3Key()))
+                .vibrationUrl(signer.generatePublicUrl(v.getVibrationS3Key()))
+                .vibrationBinaryUrl(signer.generatePublicUrl(v.getVibrationBinaryS3Key()))
+                .soundEventUrl(signer.generatePublicUrl(v.getSoundEventS3Key()))
                 .build();
     }
 }
