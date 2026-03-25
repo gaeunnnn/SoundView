@@ -2,7 +2,7 @@
 ATST-F 기반 환경음 분류 모델.
 
 Demucs로 분리된 no_vocals(배경음) numpy 배열을 입력받아
-시간대별 환경음 이벤트를 한국어 자막 형태로 반환합니다.
+시간대별 환경음 이벤트를 한국어 자막 + 이모지 형태로 반환합니다.
 
 핵심 추론/후처리 로직은 동일 디렉토리의 atst_engine.py에 위임합니다.
 """
@@ -10,6 +10,7 @@ Demucs로 분리된 no_vocals(배경음) numpy 배열을 입력받아
 import os
 import sys
 import asyncio
+import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -40,6 +41,7 @@ _CHECKPOINT_PATH = _PRETRAINED_SED_ROOT / "resources" / "ATST-F_strong_1.pt"
 _LABEL_TRANSLATION_PATH = _ATST_DIR / "atst_label_translations.ko.json"
 _CAPTION_LABEL_PATH = _ATST_DIR / "atst_label_ko.json"
 _POSTPROCESS_CONFIG_PATH = _ATST_DIR / "atstf_environment_postprocess.sample.json"
+_CAPTION_EMOJI_PATH = _ATST_DIR / "caption_emoji.json"
 
 
 def _import_atst_engine():
@@ -130,6 +132,13 @@ class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
             # AMP 사용 여부
             self.use_amp = engine.should_use_amp(self.device, disable_amp=False)
 
+            # 이모지 매핑 로드
+            self.caption_emoji = {}
+            if _CAPTION_EMOJI_PATH.exists():
+                with open(_CAPTION_EMOJI_PATH, "r", encoding="utf-8") as f:
+                    self.caption_emoji = json.load(f)
+                logger.info(f"[SoundEventModel] 이모지 매핑 로드 완료: {len(self.caption_emoji)}개")
+
             logger.info("[SoundEventModel] 초기화 완료.")
 
         except Exception as e:
@@ -218,23 +227,20 @@ class SoundEventModel(BaseAIModel[np.ndarray, List[Dict[str, Any]]]):
             # 자막 후처리 결과를 DetectedEvent로 변환
             final_events = engine.subtitle_events_to_detected_events(processed_subtitle_events)
 
-            # ── 8. 결과 변환 (기존 인터페이스 호환) ──
+            # ── 8. 결과 변환 ──
             results = []
             for event in final_events:
                 caption_label = event.caption_label_override or engine.resolve_caption_label(
                     event.event_label, self.label_translations, self.caption_label_overrides
                 )
-                label_ko = engine.resolve_label_translation(
-                    event.event_label, self.label_translations
-                )
+                # caption_label에 대응하는 이모지 조회 (없으면 🔊 기본값)
+                emoji = self.caption_emoji.get(caption_label, "🔊")
 
                 results.append({
                     "start": round(event.onset, 2),
                     "end": round(event.offset, 2),
-                    "event": caption_label,
-                    "event_en": event.event_label,
-                    "label_ko": label_ko,
                     "caption_label": caption_label,
+                    "emoji": emoji,
                     "duration": round(event.duration, 2),
                     "max_confidence": round(event.max_confidence, 4),
                     "mean_confidence": round(event.mean_confidence, 4),
