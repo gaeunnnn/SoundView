@@ -4,8 +4,11 @@ export type ViewerVideo = {
   title: string;
   date: string;
   duration: string;
-  thumbnail: string;
+  thumbnail?: string;
   videoUrl?: string;
+  subtitleUrl?: string | null;
+  soundEventUrl?: string | null;
+  vibrationBinaryUrl?: string | null;
   uploadedBy?: { name: string; isMe?: boolean };
 };
 

@@ -48,8 +48,8 @@ export const getVideoReactions = (videoId: number): Promise<ReactionsResponse> =
   apiClient.get<ReactionsResponse>(`/api/videos/${videoId}/reaction`).then((res) => res.data);
 
 // GET /api/videos/{videoId}/status — 영상 처리 상태 조회
-export const getVideoStatus = (videoId: number): Promise<{ status: string }> =>
-  apiClient.get<{ status: string }>(`/api/videos/${videoId}/status`).then((res) => res.data);
+export const getVideoStatus = (videoId: number): Promise<string> =>
+  apiClient.get<string>(`/api/videos/${videoId}/status`).then((res) => res.data);
 
 // PATCH /api/videos/{videoId} — 영상 제목 수정
 export const updateVideoTitle = (videoId: number, title: string): Promise<UpdatedVideo> =>
@@ -66,3 +66,12 @@ export const deleteVideoReaction = (videoId: number, emoji: string): Promise<voi
 // DELETE /api/videos/{videoId} — 영상 자체 삭제 (모든 앨범에서 제거됨)
 export const deleteVideo = (videoId: number): Promise<void> =>
   apiClient.delete(`/api/videos/${videoId}`).then(() => {});
+
+export type EditSaveUrlsResponse = {
+  subtitleUploadUrl: string;
+  soundEventUploadUrl: string;
+};
+
+// GET /api/videos/{videoId}/edit-save — 편집 저장용 Presigned URL 발급 (videoId는 videos.id)
+export const getEditSaveUrls = (videoId: number): Promise<EditSaveUrlsResponse> =>
+  apiClient.get<EditSaveUrlsResponse>(`/api/videos/${videoId}/edit-save`).then((res) => res.data);

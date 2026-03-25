@@ -4,7 +4,6 @@ import { Bell } from "lucide-react";
 import {
   subscribeNotifications,
   getNotifications,
-  getUnreadCount,
   markNotificationRead,
 } from "../../../api/notification";
 import type { Notification } from "../../../api/notification";
@@ -21,18 +20,28 @@ export default function NotificationButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const initializedRef = useRef(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // 마운트 시 읽지 않은 알림 개수 조회
+  // 마운트 시 알림 목록 + 미읽음 개수 초기 로드
   useEffect(() => {
-    getUnreadCount().then(setUnreadCount).catch(() => {});
+    getNotifications().then((data) => {
+      setNotifications(data);
+      setUnreadCount(data.filter((n) => !n.isRead).length);
+      initializedRef.current = true;
+    }).catch(() => {});
   }, []);
 
-  // SSE 구독 — 새 알림 수신 시 목록 맨 앞에 추가
+  // SSE 구독 — 새 알림 수신 시 즉시 목록 맨 앞에 추가 + unreadCount 증가
   useEffect(() => {
-    const unsubscribe = subscribeNotifications((n: Notification) => {
-      setNotifications((prev) => [n, ...prev]);
-      setUnreadCount((c) => c + 1);
+    const unsubscribe = subscribeNotifications({
+      onNotification: (n: Notification) => {
+        setNotifications((prev) => [n, ...prev]);
+        setUnreadCount((c) => c + 1);
+      },
+      onVideoCompleted: () => {
+        setUnreadCount((c) => c + 1);
+      },
     });
     return unsubscribe;
   }, []);
@@ -47,28 +56,16 @@ export default function NotificationButton() {
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
 
-  // 아이콘 클릭 시 API로 알림 목록 조회
-  const handleOpen = async () => {
+  // 아이콘 클릭 시 열기 — 서버 재조회 없이 로컬 상태 유지, 미읽음만 읽음처리
+  const handleOpen = () => {
     const next = !isOpen;
     setIsOpen(next);
-    if (next) {
-      setUnreadCount(0);
-      try {
-        const data = await getNotifications();
-        setNotifications(data);
-      } catch {
-        // 조회 실패 시 기존 목록 유지
-      }
-    }
-  };
-
-  // 알림 항목 클릭 시 읽음 처리
-  const handleClickItem = (item: Notification) => {
-    if (item.isRead) return;
-    markNotificationRead(item.id).catch(() => {});
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n))
-    );
+    if (!next) return;
+    // 미읽음 알림 읽음처리 API 호출 (fire-and-forget)
+    notifications.filter((n) => !n.isRead).forEach((n) => markNotificationRead(n.id).catch(() => {}));
+    // 로컬 상태 즉시 읽음으로 변경 + count 0
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
   };
 
   return (
@@ -102,7 +99,7 @@ export default function NotificationButton() {
               {notifications.map((item) => (
                 <li
                   key={item.id}
-                  onClick={() => handleClickItem(item)}
+                  onClick={() => { markNotificationRead(item.id).catch(() => {}); }}
                   className={[
                     "flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors hover:bg-[#F8FAFC]",
                     !item.isRead ? "bg-[#F0F7FF]" : "",

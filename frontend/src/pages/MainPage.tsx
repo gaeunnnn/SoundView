@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getAlbums, editAlbumTitle, leaveAlbum, createAlbum, getAlbumMembers, getAlbumVideos } from "../api/album";
-import { getVideoStatus, getVideoReactions } from "../api/video";
+import { getVideoReactions } from "../api/video";
 import { useUser } from "../context/UserContext";
 import { useVideos } from "../context/VideosContext";
 import MainHeader from "../components/Main/Header/MainHeader";
@@ -18,15 +18,12 @@ import { useUpload } from "../context/UploadContext";
 
 const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
 
-const POLL_INTERVAL = 3000;  // 3초마다 폴링
-const POLL_MAX = 40;          // 최대 2분(40 * 3s)
-
 export default function MainPage() {
   const navigate = useNavigate();
   const { me } = useUser();
   const { fetchVideos } = useVideos();
-  const { uploadedVideoId } = useUpload();
-  const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { status: uploadStatus, doneUpload } = useUpload();
+  const myAlbumIdRef = useRef<number | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [myAlbumId, setMyAlbumId] = useState<number | null>(null);
@@ -40,42 +37,21 @@ export default function MainPage() {
   const renameTargetName = sharedAlbums.find((a) => a.id === renameTargetId)?.name ?? "";
   const leaveTargetName = sharedAlbums.find((a) => a.id === leaveTargetId)?.name ?? "";
 
-  // 업로드 후 PROCESSING → COMPLETED 폴링
+  // AI 처리 완료 시 영상 목록 갱신
   useEffect(() => {
-    if (!uploadedVideoId || !myAlbumId) return;
-    let count = 0;
-    const poll = async () => {
-      try {
-        const { status } = await getVideoStatus(uploadedVideoId);
-        console.log("[폴링] videoId:", uploadedVideoId, "status:", status);
-        if (status === "COMPLETED") {
-          await fetchVideos(myAlbumId);
-          return;
-        }
-      } catch {
-        // 404 등 에러 시 폴링 중단
-        return;
-      }
-      count += 1;
-      if (count < POLL_MAX) {
-        pollTimerRef.current = setTimeout(poll, POLL_INTERVAL);
-      }
-    };
-    poll();
-    return () => {
-      if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-    };
-  }, [uploadedVideoId, myAlbumId]);
+    if (uploadStatus === "done" && myAlbumIdRef.current) {
+      fetchVideos(myAlbumIdRef.current).catch(() => {});
+    }
+  }, [uploadStatus]);
 
   useEffect(() => {
     getAlbums().then(async (albums) => {
-      console.log("[MainPage] 앨범 목록:", albums);
       const my = albums.find((a) => a.name === "내 앨범" && a.memberCount === 1);
-      console.log("[MainPage] 내 앨범:", my);
       const shared = albums.filter((a) => !(a.name === "내 앨범" && a.memberCount === 1));
       if (my) {
         setMyAlbumId(my.albumId);
         setActiveMyAlbumId(my.albumId);
+        myAlbumIdRef.current = my.albumId;
       }
       const sharedWithMembers = await Promise.all(
         shared.map(async (a) => {
@@ -97,6 +73,13 @@ export default function MainPage() {
     }).catch(() => {});
   }, []);
 
+  const handleVideoCompleted = (_videoId: number) => {
+    if (myAlbumIdRef.current) {
+      fetchVideos(myAlbumIdRef.current).catch(() => {});
+    }
+    doneUpload();
+  };
+
   const handleClickMyAlbum = (albumId: number) => {
     setActiveMyAlbumId(albumId);
     setActiveSharedAlbumId(null);
@@ -112,7 +95,7 @@ export default function MainPage() {
     Promise.all([getAlbumMembers(albumId), getAlbumVideos(albumId)])
       .then(async ([members, videos]) => {
         const reactionsList = await Promise.all(
-          videos.map((v) => getVideoReactions(v.videoId).catch(() => ({ videoId: v.videoId, reactions: [] })))
+          videos.map((v) => getVideoReactions(v.videoId ?? v.albumVideoId).catch(() => ({ videoId: v.videoId, reactions: [] })))
         );
         setActiveSharedAlbumDetail({
           id: albumId,
@@ -129,10 +112,10 @@ export default function MainPage() {
             const uploader = members.find((m) => m.nickname === v.uploaderName);
             const rawReactions = reactionsList[i]?.reactions ?? [];
             return {
-              id: v.videoId,
-              videoId: v.videoId,
+              id: v.albumVideoId,
+              videoId: v.videoId ?? v.albumVideoId,
               title: v.title,
-              thumbnail: v.thumbnailUrl ?? "",
+              thumbnail: v.thumbnailUrl ?? undefined,
               duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
               date: v.createdAt.slice(0, 10).replace(/-/g, "."),
               uploadedBy: {
@@ -203,6 +186,7 @@ export default function MainPage() {
         onClickLogo={() => navigate("/main")}
         onClickHelp={() => {}}
         onClickProfile={() => {}}
+        onVideoCompleted={handleVideoCompleted}
       />
 
       <div className="flex flex-1 overflow-hidden flex-col lg:flex-row pb-14 lg:pb-0">

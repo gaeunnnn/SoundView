@@ -3,17 +3,19 @@ import { startTransition, useCallback, useEffect, useRef, useState } from "react
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Download, ChevronRight, ChevronLeft,
-  SkipBack, SkipForward, Play, Pause, Volume2,
-  Subtitles, Smile, Vibrate, Settings, Maximize2, Minimize2,
+  Subtitles,
   CheckCircle2, X,
 } from "lucide-react";
 import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
+import { useLocation } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import PlayerOverlay from "../components/Viewer/PlayerOverlay";
+import PlayerControls from "../components/Viewer/PlayerControls";
 import type { SoundEvent } from "../constants/edit";
 import { useUpload } from "../context/UploadContext";
-import { updateVideoTitle, deleteVideo } from "../api/video";
+import { updateVideoTitle, getVideoFull, getEditSaveUrls } from "../api/video";
+import type { VideoItem } from "../types/video";
 
 function formatTime(sec: number) {
   const m = Math.floor(sec / 60);
@@ -25,6 +27,7 @@ type ActiveEmoji = {
   eventId: number;
   emoji: string;
   triggeredAt: number;
+  endSec: number; // 소리 인식 종료 시각
 };
 
 // 소리 이벤트 목록 - 체크박스 포함 (수정 페이지)
@@ -64,13 +67,15 @@ function EventList({
               </svg>
             )}
           </div>
-          <span className={["w-10 shrink-0 font-mono text-xs", isFullscreen ? "text-[#60A5FA]" : "text-[#2563EB]"].join(" ")}>
-            {ev.timeLabel}
-          </span>
-          <span className="text-base leading-none">{ev.emoji}</span>
-          <span className={["truncate text-sm", isFullscreen ? "text-white/90" : "text-[#1E293B]"].join(" ")}>
-            {ev.description}
-          </span>
+          <span className="text-base leading-none shrink-0">{ev.emoji}</span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className={["truncate text-sm font-medium", isFullscreen ? "text-white/90" : "text-[#1E293B]"].join(" ")}>
+              {ev.description}
+            </span>
+            <span className={["font-mono text-[10px]", isFullscreen ? "text-[#60A5FA]" : "text-[#2563EB]"].join(" ")}>
+              {ev.timeSec.toFixed(1)}s ~ {ev.endSec.toFixed(1)}s · {ev.duration.toFixed(1)}s
+            </span>
+          </div>
         </button>
       ))}
     </>
@@ -79,28 +84,84 @@ function EventList({
 
 export default function EditPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { me } = useUser();
-  const { uploadedVideoUrl, uploadedFileType, uploadedVideoId, uploadedTitle } = useUpload();
+  const { uploadedVideoUrl, uploadedVideoId, uploadedAlbumVideoId, uploadedTitle } = useUpload();
 
-  const isRealFile = !!uploadedVideoUrl && uploadedFileType.startsWith("video/");
-  const mediaUrl = uploadedVideoUrl ?? "";
-  const mediaTitle = uploadedTitle;
+  // 내 앨범에서 편집 버튼으로 진입 시 state로 전달된 video
+  const stateVideo = location.state?.video as VideoItem | undefined;
+
+  const [mediaUrl, setMediaUrl] = useState(uploadedVideoUrl ?? "");
+
+  const isRealFile = !!mediaUrl;
+  const mediaTitle = stateVideo?.title ?? uploadedTitle;
+
+  // subtitle 상태
+  const [subtitles, setSubtitles] = useState<{ start: number; end: number; text: string; emotion: string; confidence: number }[]>([]);
+  // getVideoFull에서 받은 실제 videos.id (edit-save, PATCH에 사용)
+  const [resolvedVideoId, setResolvedVideoId] = useState<number | null>(null);
+
+  // videoId로 sound_event + subtitle 로드
+  const loadVideoData = useCallback((videoId: number) => {
+    getVideoFull(videoId).then((res) => {
+      if (res.video.videoUrl) setMediaUrl(res.video.videoUrl);
+      setResolvedVideoId(res.video.videoId);
+
+      const soundUrl = res.video.soundEventUrl;
+      if (soundUrl) {
+        fetch(`${soundUrl}?t=${Date.now()}`, { cache: "no-store", headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" } })
+          .then((r) => r.json())
+          .then((data: { start: number; end: number; duration?: number; caption_label: string; emoji: string; enabled?: boolean }[]) => {
+            setEvents(data.map((e, i) => {
+              const dur = e.duration ?? (e.end - e.start);
+              return {
+                id: i,
+                timeSec: e.start,
+                endSec: e.end ?? e.start + 1,
+                duration: dur,
+                timeLabel: `${e.start.toFixed(1)}s`,
+                emoji: e.emoji ?? "🔊",
+                description: e.caption_label,
+                enabled: e.enabled !== false,
+              };
+            }));
+          })
+          .catch(() => {});
+      }
+
+      const subtitleUrl = res.video.subtitleUrl;
+      if (subtitleUrl) {
+        fetch(`${subtitleUrl}?t=${Date.now()}`, { cache: "no-store", headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" } })
+          .then((r) => r.json())
+          .then((data: { start: number; end: number; text: string; emotion: string; confidence: number }[]) => {
+            setSubtitles(data);
+          })
+          .catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
+
+  // 내 앨범에서 진입한 경우
+  useEffect(() => {
+    if (stateVideo) loadVideoData(stateVideo.id);
+  }, [stateVideo?.id]);
+
+  // 업로드 후 진입한 경우 — albumVideoId로 getVideoFull 호출
+  useEffect(() => {
+    if (!stateVideo && uploadedAlbumVideoId) loadVideoData(uploadedAlbumVideoId);
+  }, [uploadedAlbumVideoId]);
 
   const [events, setEvents] = useState<SoundEvent[]>([]);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentSec, setCurrentSec] = useState(0);
-  const [hoveredDotId, setHoveredDotId] = useState<number | null>(null);
   const [subtitleOn, setSubtitleOn] = useState(true);
   const [emojiOn, setEmojiOn] = useState(true);
-  const [vibrateOn, setVibrateOn] = useState(true);
   const [activeEmojis, setActiveEmojis] = useState<ActiveEmoji[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showControls, setShowControls] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState(mediaTitle);
-  const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [leaveTarget, setLeaveTarget] = useState<string | null>(null);
   const savedRef = useRef(false);
 
   // uploadedTitle이 Context에서 늦게 반영될 경우를 대비해 동기화
@@ -108,51 +169,64 @@ export default function EditPage() {
     if (mediaTitle) setSaveName(mediaTitle);
   }, [mediaTitle]);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [showOverlay, setShowOverlay] = useState(false);
-  const [showShortcuts, setShowShortcuts] = useState(false);
-  const shortcutsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!showShortcuts) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (shortcutsRef.current && !shortcutsRef.current.contains(e.target as Node)) {
-        setShowShortcuts(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showShortcuts]);
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState(true);
+  const [volume, setVolume] = useState(80);
+  const [isMuted, setIsMuted] = useState(false);
+  const [showVolume, setShowVolume] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPlayingRef = useRef(false);
+  const handlePlayPauseRef = useRef<() => void>(() => {});
 
   const [totalSec, setTotalSec] = useState(0);
   const [duration, setDuration] = useState("00:00");
+  const [currentTime, setCurrentTime] = useState(0); // 부드러운 프로그레스바용 실수값
   const enabledEvents = events.filter((e) => e.enabled);
   const enabledCount = enabledEvents.length;
-  const progressPct = (currentSec / totalSec) * 100;
+  const progressPct = totalSec > 0 ? (currentTime / totalSec) * 100 : 0;
 
-  // 컨트롤 자동 숨김 타이머 리셋
-  const resetControlsTimer = useCallback(() => {
-    setShowControls(true);
-    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-    controlsTimerRef.current = setTimeout(() => setShowControls(false), 2000);
-  }, []);
-
-  // 오버레이 표시 타이머 (재생/정지 시에만 호출)
   const resetOverlayTimer = useCallback(() => {
     setShowOverlay(true);
     if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
     overlayTimerRef.current = setTimeout(() => setShowOverlay(false), 1000);
   }, []);
 
+  const resetControlsTimer = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = setTimeout(() => {
+      if (isPlayingRef.current) setShowControls(false);
+    }, 2000);
+  }, []);
+
+  const handleMouseMove = useCallback(() => {
+    resetControlsTimer();
+  }, [resetControlsTimer]);
+
   const handlePlayPause = useCallback(() => {
-    setIsPlaying((p) => !p);
+    const next = !isPlayingRef.current;
+    setIsPlaying(next);
     resetOverlayTimer();
-  }, [resetOverlayTimer]);
+    if (next) resetControlsTimer();
+  }, [resetOverlayTimer, resetControlsTimer]);
+
+  // isPlayingRef 동기화 + 정지 시 컨트롤 복원
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+    if (!isPlaying) {
+      setShowControls(true);
+      if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    }
+  }, [isPlaying]);
+
+  // handlePlayPauseRef 항상 최신 함수 참조 유지
+  useEffect(() => {
+    handlePlayPauseRef.current = handlePlayPause;
+  }, [handlePlayPause]);
 
   // 컨트롤/오버레이 타이머 클린업
   useEffect(() => {
@@ -162,39 +236,32 @@ export default function EditPage() {
     };
   }, []);
 
-  // 저장 없이 이탈 시 영상 삭제
+  // 브라우저 탭 닫기 / 새로고침 시 경고
   useEffect(() => {
-    if (!uploadedVideoId) return;
-    // 브라우저 탭 닫기 / 새로고침
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (savedRef.current) return;
       e.preventDefault();
-      // 동기 fetch로 삭제 요청 (beacon API는 DELETE 미지원이므로 경고만)
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      // 컴포넌트 언마운트(SPA 내 페이지 이동) 시 미저장이면 삭제
-      if (!savedRef.current) {
-        deleteVideo(uploadedVideoId).catch(() => {});
-      }
-    };
-  }, [uploadedVideoId]);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
-  // 재생 시뮬레이션
+
+  // isPlaying 변경 시 실제 video 태그 play/pause 제어
   useEffect(() => {
-    if (isPlaying) {
-      intervalRef.current = setInterval(() => {
-        setCurrentSec((prev) => {
-          if (prev >= totalSec) { setIsPlaying(false); return totalSec; }
-          return prev + 1;
-        });
-      }, 1000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isPlaying, totalSec]);
+    const el = videoRef.current;
+    if (!el) return;
+    if (isPlaying) el.play().catch(() => {});
+    else el.pause();
+  }, [isPlaying]);
+
+  // 볼륨 / 음소거 동기화
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.volume = isMuted ? 0 : volume / 100;
+    el.muted = isMuted;
+  }, [volume, isMuted]);
 
   // 전체화면 변경 감지
   useEffect(() => {
@@ -207,18 +274,23 @@ export default function EditPage() {
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
 
-  // 이모지 트리거 & 만료 관리
+  // 이모지 오버레이 — start~end 범위 동안 표시 + end 후 5초 유지
   useEffect(() => {
     if (!emojiOn) return;
     startTransition(() => {
       setActiveEmojis((prev) => {
-        const newItems = events
-          .filter((ev) => ev.enabled && currentSec === ev.timeSec)
+        // 새로 진입한 이모지 추가
+        const nowActive = events.filter(
+          (ev) => ev.enabled && currentSec >= ev.timeSec && currentSec < (ev.endSec ?? ev.timeSec + 1)
+        );
+        const newItems: ActiveEmoji[] = nowActive
           .filter((ev) => !prev.some((ae) => ae.eventId === ev.id))
-          .map((ev) => ({ eventId: ev.id, emoji: ev.emoji, triggeredAt: currentSec }));
+          .map((ev) => ({ eventId: ev.id, emoji: ev.emoji, triggeredAt: currentSec, endSec: ev.endSec ?? ev.timeSec + 1 }));
+
         return [...prev, ...newItems]
-          .filter((ae) => currentSec - ae.triggeredAt < 5)
-          .slice(-5);
+          // end 후 5초 지난 것 제거
+          .filter((ae) => currentSec < ae.endSec + 5)
+          .slice(0, 5);
       });
     });
   }, [currentSec, emojiOn, events]);
@@ -227,12 +299,12 @@ export default function EditPage() {
     if (!emojiOn) startTransition(() => setActiveEmojis([]));
   }, [emojiOn]);
 
-  // 진동: 활성화된 이벤트 타이밍에 vibrate 호출
+  // 진동: 모든 이벤트 타이밍에 vibrate 호출
   useEffect(() => {
-    if (!vibrateOn || !("vibrate" in navigator)) return;
-    const triggered = events.filter((ev) => ev.enabled && currentSec === ev.timeSec);
+    if (!("vibrate" in navigator)) return;
+    const triggered = events.filter((ev) => currentSec === Math.floor(ev.timeSec));
     if (triggered.length > 0) navigator.vibrate(200);
-  }, [currentSec, vibrateOn, events]);
+  }, [currentSec, events]);
 
   // 키보드 단축키
   useEffect(() => {
@@ -243,16 +315,19 @@ export default function EditPage() {
         case " ":
         case "k":
           e.preventDefault();
-          setIsPlaying((p) => !p);
-          resetOverlayTimer();
+          handlePlayPauseRef.current();
           break;
         case "ArrowRight":
           e.preventDefault();
-          setCurrentSec((prev) => Math.min(totalSec, prev + 5));
+          if (videoRef.current) {
+            videoRef.current.currentTime = Math.min(totalSec, videoRef.current.currentTime + 5);
+          }
           break;
         case "ArrowLeft":
           e.preventDefault();
-          setCurrentSec((prev) => Math.max(0, prev - 5));
+          if (videoRef.current) {
+            videoRef.current.currentTime = Math.max(0, videoRef.current.currentTime - 5);
+          }
           break;
         case "f":
         case "F":
@@ -281,7 +356,9 @@ export default function EditPage() {
     if (!progressRef.current) return;
     const rect = progressRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    setCurrentSec(Math.floor(ratio * totalSec));
+    const sec = Math.floor(ratio * totalSec);
+    setCurrentSec(sec);
+    if (videoRef.current) videoRef.current.currentTime = sec;
   };
 
   const handleFullscreen = () => {
@@ -305,28 +382,55 @@ export default function EditPage() {
 
   const toggleEvent = (id: number) => {
     setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, enabled: !ev.enabled } : ev)));
+    // 비활성화 시 activeEmojis에서 즉시 제거
+    setActiveEmojis((prev) => prev.filter((ae) => ae.eventId !== id));
   };
 
-  // 저장 없이 이탈 시도 — uploadedVideoId가 있으면 확인 모달, 없으면 바로 이동
   const handleNavigateAway = (target: string) => {
-    if (uploadedVideoId && !savedRef.current) {
-      setLeaveTarget(target);
-      setShowLeaveModal(true);
-    } else {
-      navigate(target);
-    }
-  };
-
-  const handleConfirmLeave = () => {
-    setShowLeaveModal(false);
-    // 삭제는 언마운트 useEffect에서 처리됨
-    navigate(leaveTarget ?? "/main");
+    navigate(target);
   };
 
   const handleSave = async () => {
     if (!saveName.trim()) return;
-    if (uploadedVideoId && saveName.trim() !== uploadedTitle) {
-      await updateVideoTitle(uploadedVideoId, saveName.trim()).catch(console.error);
+    setSaveError(null);
+    const targetVideoId = resolvedVideoId ?? uploadedVideoId ?? stateVideo?.videoId;
+    if (!targetVideoId) {
+      setSaveError("저장할 영상 ID를 찾을 수 없습니다.");
+      return;
+    }
+    try {
+      // 제목 수정 + 편집 저장 URL 발급 병렬 실행
+      const [, urls] = await Promise.all([
+        updateVideoTitle(targetVideoId, saveName.trim()),
+        getEditSaveUrls(targetVideoId),
+      ]);
+      if (urls?.soundEventUploadUrl) {
+        const soundEventData = events.map((e) => ({
+          start: e.timeSec,
+          end: e.endSec,
+          duration: e.duration,
+          caption_label: e.description,
+          emoji: e.emoji,
+          enabled: e.enabled,
+        }));
+        const s3Res = await fetch(urls.soundEventUploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+          },
+          body: JSON.stringify(soundEventData),
+        });
+        if (!s3Res.ok) throw new Error(`S3 업로드 실패: ${s3Res.status}`);
+      }
+    } catch (err: unknown) {
+      console.error("[저장 실패]", err);
+      const axiosErr = err as { response?: { status: number; data: unknown } };
+      const detail = axiosErr?.response
+        ? `(${axiosErr.response.status}) ${JSON.stringify(axiosErr.response.data)}`
+        : err instanceof Error ? err.message : String(err);
+      setSaveError(`저장 중 오류가 발생했습니다: ${detail}`);
+      return;
     }
     savedRef.current = true;
     setSaveSuccess(true);
@@ -338,7 +442,7 @@ export default function EditPage() {
   };
 
   const currentSubtitle = subtitleOn
-    ? enabledEvents.find((e) => Math.abs(e.timeSec - currentSec) <= 3) ?? null
+    ? subtitles.find((s) => currentSec >= s.start && currentSec < s.end) ?? null
     : null;
 
   return (
@@ -414,11 +518,12 @@ export default function EditPage() {
           <div
             ref={playerRef}
             className="relative flex-1 overflow-hidden bg-black"
-            onMouseMove={resetControlsTimer}
-            style={{ cursor: !showControls ? "none" : "default" }}
+            onMouseMove={handleMouseMove}
+            style={{ cursor: isFullscreen && !showControls ? "none" : "default" }}
           >
             {isRealFile ? (
               <video
+                ref={videoRef}
                 src={mediaUrl}
                 className="h-full w-full object-contain cursor-pointer"
                 onClick={handlePlayPause}
@@ -430,24 +535,38 @@ export default function EditPage() {
                   setCurrentSec(0);
                 }}
                 onTimeUpdate={(e) => {
-                  setCurrentSec(Math.floor(e.currentTarget.currentTime));
+                  const t = e.currentTarget.currentTime;
+                  setCurrentSec(Math.floor(t));
+                  setCurrentTime(t);
                 }}
-                ref={(el) => {
-                  if (!el) return;
-                  if (isPlaying) el.play().catch(() => {});
-                  else el.pause();
-                }}
+                onEnded={() => setIsPlaying(false)}
               />
-            ) : (
+            ) : mediaUrl ? (
               <img
                 src={mediaUrl}
                 alt={mediaTitle}
                 className="h-full w-full object-contain opacity-80 cursor-pointer"
                 onClick={handlePlayPause}
               />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+              </div>
             )}
 
             <PlayerOverlay isPlaying={isPlaying} showOverlay={showOverlay} onToggle={handlePlayPause} />
+
+            {/* 자막 오버레이 */}
+            {subtitleOn && currentSubtitle && (
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                <div
+                  className="rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-lg"
+                  style={{ background: "rgba(0,0,0,0.7)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
+                >
+                  {currentSubtitle.text}
+                </div>
+              </div>
+            )}
 
             {/* Liquid Glass 이모지 오버레이 */}
             {emojiOn && activeEmojis.length > 0 && (
@@ -482,18 +601,26 @@ export default function EditPage() {
                   />
                   {/* Content */}
                   <div className="relative z-30 flex items-center gap-3 px-6 py-3">
-                    {activeEmojis.map((ae) => (
-                      <span
-                        key={ae.eventId}
-                        className={[
-                          "text-4xl leading-none transition-opacity duration-1000",
-                          currentSec - ae.triggeredAt >= 4 ? "opacity-0" : "opacity-100",
-                        ].join(" ")}
-                        style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }}
-                      >
-                        {ae.emoji}
-                      </span>
-                    ))}
+                    {activeEmojis.map((ae) => {
+                      const isActive = currentSec < ae.endSec;
+                      // end 후 경과 시간 (0~5초)
+                      const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ae.endSec) / 5);
+                      return (
+                        <span
+                          key={ae.eventId}
+                          className={[
+                            "text-4xl leading-none",
+                            isActive ? "animate-pulse" : "transition-opacity duration-1000",
+                          ].join(" ")}
+                          style={{
+                            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
+                            opacity: 1 - fadeProgress,
+                          }}
+                        >
+                          {ae.emoji}
+                        </span>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -555,143 +682,32 @@ export default function EditPage() {
               </div>
             )}
 
-            {/* 하단 컨트롤 오버레이 */}
-            <div className={[
-              "absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/95 via-black/60 to-transparent px-5 pb-5 pt-20 transition-opacity duration-500",
-              showControls ? "opacity-100" : "opacity-0 pointer-events-none",
-            ].join(" ")}>
-              {/* 타임라인 */}
-              <div
-                ref={progressRef}
-                onClick={handleProgressClick}
-                className="group relative mb-4 h-1.5 w-full cursor-pointer rounded-full bg-white/25 hover:h-2 transition-all duration-150"
-              >
-                <div
-                  className="absolute left-0 top-0 h-full rounded-full bg-[#2563EB] pointer-events-none"
-                  style={{ width: `${progressPct}%` }}
-                />
-                <div
-                  className="absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-md pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ left: `${progressPct}%` }}
-                />
-                {emojiOn && events.map((ev) => {
-                  const leftPct = totalSec > 0 ? (ev.timeSec / totalSec) * 100 : 0;
-                  return (
-                    <div
-                      key={ev.id}
-                      className="absolute top-1/2 z-10 -translate-x-1/2 -translate-y-1/2"
-                      style={{ left: `${leftPct}%` }}
-                      onMouseEnter={() => setHoveredDotId(ev.id)}
-                      onMouseLeave={() => setHoveredDotId(null)}
-                    >
-                      <div className={[
-                        "h-2.5 w-2.5 rounded-full border-2 cursor-pointer transition-all hover:scale-125",
-                        ev.enabled
-                          ? "border-white/70 bg-[#F59E0B]"
-                          : "border-white/30 bg-[#F59E0B]/30",
-                      ].join(" ")} />
-                      {hoveredDotId === ev.id && (
-                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-0.5 whitespace-nowrap rounded-xl bg-black/90 px-3 py-2 shadow-xl">
-                          <span className={["text-lg leading-none", !ev.enabled && "opacity-40"].join(" ")}>{ev.emoji}</span>
-                          <span className={["text-[11px] text-white", !ev.enabled && "line-through opacity-50"].join(" ")}>{ev.description}</span>
-                          <span className="text-[10px] text-white/50">{ev.timeLabel}</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* 컨트롤 버튼 행 */}
-              <div className="flex items-center gap-2">
-                <button type="button" onClick={() => setCurrentSec((s) => Math.max(0, s - 10))}
-                  className="flex h-8 w-8 items-center justify-center text-white/60 hover:text-white transition-colors">
-                  <SkipBack size={18} strokeWidth={2} />
-                </button>
-                <button type="button" onClick={handlePlayPause}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#111827] hover:bg-white/90 transition-colors">
-                  {isPlaying
-                    ? <Pause size={16} fill="currentColor" strokeWidth={0} />
-                    : <Play size={16} fill="currentColor" strokeWidth={0} />}
-                </button>
-                <button type="button" onClick={() => setCurrentSec((s) => Math.min(totalSec, s + 10))}
-                  className="flex h-8 w-8 items-center justify-center text-white/60 hover:text-white transition-colors">
-                  <SkipForward size={18} strokeWidth={2} />
-                </button>
-                <button type="button" className="ml-1 text-white/60 hover:text-white transition-colors">
-                  <Volume2 size={18} strokeWidth={2} />
-                </button>
-                <span className="ml-1 text-xs tabular-nums text-white/70">
-                  {formatTime(currentSec)} / {duration}
-                </span>
-
-                <div className="ml-auto flex items-center gap-1.5">
-                  <button type="button" onClick={() => setSubtitleOn((p) => !p)}
-                    className={["flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                      subtitleOn ? "bg-[#F59E0B]/25 text-[#FCD34D]" : "text-white/50 hover:bg-white/10 hover:text-white"].join(" ")}
-                    title="자막">
-                    <Subtitles size={17} strokeWidth={2} />
-                  </button>
-                  <button type="button" onClick={() => setEmojiOn((p) => !p)}
-                    className={["flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                      emojiOn ? "bg-[#EC4899]/25 text-[#F9A8D4]" : "text-white/50 hover:bg-white/10 hover:text-white"].join(" ")}
-                    title="이모지">
-                    <Smile size={17} strokeWidth={2} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVibrateOn((p) => !p)}
-                    className={["flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                      vibrateOn ? "bg-[#10B981]/25 text-[#6EE7B7]" : "text-white/50 hover:bg-white/10 hover:text-white"].join(" ")}
-                    title="진동"
-                  >
-                    <Vibrate size={17} strokeWidth={2} />
-                  </button>
-                  <div ref={shortcutsRef} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setShowShortcuts((p) => !p)}
-                      className={[
-                        "flex h-8 w-8 items-center justify-center rounded-lg transition-colors",
-                        showShortcuts ? "bg-white/15 text-white" : "text-white/50 hover:bg-white/10 hover:text-white",
-                      ].join(" ")}
-                      title="단축키"
-                    >
-                      <Settings size={17} strokeWidth={2} />
-                    </button>
-                    {showShortcuts && (
-                      <div
-                        className="absolute bottom-10 right-0 z-50 w-52 rounded-xl p-3 text-xs text-white shadow-xl"
-                        style={{
-                          background: "rgba(15,23,42,0.92)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                        }}
-                      >
-                        <p className="mb-2 font-semibold text-white/50 uppercase tracking-wide text-[10px]">단축키</p>
-                        <div className="space-y-1.5">
-                          {[
-                            ["Space / K", "재생 / 정지"],
-                            ["← →", "5초 이동"],
-                            ["F", "전체화면 전환"],
-                            ["C", "자막 패널 (전체화면)"],
-                          ].map(([key, desc]) => (
-                            <div key={key} className="flex items-center justify-between gap-3">
-                              <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono text-[11px] text-white/80">{key}</kbd>
-                              <span className="text-white/60">{desc}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <button type="button" onClick={handleFullscreen}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white transition-colors"
-                    title={isFullscreen ? "전체화면 종료" : "전체화면"}>
-                    {isFullscreen ? <Minimize2 size={17} strokeWidth={2} /> : <Maximize2 size={17} strokeWidth={2} />}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <PlayerControls
+              isPlaying={isPlaying}
+              currentSec={currentSec}
+              totalSec={totalSec}
+              duration={duration}
+              progress={progressPct}
+              volume={volume}
+              isMuted={isMuted}
+              showVolume={showVolume}
+              subtitleOn={subtitleOn}
+              emojiOn={emojiOn}
+              soundEvents={events}
+              progressRef={progressRef}
+              onProgressClick={handleProgressClick}
+              onPlayPause={handlePlayPause}
+              onSkip={(sec) => { if (videoRef.current) videoRef.current.currentTime = Math.max(0, Math.min(totalSec, videoRef.current.currentTime + sec)); }}
+              onMuteToggle={() => setIsMuted((m) => !m)}
+              onVolumeChange={(v) => { setVolume(v); setIsMuted(v === 0); }}
+              onShowVolumeChange={setShowVolume}
+              onReset={() => { if (videoRef.current) videoRef.current.currentTime = 0; setCurrentSec(0); }}
+              onSubtitleToggle={() => setSubtitleOn((p) => !p)}
+              onEmojiToggle={() => setEmojiOn((p) => !p)}
+              showControls={showControls}
+              isFullscreen={isFullscreen}
+              onFullscreen={handleFullscreen}
+            />
           </div>
 
           {/* 자막 표시줄 */}
@@ -699,7 +715,7 @@ export default function EditPage() {
             <div className="flex items-center gap-2 text-sm text-[#94A3B8]">
               <Subtitles size={14} className="shrink-0" />
               {currentSubtitle
-                ? <span className="font-medium text-[#111827]">{currentSubtitle.emoji} {currentSubtitle.description}</span>
+                ? <span className="font-medium text-[#111827]">{currentSubtitle.text}</span>
                 : <span>자막이 표시되지 않습니다</span>}
             </div>
           </div>
@@ -726,34 +742,6 @@ export default function EditPage() {
 
     {/* 저장 모달 */}
     {/* 저장 없이 이탈 확인 모달 */}
-    {showLeaveModal && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-        <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
-          <div className="px-5 py-5">
-            <h2 className="text-base font-semibold text-[#111827]">저장하지 않고 나가시겠습니까?</h2>
-            <p className="mt-2 text-sm text-[#64748B]">
-              저장하지 않으면 업로드한 영상과 생성된 자막, 이모지, 진동 데이터가 모두 삭제됩니다.
-            </p>
-          </div>
-          <div className="flex gap-2 border-t border-[#E8EDF4] px-5 py-4">
-            <button
-              type="button"
-              onClick={() => setShowLeaveModal(false)}
-              className="flex-1 rounded-xl border border-[#E2E8F0] py-2.5 text-sm font-medium text-[#475569] hover:bg-[#F8FAFC] transition-colors"
-            >
-              계속 편집
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirmLeave}
-              className="flex-1 rounded-xl bg-[#EF4444] py-2.5 text-sm font-semibold text-white hover:bg-[#DC2626] transition-colors"
-            >
-              삭제 후 나가기
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
 
     {showSaveModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -791,10 +779,17 @@ export default function EditPage() {
                     autoFocus
                   />
                 </div>
-                <div className="flex items-center gap-2 rounded-xl bg-[#F8FAFC] px-3.5 py-2.5">
-                  <div className="h-2 w-2 rounded-full bg-[#10B981]" />
-                  <span className="text-sm text-[#64748B]">내 앨범에 저장됩니다</span>
-                </div>
+                {saveError ? (
+                  <div className="flex items-center gap-2 rounded-xl bg-[#FEF2F2] px-3.5 py-2.5">
+                    <div className="h-2 w-2 shrink-0 rounded-full bg-[#EF4444]" />
+                    <span className="text-sm text-[#DC2626]">{saveError}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-xl bg-[#F8FAFC] px-3.5 py-2.5">
+                    <div className="h-2 w-2 rounded-full bg-[#10B981]" />
+                    <span className="text-sm text-[#64748B]">내 앨범에 저장됩니다</span>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 border-t border-[#E8EDF4] px-5 py-4">
                 <button

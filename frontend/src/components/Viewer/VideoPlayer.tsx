@@ -20,8 +20,13 @@ type SubtitleEntry = {
 type SoundEventEntry = {
   start: number;
   end: number;
-  event: string;
-  event_en: string;
+  // 새 포맷
+  caption_label?: string;
+  emoji?: string;
+  // 구 포맷
+  event?: string;
+  event_en?: string;
+  enabled?: boolean;
 };
 
 // ── 로더 ──────────────────────────────────────────────────
@@ -104,7 +109,7 @@ function cmdPause(): Uint8Array {
 }
 
 async function loadJson<T>(url: string): Promise<T> {
-  const res = await fetch(url);
+  const res = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
   return res.json();
 }
 
@@ -153,21 +158,30 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   // ── 데이터 로드 ────────────────────────────────────────────
   useEffect(() => {
     if (!video.videoUrl) return;
-    const base = video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "");
 
     vibSentRef.current = false;
-    loadVibrationBin(`${base}/test_vibration.bin`)
+
+    // 진동: vibrationBinaryUrl 우선, 없으면 경로 기반 fallback
+    const vibUrl = video.vibrationBinaryUrl
+      ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_vibration.bin`;
+    loadVibrationBin(vibUrl)
       .then((s) => { vibSamplesRef.current = s; })
       .catch(() => {});
 
-    loadJson<SubtitleEntry[]>(`${base}/test_subtitle.json`)
+    // 자막: subtitleUrl 우선, 없으면 경로 기반 fallback
+    const subtitleUrl = video.subtitleUrl
+      ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_subtitle.json`;
+    loadJson<SubtitleEntry[]>(subtitleUrl)
       .then(setSubtitles)
       .catch(() => {});
 
-    loadJson<SoundEventEntry[]>(`${base}/test_sound_event.json`)
+    // 효과음: soundEventUrl 우선, 없으면 경로 기반 fallback
+    const soundUrl = video.soundEventUrl
+      ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_sound_event.json`;
+    loadJson<SoundEventEntry[]>(soundUrl)
       .then(setSoundEvents)
       .catch(() => {});
-  }, [video.videoUrl]);
+  }, [video.videoUrl, video.subtitleUrl, video.soundEventUrl, video.vibrationBinaryUrl]);
 
   // seek 완료 시 재생 중이면 새 위치부터 cmdPlay
   useEffect(() => {
@@ -201,7 +215,6 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const [showOverlay, setShowOverlay] = useState(true);
   const [subtitleOn, setSubtitleOn] = useState(true);
   const [emojiOn, setEmojiOn] = useState(true);
-  const [vibrateOn, setVibrateOn] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSidePanel, setShowSidePanel] = useState(true);
@@ -219,7 +232,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   useEffect(() => {
     const t = currentSec;
     setCurrentSubtitle(subtitles.find((s) => t >= s.start && t < s.end) ?? null);
-    setActiveSoundEvents(soundEvents.filter((e) => t >= e.start && t < e.end));
+    setActiveSoundEvents(soundEvents.filter((e) => e.enabled !== false && t >= e.start && t < e.end));
   }, [currentSec, subtitles, soundEvents]);
 
   // ── 전체화면 감지 ─────────────────────────────────────────
@@ -382,13 +395,21 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
 
   const progress = totalSec > 0 ? (currentSec / totalSec) * 100 : 0;
 
+  // 포맷 무관하게 이모지/텍스트 추출
+  const getEmoji = (e: SoundEventEntry) =>
+    e.emoji ?? e.event?.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊";
+  const getLabel = (e: SoundEventEntry) =>
+    e.caption_label ?? e.event_en ?? e.event ?? "";
+
   // 프로그레스 바용 효과음 도트 (PlayerControls의 SoundEvent 형태로 변환)
-  const soundEventDots = emojiOn ? soundEvents.map((e, i) => ({
+  const soundEventDots = emojiOn ? soundEvents.filter((e) => e.enabled !== false).map((e, i) => ({
     id: i,
     timeSec: e.start,
+    endSec: e.end,
+    duration: e.end - e.start,
     timeLabel: `${e.start.toFixed(1)}s`,
-    emoji: e.event.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊",
-    description: e.event_en,
+    emoji: getEmoji(e),
+    description: getLabel(e),
     enabled: true,
   })) : [];
 
@@ -400,7 +421,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
         onMouseMove={handleMouseMove}
         style={{ cursor: isFullscreen && !showControls ? "none" : "default" }}
       >
-        {/* 영상 or 썸네일 */}
+        {/* 영상 or 로딩 or 썸네일 */}
         {video.videoUrl ? (
           <video
             ref={videoRef}
@@ -412,7 +433,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
             style={{ cursor: "pointer" }}
             playsInline
           />
-        ) : (
+        ) : video.thumbnail ? (
           <img
             src={video.thumbnail}
             alt={video.title}
@@ -420,6 +441,11 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
             onClick={handlePlayPause}
             style={{ cursor: "pointer" }}
           />
+        ) : (
+          <div className="flex flex-col items-center gap-3 cursor-wait">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+            <p className="text-xs text-white/50">영상 불러오는 중...</p>
+          </div>
         )}
 
         <PlayerOverlay isPlaying={isPlaying} showOverlay={showOverlay} onToggle={handlePlayPause} />
@@ -445,7 +471,7 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
                 {EMOTION_EMOJI[currentSubtitle.emotion] ?? "😐"}
               </span>
               <span className="text-[11px] font-medium text-white/80">
-                {currentSubtitle.emotion.replace(/ \(.+\)/, "")}
+                {currentSubtitle.emotion.match(/\((.+?)\)/)?.[1] ?? currentSubtitle.emotion}
               </span>
               <span className="text-[10px] text-white/50">
                 {currentSubtitle.confidence.toFixed(0)}%
@@ -512,10 +538,11 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
                 }}
               />
               {/* 이모지 목록 */}
-              <div className="relative z-30 flex items-center gap-1 px-3 py-2">
+              <div className="relative z-30 flex items-center gap-3 px-6 py-3">
                 {activeSoundEvents.slice(0, 6).map((e, i) => (
-                  <span key={i} className="text-xl leading-none select-none" title={e.event_en}>
-                    {e.event.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊"}
+                  <span key={i} className="text-4xl leading-none select-none" title={getLabel(e)}
+                    style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }}>
+                    {getEmoji(e)}
                   </span>
                 ))}
               </div>
@@ -571,8 +598,8 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
                         : "text-white/40",
                     ].join(" ")}
                   >
-                    <span>{e.event.match(/[\u{1F300}-\u{1FFFF}]|[\u{2600}-\u{27FF}]/u)?.[0] ?? "🔊"}</span>
-                    <span className="truncate">{e.event_en}</span>
+                    <span>{getEmoji(e)}</span>
+                    <span className="truncate">{getLabel(e)}</span>
                     <span className="ml-auto shrink-0 tabular-nums text-[10px]">{e.start.toFixed(1)}s</span>
                   </div>
                 ))}
@@ -592,7 +619,6 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
           showVolume={showVolume}
           subtitleOn={subtitleOn}
           emojiOn={emojiOn}
-          vibrateOn={vibrateOn}
           progressRef={progressRef}
           onProgressClick={handleProgressClick}
           onPlayPause={handlePlayPause}
@@ -604,7 +630,6 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
           soundEvents={soundEventDots}
           onSubtitleToggle={() => setSubtitleOn((v) => !v)}
           onEmojiToggle={() => setEmojiOn((v) => !v)}
-          onVibrateToggle={() => setVibrateOn((v) => !v)}
           showControls={showControls}
           isFullscreen={isFullscreen}
           onFullscreen={handleFullscreen}

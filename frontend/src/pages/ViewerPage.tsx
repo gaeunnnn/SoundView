@@ -19,24 +19,34 @@ const PRESET_EMOJIS: EmojiReaction[] = [
 export default function ViewerPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const video = location.state?.video as ViewerVideo | undefined;
+  const initialVideo = location.state?.video as ViewerVideo | undefined;
   const isMyAlbum = location.state?.isMyAlbum as boolean | undefined;
+  const [video, setVideo] = useState<ViewerVideo | undefined>(initialVideo);
   const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
   const [comments, setComments] = useState<CommentItem[]>([]);
 
   useEffect(() => {
-    if (!video) return;
-    getVideoFull(video.id).then((res) => {
+    if (!initialVideo) return;
+    setVideo(initialVideo);
+    getVideoFull(initialVideo.id).then((res) => {
       // 댓글 초기화
       setComments(res.comments ?? []);
-      // 리액션 초기화: 서버 데이터 기반으로 PRESET_EMOJIS 업데이트
+      // 리액션 초기화
       const serverReactions = res.reactionSummary?.reactions ?? [];
       setReactions(PRESET_EMOJIS.map((preset) => {
         const found = serverReactions.find((r) => r.emoji === preset.emoji);
         return found ? { emoji: found.emoji, count: found.count, reacted: found.selected } : preset;
       }));
-    }).catch(() => {});
-  }, [video?.id]);
+      // 서버 URL로 video 보완 (videoUrl, subtitleUrl, soundEventUrl, vibrationBinaryUrl)
+      setVideo((prev) => prev ? {
+        ...prev,
+        videoUrl: res.video.videoUrl ?? prev.videoUrl ?? undefined,
+        subtitleUrl: res.video.subtitleUrl,
+        soundEventUrl: res.video.soundEventUrl,
+        vibrationBinaryUrl: res.video.vibrationBinaryUrl,
+      } : prev);
+    }).catch((e) => { console.error("[ViewerPage] getVideoFull 실패:", e); });
+  }, [initialVideo?.id]);
 
   if (!video) { navigate("/main", { replace: true }); return null; }
 

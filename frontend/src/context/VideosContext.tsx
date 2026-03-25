@@ -8,7 +8,7 @@ type VideosContextValue = {
   videos: VideoItem[];
   fetchVideos: (albumId: number) => Promise<void>;
   addVideo: (video: VideoItem) => void;
-  removeVideo: (id: number) => void;
+  removeVideo: (id: number) => Promise<void>;
   renameVideo: (id: number, title: string) => void;
 };
 
@@ -27,7 +27,7 @@ const DEMO_VIDEO: VideoItem = {
   title: "데모 영상",
   date: "2026.03.23",
   duration: "0:24",
-  thumbnail: "",
+  thumbnail: undefined,
   uploaderName: "나",
   videoUrl: "/demo/test.mp4",
 };
@@ -38,15 +38,13 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
   // GET /api/albums/{albumId}/videos — 앨범 영상 목록을 불러와 상태에 저장
   const fetchVideos = async (albumId: number) => {
     if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
-    console.log("[fetchVideos] 호출됨 albumId:", albumId);
     try {
       const data = await getAlbumVideos(albumId);
-      console.log("[fetchVideos] 응답 영상 수:", data.length, data);
       const fetched = data.map((v) => ({
-        id: v.videoId,
-        videoId: v.videoId,
+        id: v.albumVideoId,
+        videoId: v.videoId ?? v.albumVideoId,
         title: v.title,
-        thumbnail: v.thumbnailUrl ?? "",
+        thumbnail: v.thumbnailUrl ?? v.thumbnailS3Key ?? undefined,
         duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
         date: v.createdAt.slice(0, 10).replace(/-/g, "."),
         uploaderName: v.uploaderName,
@@ -62,11 +60,18 @@ export function VideosProvider({ children }: { children: React.ReactNode }) {
     setVideos((prev) => [video, ...prev]);
   };
 
-  const removeVideo = (id: number) => {
+  const removeVideo = async (id: number) => {
     const target = videos.find((v) => v.id === id);
-    setVideos((prev) => prev.filter((v) => v.id !== id));
     // 데모 영상(id=-1)은 API 호출하지 않음
-    if (target && target.videoId > 0) deleteVideo(target.videoId).catch(console.error);
+    if (target && target.videoId > 0) {
+      try {
+        await deleteVideo(target.videoId);
+      } catch (e) {
+        console.error("[removeVideo] 삭제 실패:", e);
+        return; // 실패 시 로컬 상태 변경하지 않음
+      }
+    }
+    setVideos((prev) => prev.filter((v) => v.id !== id));
   };
 
   // PATCH /api/videos/{videoId} — 영상 제목 수정 후 로컬 상태 반영

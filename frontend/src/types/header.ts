@@ -6,4 +6,5 @@ export type MainHeaderProps = {
   onClickLogo?: () => void;
   onClickHelp?: () => void;
   onClickProfile?: () => void;
+  onVideoCompleted?: (videoId: number) => void;
 };

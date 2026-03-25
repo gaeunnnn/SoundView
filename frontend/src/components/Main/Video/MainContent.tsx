@@ -10,7 +10,6 @@ import VideoToolbar from "./VideoToolbar";
 import ShareToAlbumModal from "./ShareToAlbumModal";
 import { useVideos } from "../../../context/VideosContext";
 import { addVideosToAlbum } from "../../../api/album";
-import { deleteVideo } from "../../../api/video";
 import EspVibrationButton from "../../Esp32/EspVibrationButton";
 
 type MainContentProps = {
@@ -73,9 +72,6 @@ export default function MainContent({ sharedAlbums, albumId }: MainContentProps)
 
   const handleConfirmDelete = async () => {
     if (deleteTargetId !== null) {
-      const target = videos.find((v) => v.id === deleteTargetId);
-      // 데모 영상(id=-1)은 API 호출 없이 로컬에서만 제거
-      if (target && target.videoId > 0) await deleteVideo(target.videoId).catch(() => {});
       removeVideo(deleteTargetId);
     }
     setDeleteTargetId(null);

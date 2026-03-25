@@ -12,6 +12,7 @@ import { UploadProvider } from "./context/UploadContext";
 import { VideosProvider } from "./context/VideosContext";
 import { UserProvider } from "./context/UserContext";
 import { EspProvider } from "./context/EspContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import UploadProgressPip from "./components/Upload/UploadProgressPip";
 
 export default function App() {
@@ -20,17 +21,19 @@ export default function App() {
     <EspProvider>
     <VideosProvider>
       <UploadProvider>
-        <Routes>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/main" element={<MainPage />} />
-          <Route path="/viewer" element={<ViewerPage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/edit" element={<EditPage />} />
-          <Route path="/oauth" element={<OAuthCallbackPage />} />
-          <Route path="/test" element={<TestPage />} />
-          <Route path="/login2" element={<LoginPage2 />} />
-        </Routes>
-        <UploadProgressPip />
+        <NotificationProvider>
+          <Routes>
+            <Route path="/" element={<LoginPage />} />
+            <Route path="/main" element={<MainPage />} />
+            <Route path="/viewer" element={<ViewerPage />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route path="/edit" element={<EditPage />} />
+            <Route path="/oauth" element={<OAuthCallbackPage />} />
+            <Route path="/test" element={<TestPage />} />
+            <Route path="/login2" element={<LoginPage2 />} />
+          </Routes>
+          <UploadProgressPip />
+        </NotificationProvider>
       </UploadProvider>
     </VideosProvider>
     </EspProvider>

@@ -2,16 +2,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Bell, CircleHelp } from "lucide-react";
 import HeaderIconButton from "./HeaderIconButton";
-import {
-  getNotifications,
-  getUnreadCount,
-  markNotificationRead,
-  subscribeNotifications,
-  type Notification,
-} from "../../../api/notification";
+import { useNotification } from "../../../context/NotificationContext";
 
 type HeaderActionGroupProps = {
   onClickHelp?: () => void;
+  onVideoCompleted?: (videoId: number) => void;
 };
 
 function formatDate(dateStr: string): string {
@@ -28,9 +23,8 @@ function formatDate(dateStr: string): string {
 }
 
 export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProps) {
+  const { notifications, unreadCount, markRead, markAllRead } = useNotification();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // 드롭다운 외부 클릭 시 닫기
@@ -45,40 +39,7 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
     return () => document.removeEventListener("mousedown", handle);
   }, [open]);
 
-  // 읽지 않은 알림 개수 초기 로드 + SSE 구독
-  useEffect(() => {
-    getUnreadCount()
-      .then((count) => setUnreadCount(count))
-      .catch(() => {});
-
-    const unsubscribe = subscribeNotifications((n) => {
-      setNotifications((prev) => [n, ...prev]);
-      setUnreadCount((prev) => prev + 1);
-    });
-    return unsubscribe;
-  }, []);
-
-  const handleOpen = () => {
-    if (!open) {
-      getNotifications()
-        .then((data) => {
-          setNotifications(data);
-          setUnreadCount(data.filter((n) => !n.isRead).length);
-        })
-        .catch(() => {});
-    }
-    setOpen((p) => !p);
-  };
-
-  const handleRead = async (id: number) => {
-    const target = notifications.find((n) => n.id === id);
-    if (!target || target.isRead) return;
-    await markNotificationRead(id).catch(() => {});
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-    );
-    setUnreadCount((prev) => Math.max(0, prev - 1));
-  };
+  const handleOpen = () => setOpen((p) => !p);
 
   return (
     <div className="flex items-center gap-1">
@@ -107,9 +68,13 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
             <div className="flex items-center justify-between border-b border-[#E8EDF4] px-4 py-3">
               <span className="text-sm font-semibold text-[#111827]">알림</span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-[#EFF6FF] px-2 py-0.5 text-xs font-semibold text-[#2563EB]">
-                  {unreadCount}개 미확인
-                </span>
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  className="text-xs text-[#2563EB] hover:text-[#1D4ED8] transition-colors"
+                >
+                  모두 읽음
+                </button>
               )}
             </div>
 
@@ -124,10 +89,10 @@ export default function HeaderActionGroup({ onClickHelp }: HeaderActionGroupProp
                   <li key={n.id}>
                     <button
                       type="button"
-                      onClick={() => handleRead(n.id)}
+                      onClick={() => markRead(n.id)}
                       className={[
                         "flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-[#F8FAFC]",
-                        !n.isRead && "bg-[#EFF6FF] hover:bg-[#DBEAFE]",
+                        !n.isRead ? "bg-[#EFF6FF] hover:bg-[#DBEAFE]" : "",
                       ].join(" ")}
                     >
                       <span

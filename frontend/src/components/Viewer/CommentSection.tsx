@@ -78,19 +78,28 @@ export default function CommentSection({ videoId, initialComments, reactions, on
           <p className="text-center text-xs text-[#94A3B8] pt-6">첫 댓글을 남겨보세요.</p>
         )}
         {comments.map((c) => {
-          const isMe = c.userNickname === myNickname;
-          const color = getColor(c.userNickname);
+          const name = c.userNickname ?? c.nickname ?? "?";
+          const isMe = name === myNickname;
+          const color = getColor(name);
           return (
             <div key={c.commentId} className="group flex items-start gap-2.5">
-              <div
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-                style={{ backgroundColor: color }}
-              >
-                {c.userNickname[0]}
-              </div>
+              {c.profileImageUrl ? (
+                <img
+                  src={c.profileImageUrl}
+                  alt={name}
+                  className="h-7 w-7 shrink-0 rounded-full object-cover"
+                />
+              ) : (
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+                  style={{ backgroundColor: color }}
+                >
+                  {name[0]}
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-[#334155]">{c.userNickname}</span>
+                  <span className="text-xs font-semibold text-[#334155]">{name}</span>
                   <span className="text-[10px] text-[#94A3B8]">{formatTimeAgo(c.createdAt)}</span>
                 </div>
                 <p className="mt-0.5 break-words text-sm text-[#475569]">{c.content}</p>

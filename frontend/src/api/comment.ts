@@ -5,7 +5,10 @@ import { apiClient } from "./client";
 export type CommentItem = {
   commentId: number;
   content: string;
-  userNickname: string;
+  userNickname?: string;
+  nickname?: string;
+  userId?: number;
+  profileImageUrl?: string | null;
   createdAt: string;
 };
 

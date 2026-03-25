@@ -20,7 +20,7 @@ export type SharedVideoItem = {
   title: string;
   date: string;
   duration: string;
-  thumbnail: string;
+  thumbnail?: string;
   uploadedBy: Participant;
   reactions: EmojiReaction[];
   commentCount: number;
