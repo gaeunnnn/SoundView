@@ -13,6 +13,7 @@ public interface AlbumVideoRepository extends JpaRepository<AlbumVideo, Long> {
     @Query("""
 SELECT new com.example.sound.domain.album.dto.AlbumVideoResponse(
     av.id,
+    v.id,
     v.title,
     v.thumbnailS3Key,
     v.durationSec,
@@ -26,7 +27,7 @@ JOIN av.video v
 LEFT JOIN VideoComment vc ON vc.albumVideo.id = av.id
 LEFT JOIN VideoReaction vr ON vr.albumVideo.id = av.id
 WHERE av.album.id = :albumId
-GROUP BY av.id, v.title, v.thumbnailS3Key, v.durationSec, v.uploader.nickname, v.createdAt
+GROUP BY av.id, v.id, v.title, v.thumbnailS3Key, v.durationSec, v.uploader.nickname, v.createdAt
 """)
     List<AlbumVideoResponse> findVideosByAlbumId(Long albumId);
     void deleteByAlbum_Id(Long albumId);

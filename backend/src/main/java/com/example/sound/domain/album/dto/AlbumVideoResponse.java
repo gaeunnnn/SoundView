@@ -11,8 +11,9 @@ import java.time.LocalDateTime;
 public class AlbumVideoResponse {
 
     private Long albumVideoId;
+    private Long videoId; // 추가된 필드
     private String title;
-    private String thumbnailS3Key;
+    private String thumbnailUrl; // thumbnailS3Key -> thumbnailUrl 변경
     private BigDecimal durationSec;
     private String uploaderName;
     private Long commentCount;
@@ -21,8 +22,8 @@ public class AlbumVideoResponse {
 
     // Full URL 변환 로직 (Service에서 호출)
     public void convertToFullUrl(com.example.sound.global.util.CloudFrontSigner signer) {
-        if (this.thumbnailS3Key != null) {
-            this.thumbnailS3Key = signer.generatePublicUrl(this.thumbnailS3Key);
+        if (this.thumbnailUrl != null) {
+            this.thumbnailUrl = signer.generatePublicUrl(this.thumbnailUrl);
         }
     }
 }
