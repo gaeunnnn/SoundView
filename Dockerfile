@@ -24,6 +24,9 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/python3.9/site-packages/nvidia/cudnn/lib:/usr
 # 6. 전체 소스 코드 복사
 COPY . .
 
+# 6-1. 로컬 AI 모델 패키지 설치 (여기에 추가!)
+RUN pip install -e ./app/services/ai/tasks/atst/PretrainedSED
+
 # 7. FastAPI 포트 노출 및 실행 명령어
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
