@@ -10,5 +10,6 @@ public class VideoUploadInitiateResponse {
     private Long videoId;
     private String uploadId;
     private String videoS3Key;
+    private String thumbnailS3Key;
     private List<String> presignedUrls;
 }

@@ -131,4 +131,21 @@ public class S3UploadService {
         String sanitizedFileName = originalFileName.replaceAll("\\s+", "_");
         return String.format("private/videos/%s/%s_%s", datePath, uuid, sanitizedFileName);
     }
+
+    /**
+     * 비디오 S3 키를 기반으로 썸네일 S3 키 생성 (경로: public/thumbnails/yyyy/MM/dd/UUID_fileName.jpg)
+     */
+    public String generateThumbnailKey(String videoS3Key) {
+        if (videoS3Key == null) return null;
+
+        // "private/videos/" -> "public/thumbnails/" 변경
+        String thumbnailKey = videoS3Key.replace("private/videos/", "public/thumbnails/");
+
+        // 확장자 제거 후 .jpg 고정
+        int lastDotIndex = thumbnailKey.lastIndexOf('.');
+        if (lastDotIndex != -1) {
+            thumbnailKey = thumbnailKey.substring(0, lastDotIndex);
+        }
+        return thumbnailKey + ".jpg";
+    }
 }

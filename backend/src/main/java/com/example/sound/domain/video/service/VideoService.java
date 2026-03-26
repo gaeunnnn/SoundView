@@ -162,14 +162,18 @@ public class VideoService {
         // 1. S3 Key 생성 (private/ 프리픽스 포함)
         String s3Key = s3UploadService.generateS3Key(request.getFileName());
 
-        // 2. S3 멀티파트 업로드 초기화 (Upload ID 발급)
+        // 2. 썸네일 S3 Key 미리 생성
+        String thumbKey = s3UploadService.generateThumbnailKey(s3Key);
+
+        // 3. S3 멀티파트 업로드 초기화 (Upload ID 발급)
         String uploadId = s3UploadService.initiateMultipartUpload(s3Key);
 
-        // 3. DB에 Video 엔티티 생성 (PENDING 상태)
+        // 4. DB에 Video 엔티티 생성 (PENDING 상태)
         Video video = Video.builder()
                 .uploader(user)
                 .title(request.getTitle())
                 .videoS3Key(s3Key)
+                .thumbnailS3Key(thumbKey)
                 .uploadId(uploadId)
                 .originalFileName(request.getFileName())
                 .status(VideoStatus.PENDING)
@@ -177,13 +181,14 @@ public class VideoService {
 
         videoRepository.save(video);
 
-        // 4. 각 파트별 Presigned URL 생성
+        // 5. 각 파트별 Presigned URL 생성
         List<String> presignedUrls = s3UploadService.generatePresignedUrls(s3Key, uploadId, request.getPartCount());
 
         return VideoUploadInitiateResponse.builder()
                 .videoId(video.getId())
                 .uploadId(uploadId)
                 .videoS3Key(s3Key)
+                .thumbnailS3Key(thumbKey)
                 .presignedUrls(presignedUrls)
                 .build();
     }
