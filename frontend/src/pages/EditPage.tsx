@@ -109,7 +109,7 @@ export default function EditPage() {
 
       const soundUrl = res.video.soundEventUrl;
       if (soundUrl) {
-        fetch(`${soundUrl}?t=${Date.now()}`, { cache: "no-store", headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" } })
+        fetch(`${soundUrl}?t=${Date.now()}`)
           .then((r) => r.json())
           .then((data: { start: number; end: number; duration?: number; caption_label: string; emoji: string; enabled?: boolean }[]) => {
             setEvents(data.map((e, i) => {
@@ -131,7 +131,7 @@ export default function EditPage() {
 
       const subtitleUrl = res.video.subtitleUrl;
       if (subtitleUrl) {
-        fetch(`${subtitleUrl}?t=${Date.now()}`, { cache: "no-store", headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" } })
+        fetch(`${subtitleUrl}?t=${Date.now()}`)
           .then((r) => r.json())
           .then((data: { start: number; end: number; text: string; emotion: string; confidence: number }[]) => {
             setSubtitles(data);
@@ -152,6 +152,7 @@ export default function EditPage() {
   }, [uploadedAlbumVideoId]);
 
   const [events, setEvents] = useState<SoundEvent[]>([]);
+  const [isBuffering, setIsBuffering] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentSec, setCurrentSec] = useState(0);
   const [subtitleOn, setSubtitleOn] = useState(true);
@@ -299,12 +300,6 @@ export default function EditPage() {
     if (!emojiOn) startTransition(() => setActiveEmojis([]));
   }, [emojiOn]);
 
-  // 진동: 모든 이벤트 타이밍에 vibrate 호출
-  useEffect(() => {
-    if (!("vibrate" in navigator)) return;
-    const triggered = events.filter((ev) => currentSec === Math.floor(ev.timeSec));
-    if (triggered.length > 0) navigator.vibrate(200);
-  }, [currentSec, events]);
 
   // 키보드 단축키
   useEffect(() => {
@@ -404,6 +399,8 @@ export default function EditPage() {
         updateVideoTitle(targetVideoId, saveName.trim()),
         getEditSaveUrls(targetVideoId),
       ]);
+      const uploadPromises: Promise<void>[] = [];
+
       if (urls?.soundEventUploadUrl) {
         const soundEventData = events.map((e) => ({
           start: e.timeSec,
@@ -413,16 +410,26 @@ export default function EditPage() {
           emoji: e.emoji,
           enabled: e.enabled,
         }));
-        const s3Res = await fetch(urls.soundEventUploadUrl, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-          },
-          body: JSON.stringify(soundEventData),
-        });
-        if (!s3Res.ok) throw new Error(`S3 업로드 실패: ${s3Res.status}`);
+        uploadPromises.push(
+          fetch(urls.soundEventUploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(soundEventData),
+          }).then((r) => { if (!r.ok) throw new Error(`soundEvent S3 업로드 실패: ${r.status}`); })
+        );
       }
+
+      if (urls?.subtitleUploadUrl && subtitles.length > 0) {
+        uploadPromises.push(
+          fetch(urls.subtitleUploadUrl, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(subtitles),
+          }).then((r) => { if (!r.ok) throw new Error(`subtitle S3 업로드 실패: ${r.status}`); })
+        );
+      }
+
+      await Promise.all(uploadPromises);
     } catch (err: unknown) {
       console.error("[저장 실패]", err);
       const axiosErr = err as { response?: { status: number; data: unknown } };
@@ -522,25 +529,42 @@ export default function EditPage() {
             style={{ cursor: isFullscreen && !showControls ? "none" : "default" }}
           >
             {isRealFile ? (
-              <video
-                ref={videoRef}
-                src={mediaUrl}
-                className="h-full w-full object-contain cursor-pointer"
-                onClick={handlePlayPause}
-                playsInline
-                onLoadedMetadata={(e) => {
-                  const sec = Math.floor(e.currentTarget.duration);
-                  setTotalSec(sec);
-                  setDuration(formatTime(sec));
-                  setCurrentSec(0);
-                }}
-                onTimeUpdate={(e) => {
-                  const t = e.currentTarget.currentTime;
-                  setCurrentSec(Math.floor(t));
-                  setCurrentTime(t);
-                }}
-                onEnded={() => setIsPlaying(false)}
-              />
+              <>
+                <video
+                  ref={videoRef}
+                  src={mediaUrl}
+                  className="h-full w-full object-contain cursor-pointer"
+                  onClick={handlePlayPause}
+                  playsInline
+                  preload="auto"
+                  onLoadedMetadata={(e) => {
+                    const sec = Math.floor(e.currentTarget.duration);
+                    setTotalSec(sec);
+                    setDuration(formatTime(sec));
+                    setCurrentSec(0);
+                  }}
+                  onCanPlayThrough={() => setIsBuffering(false)}
+                  onWaiting={() => setIsBuffering(true)}
+                  onPlaying={() => setIsBuffering(false)}
+                  onTimeUpdate={(e) => {
+                    const t = e.currentTarget.currentTime;
+                    setCurrentSec(Math.floor(t));
+                    setCurrentTime(t);
+                  }}
+                  onEnded={() => setIsPlaying(false)}
+                />
+                {isBuffering && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <div className="flex flex-col items-center gap-2">
+                      <svg className="animate-spin h-10 w-10 text-white" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                      </svg>
+                      <span className="text-white text-sm">영상 로딩 중...</span>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : mediaUrl ? (
               <img
                 src={mediaUrl}
