@@ -108,11 +108,6 @@ function cmdPause(): Uint8Array {
   return new Uint8Array([0x02]);
 }
 
-async function loadJson<T>(url: string): Promise<T> {
-  const res = await fetch(`${url}?t=${Date.now()}`);
-  return res.json();
-}
-
 function parseDuration(dur: string): number {
   const parts = dur.split(":").map(Number);
   if (parts.length === 2) return parts[0] * 60 + parts[1];

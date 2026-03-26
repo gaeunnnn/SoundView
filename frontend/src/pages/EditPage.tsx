@@ -86,7 +86,7 @@ export default function EditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { me } = useUser();
-  const { uploadedAlbumVideoId } = useUpload();
+  const { uploadedVideoId, uploadedAlbumVideoId } = useUpload();
 
   // 내 앨범에서 편집 버튼으로 진입 시 state로 전달된 video
   const stateVideo = location.state?.video as VideoItem | undefined;
@@ -104,7 +104,6 @@ export default function EditPage() {
   // 데이터 로딩 상태 및 오류 메시지
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [videoDownloadProgress, setVideoDownloadProgress] = useState(0);
-  const [dataError, setDataError] = useState<string | null>(null);
   const blobUrlRef = useRef<string | null>(null);
 
   // 컴포넌트 언마운트 시 Blob URL 해제
