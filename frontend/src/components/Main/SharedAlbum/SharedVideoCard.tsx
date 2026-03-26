@@ -1,7 +1,7 @@
 // 공유 앨범 영상 카드 컴포넌트
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Clock3, Ellipsis, Trash2, MessageCircle, SmilePlus } from "lucide-react";
+import { Clock3, Ellipsis, Pencil, Trash2, MessageCircle, SmilePlus } from "lucide-react";
 import type { SharedVideoItem } from "../../../types/sharedAlbum";
 import VideoTitleEditor from "../Card/VideoTitleEditor";
 
@@ -9,19 +9,20 @@ const EMOJI_LIST = ["👍", "❤️", "😂", "😮", "😢"];
 
 type SharedVideoCardProps = {
   video: SharedVideoItem;
+  isOwner: boolean;
+  albumId: number;
   onReact: (videoId: number, emoji: string) => void;
   onRenameTitle?: (videoId: number, newTitle: string) => void;
   onDelete?: (videoId: number) => void;
+  onEdit?: (videoId: number) => void;
 };
 
-export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelete }: SharedVideoCardProps) {
+export default function SharedVideoCard({ video, isOwner, albumId, onReact, onRenameTitle, onDelete, onEdit }: SharedVideoCardProps) {
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const emojiButtonRef = useRef<HTMLButtonElement>(null);
-  const emojiPopupRef = useRef<HTMLDivElement>(null);
-  const [emojiPos, setEmojiPos] = useState<{ top: number; left: number } | null>(null);
+  const emojiWrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -35,36 +36,13 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
   useEffect(() => {
     if (!showEmojiPicker) return;
     const handle = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const inButton = emojiButtonRef.current?.contains(target);
-      const inPopup = emojiPopupRef.current?.contains(target);
-      if (!inButton && !inPopup) setShowEmojiPicker(false);
+      if (emojiWrapRef.current && !emojiWrapRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
     };
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, [showEmojiPicker]);
-
-  // 팝업 열린 후 실제 너비 기준으로 오른쪽 overflow 보정
-  useEffect(() => {
-    if (!showEmojiPicker || !emojiPopupRef.current || !emojiPos) return;
-    const popupRect = emojiPopupRef.current.getBoundingClientRect();
-    const overflow = popupRect.right - (window.innerWidth - 8);
-    if (overflow > 0) {
-      setEmojiPos((prev) => prev ? { ...prev, left: prev.left - overflow } : prev);
-    }
-  }, [showEmojiPicker]);
-
-  const handleOpenEmojiPicker = () => {
-    if (showEmojiPicker) {
-      setShowEmojiPicker(false);
-      return;
-    }
-    const rect = emojiButtonRef.current?.getBoundingClientRect();
-    if (rect) {
-      setEmojiPos({ top: rect.top - 48, left: rect.left });
-    }
-    setShowEmojiPicker(true);
-  };
 
   // count > 0인 반응만 표시
   const visibleReactions = video.reactions.filter((r) => r.count > 0);
@@ -74,7 +52,7 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
       {/* 썸네일 영역 */}
       <div
         className="relative aspect-video cursor-pointer overflow-hidden rounded-t-[22px] bg-[#0F172A]"
-        onClick={() => navigate("/viewer", { state: { video: { ...video, uploadedBy: video.uploadedBy } } })}
+        onClick={() => navigate("/viewer", { state: { video: { ...video, uploadedBy: video.uploadedBy }, fromAlbumId: albumId } })}
       >
         {video.thumbnail && (
           <img
@@ -112,8 +90,8 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
             />
           </div>
 
-          {/* 내 영상일 때만 메뉴 */}
-          {video.uploadedBy.isMe && (
+          {/* 내가 가져온 영상일 때만 메뉴 */}
+          {isOwner && (
             <div ref={menuRef} className="relative shrink-0">
               <button
                 type="button"
@@ -124,6 +102,14 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
               </button>
               {showMenu && (
                 <div className="absolute right-0 top-9 z-20 w-32 rounded-xl border border-[#E5E7EB] bg-white p-1.5 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => { setShowMenu(false); onEdit?.(video.id); }}
+                    className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-[#111827] transition-colors hover:bg-[#F3F4F6]"
+                  >
+                    <Pencil size={14} strokeWidth={2} />
+                    <span>편집</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setShowMenu(false); onDelete?.(video.id); }}
@@ -183,42 +169,38 @@ export default function SharedVideoCard({ video, onReact, onRenameTitle, onDelet
               </button>
             ))}
 
-            {/* 이모지 추가 버튼 */}
-            <button
-              ref={emojiButtonRef}
-              type="button"
-              onClick={handleOpenEmojiPicker}
-              className="flex h-6 w-6 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#64748B]"
-              title="반응 추가"
-            >
-              <SmilePlus size={13} strokeWidth={2} />
-            </button>
-
-            {/* 이모지 팝업 — fixed로 카드 overflow 영향 없음 */}
-            {showEmojiPicker && emojiPos && (
-              <div
-                ref={emojiPopupRef}
-                className="fixed z-50 flex gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1.5 shadow-lg"
-                style={{ top: emojiPos.top, left: emojiPos.left }}
+            {/* 이모지 추가 버튼 + 팝업 */}
+            <div ref={emojiWrapRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker((p) => !p)}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-[#94A3B8] transition-colors hover:bg-[#F1F5F9] hover:text-[#64748B]"
+                title="반응 추가"
               >
-                {EMOJI_LIST.map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => { onReact(video.id, emoji); setShowEmojiPicker(false); }}
-                    className="flex h-8 w-8 items-center justify-center rounded-xl text-lg transition-all hover:bg-[#F1F5F9] hover:scale-110"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            )}
+                <SmilePlus size={13} strokeWidth={2} />
+              </button>
+
+              {showEmojiPicker && (
+                <div className="absolute bottom-8 left-0 z-30 flex gap-1 rounded-2xl border border-[#E5E7EB] bg-white px-2 py-1.5 shadow-lg">
+                  {EMOJI_LIST.map((emoji) => (
+                    <button
+                      key={emoji}
+                      type="button"
+                      onClick={() => { onReact(video.id, emoji); setShowEmojiPicker(false); }}
+                      className="flex h-8 w-8 items-center justify-center rounded-xl text-lg transition-all hover:bg-[#F1F5F9] hover:scale-110"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 댓글 수 */}
           <button
             type="button"
-            onClick={() => navigate("/viewer", { state: { video: { ...video, uploadedBy: video.uploadedBy } } })}
+            onClick={() => navigate("/viewer", { state: { video: { ...video, uploadedBy: video.uploadedBy }, fromAlbumId: albumId } })}
             className="flex items-center gap-1 text-[11px] font-medium text-[#94A3B8] transition-colors hover:text-[#64748B]"
           >
             <MessageCircle size={12} strokeWidth={2} />

@@ -21,6 +21,7 @@ export default function ViewerPage() {
   const navigate = useNavigate();
   const initialVideo = location.state?.video as ViewerVideo | undefined;
   const isMyAlbum = location.state?.isMyAlbum as boolean | undefined;
+  const fromAlbumId = location.state?.fromAlbumId as number | undefined;
   const [video, setVideo] = useState<ViewerVideo | undefined>(initialVideo);
   const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
   const [comments, setComments] = useState<CommentItem[]>([]);
@@ -93,7 +94,7 @@ export default function ViewerPage() {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-[#0F172A]">
-      <ViewerHeader onBack={() => navigate(-1)} />
+      <ViewerHeader onBack={() => fromAlbumId ? navigate("/main", { state: { openAlbumId: fromAlbumId } }) : navigate(-1)} />
 
       {/* 데스크톱: 플레이어(좌) + 우측패널(우) */}
       <div className="flex flex-1 overflow-hidden">

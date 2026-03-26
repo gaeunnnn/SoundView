@@ -82,6 +82,8 @@ export type AlbumVideo = {
   thumbnailS3Key?: string | null;
   durationSec: number | null;
   uploaderName: string;
+  uploaderId?: number;
+  isMe?: boolean;
   commentCount: number;
   reactionCount: number;
   createdAt: string;

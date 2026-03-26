@@ -1,6 +1,6 @@
 // 메인 페이지 전체 레이아웃을 조립하는 페이지 파일
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getAlbums, editAlbumTitle, leaveAlbum, createAlbum, getAlbumMembers, getAlbumVideos } from "../api/album";
 import { getVideoReactions } from "../api/video";
 import { useUser } from "../context/UserContext";
@@ -20,6 +20,7 @@ const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"
 
 export default function MainPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { me } = useUser();
   const { fetchVideos } = useVideos();
   const { status: uploadStatus, doneUpload } = useUpload();
@@ -70,6 +71,67 @@ export default function MainPage() {
         })
       );
       setSharedAlbums(sharedWithMembers);
+
+      // 뷰어에서 뒤로가기로 돌아온 경우 해당 공유 앨범 자동 선택 + detail 로드
+      const openAlbumId = location.state?.openAlbumId as number | undefined;
+      if (openAlbumId && sharedWithMembers.some((a) => a.id === openAlbumId)) {
+        setActiveSharedAlbumId(openAlbumId);
+        setActiveMyAlbumId(null);
+        setActiveSharedAlbumDetail(null);
+        const albumName = sharedWithMembers.find((a) => a.id === openAlbumId)?.name ?? "";
+        Promise.all([getAlbumMembers(openAlbumId), getAlbumVideos(openAlbumId)])
+          .then(async ([members, videos]) => {
+            const reactionsList = await Promise.all(
+              videos.map((v) => getVideoReactions(v.videoId ?? v.albumVideoId).catch(() => ({ videoId: v.videoId, reactions: [] })))
+            );
+            const meParticipant = members.find((m) => m.isMe);
+            setActiveSharedAlbumDetail({
+              id: openAlbumId,
+              name: albumName,
+              participants: members.map((m) => ({
+                id: m.userId,
+                name: m.nickname,
+                avatarColor: COLORS[m.userId % COLORS.length],
+                profileImageUrl: m.profileImageUrl ?? null,
+                isMe: m.isMe,
+                code: m.userCode,
+              })),
+              videos: videos.map((v, i) => {
+                const uploader = v.uploaderId
+                  ? members.find((m) => m.userId === v.uploaderId)
+                  : members.find((m) => m.nickname === v.uploaderName);
+                const isMe =
+                  v.isMe !== undefined
+                    ? v.isMe
+                    : uploader
+                    ? uploader.isMe
+                    : !!(me && me.nickname === v.uploaderName);
+                const rawReactions = reactionsList[i]?.reactions ?? [];
+                return {
+                  id: v.albumVideoId,
+                  videoId: v.videoId ?? v.albumVideoId,
+                  title: v.title,
+                  thumbnail: v.thumbnailUrl ?? undefined,
+                  duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
+                  date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+                  uploadedBy: {
+                    id: uploader?.userId ?? (isMe ? (meParticipant?.userId ?? 0) : 0),
+                    name: v.uploaderName,
+                    avatarColor: uploader
+                      ? COLORS[uploader.userId % COLORS.length]
+                      : isMe && meParticipant
+                      ? COLORS[meParticipant.userId % COLORS.length]
+                      : "#94A3B8",
+                    profileImageUrl: uploader?.profileImageUrl ?? null,
+                    isMe,
+                  },
+                  reactions: rawReactions.map((r) => ({ emoji: r.emoji, count: r.count, reacted: r.selected })),
+                  commentCount: v.commentCount,
+                };
+              }),
+            });
+          }).catch(() => {});
+      }
     }).catch(() => {});
   }, []);
 
@@ -97,6 +159,7 @@ export default function MainPage() {
         const reactionsList = await Promise.all(
           videos.map((v) => getVideoReactions(v.videoId ?? v.albumVideoId).catch(() => ({ videoId: v.videoId, reactions: [] })))
         );
+        const meParticipant = members.find((m) => m.isMe);
         setActiveSharedAlbumDetail({
           id: albumId,
           name: albumName,
@@ -109,7 +172,15 @@ export default function MainPage() {
             code: m.userCode,
           })),
           videos: videos.map((v, i) => {
-            const uploader = members.find((m) => m.nickname === v.uploaderName);
+            const uploader = v.uploaderId
+              ? members.find((m) => m.userId === v.uploaderId)
+              : members.find((m) => m.nickname === v.uploaderName);
+            const isMe =
+              v.isMe !== undefined
+                ? v.isMe
+                : uploader
+                ? uploader.isMe
+                : !!(me && me.nickname === v.uploaderName);
             const rawReactions = reactionsList[i]?.reactions ?? [];
             return {
               id: v.albumVideoId,
@@ -119,11 +190,15 @@ export default function MainPage() {
               duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(v.durationSec % 60).padStart(2, "0")}` : "",
               date: v.createdAt.slice(0, 10).replace(/-/g, "."),
               uploadedBy: {
-                id: uploader?.userId ?? 0,
+                id: uploader?.userId ?? (isMe ? (meParticipant?.userId ?? 0) : 0),
                 name: v.uploaderName,
-                avatarColor: uploader ? COLORS[uploader.userId % COLORS.length] : "#94A3B8",
+                avatarColor: uploader
+                  ? COLORS[uploader.userId % COLORS.length]
+                  : isMe && meParticipant
+                  ? COLORS[meParticipant.userId % COLORS.length]
+                  : "#94A3B8",
                 profileImageUrl: uploader?.profileImageUrl ?? null,
-                isMe: uploader?.isMe ?? false,
+                isMe,
               },
               reactions: rawReactions.map((r) => ({ emoji: r.emoji, count: r.count, reacted: r.selected })),
               commentCount: v.commentCount,

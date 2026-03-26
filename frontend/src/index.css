@@ -13,3 +13,8 @@ body {
   font-family: Pretendard, system-ui, sans-serif;
   background: #f7f8fc;
 }
+
+@keyframes emoji-bounce {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.25); }
+}

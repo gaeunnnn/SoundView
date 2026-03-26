@@ -154,7 +154,9 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
 
   // 현재 시간 기준 활성 항목
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleEntry | null>(null);
-  const [activeSoundEvents, setActiveSoundEvents] = useState<SoundEventEntry[]>([]);
+  // 스택에 표시 중인 이모지 — 소리 구간 종료 후 5초 유지
+  type DisplayEvent = SoundEventEntry & { _endSec: number };
+  const [displayEvents, setDisplayEvents] = useState<DisplayEvent[]>([]);
 
   // ── 데이터 로드 ────────────────────────────────────────────
   useEffect(() => {
@@ -278,7 +280,18 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   useEffect(() => {
     const t = currentSec;
     setCurrentSubtitle(subtitles.find((s) => t >= s.start && t < s.end) ?? null);
-    setActiveSoundEvents(soundEvents.filter((e) => e.enabled !== false && t >= e.start && t < e.end));
+
+    setDisplayEvents((prev) => {
+      // 새로 시작된 이벤트 추가
+      const nowActive = soundEvents.filter((e) => e.enabled !== false && t >= e.start && t < e.end);
+      const newItems: DisplayEvent[] = nowActive
+        .filter((e) => !prev.some((d) => d.start === e.start && d.end === e.end))
+        .map((e) => ({ ...e, _endSec: e.end }));
+      // end + 5초 지난 것 제거
+      return [...prev, ...newItems]
+        .filter((d) => t < d._endSec + 5)
+        .slice(-5); // 최신 5개 유지
+    });
   }, [currentSec, subtitles, soundEvents]);
 
   // ── 전체화면 감지 ─────────────────────────────────────────
@@ -526,7 +539,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
 
         {/* ── 자막 오버레이 ── */}
         {subtitleOn && currentSubtitle && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 pointer-events-none">
+          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 pointer-events-none">
             {/* 감정 이모지 */}
             <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
               <span className="text-base leading-none">
@@ -549,64 +562,74 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           </div>
         )}
 
-        {/* ── 효과음 오버레이 (상단 중앙, 리퀴드글라스) ── */}
-        {emojiOn && activeSoundEvents.length > 0 && (
-          <div className={["absolute top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none transition-opacity duration-500", showControls ? "opacity-100" : "opacity-0"].join(" ")}>
-            {/* SVG distortion filter */}
-            <svg style={{ display: "none" }}>
-              <filter id="vp-glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
-                <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence" />
-                <feComponentTransfer in="turbulence" result="mapped">
-                  <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
-                  <feFuncG type="gamma" amplitude="0" exponent="1" offset="0" />
-                  <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5" />
-                </feComponentTransfer>
-                <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
-                <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lightingColor="white" result="specLight">
-                  <fePointLight x="-200" y="-200" z="300" />
-                </feSpecularLighting>
-                <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
-                <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G" />
-              </filter>
+        {/* ── 효과음 오버레이 (상단 중앙, 리퀴드글라스) — emojiOn일 때 항상 DOM에 존재, 이벤트 없으면 invisible ── */}
+        {emojiOn && (
+          <div
+            className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+            style={{ visibility: displayEvents.length > 0 ? "visible" : "hidden" }}
+          >
+            {/* SVG distortion filter — 항상 DOM에 유지 */}
+            <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+              <defs>
+                <filter id="vp-glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
+                  <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence" />
+                  <feComponentTransfer in="turbulence" result="mapped">
+                    <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
+                    <feFuncG type="gamma" amplitude="0" exponent="1" offset="0" />
+                    <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5" />
+                  </feComponentTransfer>
+                  <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
+                  <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lightingColor="white" result="specLight">
+                    <fePointLight x="-200" y="-200" z="300" />
+                  </feSpecularLighting>
+                  <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
+                  <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G" />
+                </filter>
+              </defs>
             </svg>
 
             {/* 리퀴드글라스 컨테이너 */}
             <div
               className="relative flex overflow-hidden rounded-3xl"
-              style={{
-                boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)",
-              }}
+              style={{ boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)" }}
             >
               {/* Glass layer 1 — blur + distortion */}
               <div
                 className="absolute inset-0 z-0 rounded-3xl overflow-hidden"
-                style={{
-                  backdropFilter: "blur(3px)",
-                  filter: "url(#vp-glass-distortion)",
-                  isolation: "isolate",
-                }}
+                style={{ backdropFilter: "blur(3px)", filter: "url(#vp-glass-distortion)", isolation: "isolate" }}
               />
               {/* Glass layer 2 — white tint */}
-              <div
-                className="absolute inset-0 z-10 rounded-3xl"
-                style={{ background: "rgba(255,255,255,0.18)" }}
-              />
+              <div className="absolute inset-0 z-10 rounded-3xl" style={{ background: "rgba(255,255,255,0.18)" }} />
               {/* Glass layer 3 — inner highlight */}
               <div
                 className="absolute inset-0 z-20 rounded-3xl overflow-hidden"
-                style={{
-                  boxShadow:
-                    "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)",
-                }}
+                style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }}
               />
-              {/* 이모지 목록 */}
-              <div className="relative z-30 flex items-center gap-3 px-6 py-3">
-                {activeSoundEvents.slice(0, 6).map((e, i) => (
-                  <span key={i} className="text-4xl leading-none select-none" title={getLabel(e)}
-                    style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))" }}>
-                    {getEmoji(e)}
-                  </span>
-                ))}
+              {/* 이모지 스택 — 최대 5개, 겹쳐 쌓임 */}
+              <div className="relative z-30 flex items-center px-4 py-3">
+                {displayEvents.map((e, i) => {
+                  const isActive = currentSec < e._endSec;
+                  const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - e._endSec) / 5);
+                  return (
+                    <span
+                      key={`${e.start}-${e.end}`}
+                      title={getLabel(e)}
+                      className="select-none leading-none transition-opacity duration-700"
+                      style={{
+                        fontSize: "2rem",
+                        marginLeft: i === 0 ? 0 : "-0.5rem",
+                        zIndex: i + 1,
+                        position: "relative",
+                        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+                        opacity: 1 - fadeProgress,
+                        animation: isPlaying && isActive ? "emoji-bounce 1.4s ease-in-out infinite" : "none",
+                        animationDelay: `${i * 0.12}s`,
+                      }}
+                    >
+                      {getEmoji(e)}
+                    </span>
+                  );
+                })}
               </div>
             </div>
           </div>

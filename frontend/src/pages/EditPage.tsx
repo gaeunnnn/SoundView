@@ -520,8 +520,9 @@ export default function EditPage() {
 
   return (
     <>
-    {/* Liquid Glass SVG 필터 */}
-    <svg style={{ display: "none" }}>
+    {/* Liquid Glass SVG 필터 — 항상 DOM에 유지 */}
+    <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+      <defs>
       <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
         <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence" />
         <feComponentTransfer in="turbulence" result="mapped">
@@ -536,6 +537,7 @@ export default function EditPage() {
         <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
         <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G" />
       </filter>
+      </defs>
     </svg>
     <div className="h-screen flex flex-col overflow-hidden bg-white">
       {/* 앱 헤더 */}
@@ -649,7 +651,7 @@ export default function EditPage() {
 
             {/* 자막 오버레이 */}
             {subtitleOn && currentSubtitle && (
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
                 <div
                   className="rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-lg"
                   style={{ background: "rgba(0,0,0,0.7)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
@@ -659,9 +661,12 @@ export default function EditPage() {
               </div>
             )}
 
-            {/* Liquid Glass 이모지 오버레이 */}
-            {emojiOn && activeEmojis.length > 0 && (
-              <div className="absolute top-5 left-1/2 z-20 -translate-x-1/2 pointer-events-none">
+            {/* Liquid Glass 이모지 오버레이 — emojiOn일 때 항상 DOM에 존재, 이벤트 없으면 invisible */}
+            {emojiOn && (
+              <div
+                className="absolute top-5 left-1/2 z-30 -translate-x-1/2 pointer-events-none"
+                style={{ visibility: activeEmojis.length > 0 ? "visible" : "hidden" }}
+              >
                 {/* Glass container */}
                 <div
                   className="relative overflow-hidden rounded-3xl"
@@ -690,22 +695,26 @@ export default function EditPage() {
                       boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)",
                     }}
                   />
-                  {/* Content */}
-                  <div className="relative z-30 flex items-center gap-3 px-6 py-3">
-                    {activeEmojis.map((ae) => {
+                  {/* 이모지 스택 — 최대 5개, 겹쳐 쌓임 */}
+                  <div className="relative z-30 flex items-center px-4 py-3">
+                    {activeEmojis.slice(0, 5).map((ae, i) => {
                       const isActive = currentSec < ae.endSec;
-                      // end 후 경과 시간 (0~5초)
                       const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ae.endSec) / 5);
                       return (
                         <span
                           key={ae.eventId}
-                          className={[
-                            "text-4xl leading-none",
-                            isActive ? "animate-pulse" : "transition-opacity duration-1000",
-                          ].join(" ")}
+                          className="select-none leading-none transition-opacity duration-700"
                           style={{
-                            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
+                            fontSize: "2rem",
+                            marginLeft: i === 0 ? 0 : "-0.5rem",
+                            zIndex: i + 1,
+                            position: "relative",
+                            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
                             opacity: 1 - fadeProgress,
+                            animation: isPlaying && isActive
+                              ? "emoji-bounce 1.4s ease-in-out infinite"
+                              : "none",
+                            animationDelay: `${i * 0.12}s`,
                           }}
                         >
                           {ae.emoji}
