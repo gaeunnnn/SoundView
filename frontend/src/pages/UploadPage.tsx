@@ -275,7 +275,7 @@ export default function UploadPage() {
                   </div>
                   <div>
                     <p className="text-base font-medium text-[#374151]">영상을 드래그하거나 클릭하여 업로드</p>
-                    <p className="mt-1.5 text-sm text-[#94A3B8]">MP4, MOV, AVI, MKV 등 모든 영상 형식 지원 · 최대 2GB</p>
+                    <p className="mt-1.5 text-sm text-[#94A3B8]">MP4, MOV, WebM · 최대 2GB</p>
                   </div>
                   <button
                     type="button"

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const ESP32_WS_URL = "ws://10.134.85.177:81";
+const ESP32_WS_URL = "wss://j14e203.p.ssafy.io/esp32-ws";
 const RECONNECT_DELAY_MS = 2000;
 
 type Status = "connecting" | "connected" | "disconnected" | "error";

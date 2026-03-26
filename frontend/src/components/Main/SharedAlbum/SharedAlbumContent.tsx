@@ -1,6 +1,7 @@
 // 공유 앨범 콘텐츠 영역 컴포넌트
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { Search, SlidersHorizontal, Users, Upload, Copy, Check } from "lucide-react";
 import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAlbum";
 import type { VideoItem } from "../../../types/video";
@@ -20,6 +21,7 @@ type SharedAlbumContentProps = {
 };
 
 export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumContentProps) {
+  const navigate = useNavigate();
   const { me } = useUser();
   const [videos, setVideos] = useState<SharedVideoItem[]>(album.videos);
   const [myVideos, setMyVideos] = useState<VideoItem[]>([]);
@@ -119,6 +121,11 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     setVideos((prev) => prev.filter((v) => v.id !== albumVideoId));
   };
 
+  const handleEditVideo = (albumVideoId: number) => {
+    const video = videos.find((v) => v.id === albumVideoId);
+    if (video) navigate("/edit", { state: { video } });
+  };
+
   const handleImport = async (selected: VideoItem[]) => {
     // videos.id(videoId)로 앨범에 추가 — albumVideoId(id)가 아님
     const videoIds = selected.map((v) => v.videoId);
@@ -132,9 +139,13 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     setVideos((prev) => [...prev, ...newSharedVideos]);
   };
 
+  const isMyVideo = (v: typeof videos[number]) =>
+    v.uploadedBy.isMe ||
+    (meParticipant !== undefined && v.uploadedBy.id === meParticipant.id) ||
+    (me !== null && v.uploadedBy.name === me.nickname);
+
   const filtered = videos.filter((v) => {
-    const matchesTab =
-      activeTab === "all" || (activeTab === "mine" && v.uploadedBy.isMe);
+    const matchesTab = activeTab === "all" || (activeTab === "mine" && isMyVideo(v));
     const normalizedKeyword = searchKeyword.replace(/\s/g, "").toLowerCase();
     const matchesSearch = !normalizedKeyword ||
       v.title.replace(/\s/g, "").toLowerCase().includes(normalizedKeyword);
@@ -340,15 +351,20 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((video) => (
-              <SharedVideoCard
-                key={video.id}
-                video={video}
-                onReact={handleReact}
-                onRenameTitle={handleRenameVideo}
-                onDelete={handleDeleteVideo}
-              />
-            ))}
+            {filtered.map((video) => {
+              return (
+                <SharedVideoCard
+                  key={video.id}
+                  video={video}
+                  isOwner={isMyVideo(video)}
+                  albumId={album.id}
+                  onReact={handleReact}
+                  onRenameTitle={handleRenameVideo}
+                  onDelete={handleDeleteVideo}
+                  onEdit={handleEditVideo}
+                />
+              );
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-20 text-[#94A3B8]">
