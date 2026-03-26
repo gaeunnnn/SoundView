@@ -119,7 +119,6 @@ export default function EditPage() {
   const loadVideoData = useCallback((videoId: number) => {
     setIsLoadingData(true);
     setVideoDownloadProgress(0);
-    setDataError(null);
 
     getVideoFull(videoId).then(async (res) => {
       setResolvedVideoId(res.video.videoId);
