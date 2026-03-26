@@ -86,15 +86,15 @@ export default function EditPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { me } = useUser();
-  const { uploadedVideoUrl, uploadedVideoId, uploadedAlbumVideoId, uploadedTitle } = useUpload();
+  const { uploadedAlbumVideoId } = useUpload();
 
   // 내 앨범에서 편집 버튼으로 진입 시 state로 전달된 video
   const stateVideo = location.state?.video as VideoItem | undefined;
 
-  const [mediaUrl, setMediaUrl] = useState(uploadedVideoUrl ?? "");
+  const [mediaUrl, setMediaUrl] = useState("");
 
   const isRealFile = !!mediaUrl;
-  const mediaTitle = stateVideo?.title ?? uploadedTitle;
+  const [mediaTitle, setMediaTitle] = useState("");
 
   // subtitle 상태
   const [subtitles, setSubtitles] = useState<{ start: number; end: number; text: string; emotion: string; confidence: number }[]>([]);
@@ -124,6 +124,7 @@ export default function EditPage() {
 
     getVideoFull(videoId).then(async (res) => {
       setResolvedVideoId(res.video.videoId);
+      setMediaTitle(res.video.title);
 
       const fetchOptions = {
         cache: "no-store" as RequestCache,
@@ -621,7 +622,18 @@ export default function EditPage() {
                     setCurrentTime(t);
                   }}
                   onEnded={() => setIsPlaying(false)}
+                  style={{ display: isLoadingData ? "none" : "block" }}
                 />
+                {isLoadingData && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+                      <p className="text-sm font-medium text-white">
+                        영상을 다운로드 중입니다... ({videoDownloadProgress}%)
+                      </p>
+                    </div>
+                  </div>
+                )}
               </>
             ) : mediaUrl ? (
               <img

@@ -138,7 +138,7 @@ type VideoPlayerProps = {
   onReact: (emoji: string) => void;
 };
 
-export default function VideoPlayer({ video, reactions: _reactions, onReact: _onReact }: VideoPlayerProps) {
+export default function VideoPlayer({ video }: VideoPlayerProps) {
   const totalSec = parseDuration(video.duration);
   const { isConnected, send, sendAndFlush } = useEsp();
   const [vibBuffering, setVibBuffering] = useState(false);
