@@ -101,44 +101,117 @@ export default function EditPage() {
   // getVideoFull에서 받은 실제 videos.id (edit-save, PATCH에 사용)
   const [resolvedVideoId, setResolvedVideoId] = useState<number | null>(null);
 
-  // videoId로 sound_event + subtitle 로드
+  // 데이터 로딩 상태 및 오류 메시지
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [videoDownloadProgress, setVideoDownloadProgress] = useState(0);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const blobUrlRef = useRef<string | null>(null);
+
+  // 컴포넌트 언마운트 시 Blob URL 해제
+  useEffect(() => {
+    return () => {
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+      }
+    };
+  }, []);
+
+  // videoId로 sound_event + subtitle + vibration + video(Blob) 로드
   const loadVideoData = useCallback((videoId: number) => {
-    getVideoFull(videoId).then((res) => {
-      if (res.video.videoUrl) setMediaUrl(res.video.videoUrl);
+    setIsLoadingData(true);
+    setVideoDownloadProgress(0);
+    setDataError(null);
+
+    getVideoFull(videoId).then(async (res) => {
       setResolvedVideoId(res.video.videoId);
 
-      const soundUrl = res.video.soundEventUrl;
-      if (soundUrl) {
-        fetch(`${soundUrl}?t=${Date.now()}`)
-          .then((r) => r.json())
-          .then((data: { start: number; end: number; duration?: number; caption_label: string; emoji: string; enabled?: boolean }[]) => {
-            setEvents(data.map((e, i) => {
-              const dur = e.duration ?? (e.end - e.start);
-              return {
-                id: i,
-                timeSec: e.start,
-                endSec: e.end ?? e.start + 1,
-                duration: dur,
-                timeLabel: `${e.start.toFixed(1)}s`,
-                emoji: e.emoji ?? "🔊",
-                description: e.caption_label,
-                enabled: e.enabled !== false,
-              };
-            }));
-          })
-          .catch(() => {});
-      }
+      const fetchOptions = {
+        cache: "no-store" as RequestCache,
+        headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+      };
 
-      const subtitleUrl = res.video.subtitleUrl;
-      if (subtitleUrl) {
-        fetch(`${subtitleUrl}?t=${Date.now()}`)
-          .then((r) => r.json())
-          .then((data: { start: number; end: number; text: string; emotion: string; confidence: number }[]) => {
-            setSubtitles(data);
-          })
-          .catch(() => {});
+      // --- 1. 모든 데이터 요청을 병렬로 시작 (비동기 처리) ---
+      
+      // A. 영상 다운로드 프로세스 (await 하지 않음)
+      const videoPromise = (async () => {
+        if (!res.video.videoUrl) return null;
+        const vRes = await fetch(res.video.videoUrl);
+        if (!vRes.ok) throw new Error("영상 다운로드 실패");
+        
+        const total = parseInt(vRes.headers.get("content-length") || "0", 10);
+        let loaded = 0;
+        const reader = vRes.body?.getReader();
+        const chunks = [];
+        
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            loaded += value.length;
+            if (total) setVideoDownloadProgress(Math.round((loaded / total) * 100));
+          }
+          const blob = new Blob(chunks, { type: "video/mp4" });
+          const localUrl = URL.createObjectURL(blob);
+          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+          blobUrlRef.current = localUrl;
+          setMediaUrl(localUrl);
+          return localUrl;
+        }
+        return null;
+      })();
+
+      // B. 나머지 JSON 데이터들 로드 프로세스
+      const jsonPromises = Promise.allSettled([
+        res.video.soundEventUrl 
+          ? fetch(`${res.video.soundEventUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
+          : Promise.resolve([]),
+        res.video.subtitleUrl
+          ? fetch(`${res.video.subtitleUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
+          : Promise.resolve([]),
+        res.video.vibrationUrl
+          ? fetch(`${res.video.vibrationUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
+          : Promise.resolve([])
+      ]);
+
+      try {
+        // 영상과 상관없이 JSON 데이터가 먼저 오면 바로 UI에 반영
+        const results = await jsonPromises;
+        const soundEvents = results[0].status === "fulfilled" ? (results[0].value as any[]) : [];
+        const subtitleData = results[1].status === "fulfilled" ? (results[1].value as any[]) : [];
+        // vibrationData는 필요시 활용
+
+        // 무결성 확인: 데이터가 정말 하나도 없는 경우 (필수 아님, 사용자 알림용)
+        if (soundEvents.length === 0 && subtitleData.length === 0) {
+          console.warn("불러온 자막/소리 데이터가 비어있습니다. (정상일 수 있음)");
+        }
+
+        setEvents(soundEvents.map((e: any, i: number) => ({
+          id: i,
+          timeSec: e.start,
+          endSec: e.end ?? e.start + 1,
+          duration: e.duration ?? (e.end - e.start),
+          timeLabel: `${e.start.toFixed(1)}s`,
+          emoji: e.emoji ?? "🔊",
+          description: e.caption_label,
+          enabled: e.enabled !== false,
+        })));
+        setSubtitles(subtitleData);
+
+        // 마지막으로 영상 다운로드 완료까지 대기 (이미 시작했으므로 나머지 시간만 기다림)
+        await videoPromise;
+
+      } catch (err) {
+        console.error("Data Load Error:", err);
+        alert("일부 데이터를 불러오는 중 오류가 발생했습니다.");
+      } finally {
+        setIsLoadingData(false);
       }
-    }).catch(() => {});
+    }).catch((err) => {
+      console.error("Video Detail Error:", err);
+      alert("영상 정보를 가져오는 데 실패했습니다.");
+      setIsLoadingData(false);
+    });
   }, []);
 
   // 내 앨범에서 진입한 경우

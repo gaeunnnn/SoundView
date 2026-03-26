@@ -143,6 +143,12 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
   const { isConnected, send, sendAndFlush } = useEsp();
   const [vibBuffering, setVibBuffering] = useState(false);
 
+  // 영상 Blob 관련 상태
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const blobUrlRef = useRef<string | null>(null);
+
   // 진동 데이터 (최초 1회 전송 여부)
   const vibSamplesRef = useRef<VibrationSample[]>([]);
   const vibSentRef = useRef(false);
@@ -160,27 +166,73 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
     if (!video.videoUrl) return;
 
     vibSentRef.current = false;
+    setIsDownloading(true);
+    setDownloadProgress(0);
 
-    // 진동: vibrationBinaryUrl 우선, 없으면 경로 기반 fallback
+    // 1. 영상 파일 전체 다운로드 프로세스 (병렬 시작, await 안함)
+    const loadVideoBlob = async () => {
+      try {
+        const res = await fetch(video.videoUrl!);
+        if (!res.ok) throw new Error("영상 다운로드 실패");
+
+        const contentLength = res.headers.get("content-length");
+        const total = contentLength ? parseInt(contentLength, 10) : 0;
+        let loaded = 0;
+
+        const reader = res.body?.getReader();
+        const chunks = [];
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            loaded += value.length;
+            if (total) setDownloadProgress(Math.round((loaded / total) * 100));
+          }
+          const blob = new Blob(chunks, { type: "video/mp4" });
+          const localUrl = URL.createObjectURL(blob);
+
+          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+          blobUrlRef.current = localUrl;
+          setBlobUrl(localUrl);
+        }
+      } catch (err) {
+        console.error("Video Download Error:", err);
+      } finally {
+        setIsDownloading(false);
+      }
+    };
+    loadVideoBlob();
+
+    // 2. 나머지 데이터들 병렬 로드 (즉시 시작)
+    const fetchOptions = {
+      cache: "no-store" as RequestCache,
+      headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+    };
+
+    // 진동 데이터 로드
     const vibUrl = video.vibrationBinaryUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_vibration.bin`;
     loadVibrationBin(vibUrl)
       .then((s) => { vibSamplesRef.current = s; })
-      .catch(() => {});
+      .catch(() => { vibSamplesRef.current = []; });
 
-    // 자막: subtitleUrl 우선, 없으면 경로 기반 fallback
+    // 자막 로드
     const subtitleUrl = video.subtitleUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_subtitle.json`;
-    loadJson<SubtitleEntry[]>(subtitleUrl)
+    fetch(`${subtitleUrl}?t=${Date.now()}`, fetchOptions)
+      .then(r => r.json())
       .then(setSubtitles)
-      .catch(() => {});
+      .catch(() => setSubtitles([]));
 
-    // 효과음: soundEventUrl 우선, 없으면 경로 기반 fallback
+    // 효과음 로드
     const soundUrl = video.soundEventUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_sound_event.json`;
-    loadJson<SoundEventEntry[]>(soundUrl)
+    fetch(`${soundUrl}?t=${Date.now()}`, fetchOptions)
+      .then(r => r.json())
       .then(setSoundEvents)
-      .catch(() => {});
+      .catch(() => setSoundEvents([]));
+
   }, [video.videoUrl, video.subtitleUrl, video.soundEventUrl, video.vibrationBinaryUrl]);
 
   // seek 완료 시 재생 중이면 새 위치부터 cmdPlay
@@ -426,15 +478,28 @@ export default function VideoPlayer({ video, reactions: _reactions, onReact: _on
           <>
             <video
               ref={videoRef}
-              src={video.videoUrl}
+              src={blobUrl || undefined}
               className="max-h-full max-w-full object-contain"
               onClick={handlePlayPause}
               onTimeUpdate={handleTimeUpdate}
               onEnded={() => { if (isConnected) send(cmdPause()); setIsPlaying(false); }}
-              style={{ cursor: "pointer" }}
+              style={{ cursor: "pointer", display: blobUrl ? "block" : "none" }}
               playsInline
               preload="auto"
             />
+            {!blobUrl && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                <div className="flex flex-col items-center gap-2">
+                  <svg className="animate-spin h-10 w-10 text-white" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                  </svg>
+                  <span className="text-white text-sm">
+                    {isDownloading ? `영상 다운로드 중... (${downloadProgress}%)` : "영상 준비 중..."}
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         ) : video.thumbnail ? (
           <img
