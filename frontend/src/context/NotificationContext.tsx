@@ -60,21 +60,29 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         });
         setUnreadCount((prev) => prev + 1);
       },
-      onVideoCompleted: (_videoId, albumVideoId) => {
+      onVideoCompleted: (videoId, albumVideoId) => {
         reloadNotifications();
         if (albumVideoId) {
           setUploadedAlbumVideoId(albumVideoId);
         } else {
-          // albumVideoId가 없으면 내 앨범의 최신 영상에서 찾기
+          // albumVideoId가 없으면 내 앨범에서 해당 videoId를 가진 영상 찾기
           getAlbums()
             .then((albums) => {
+              // "내 앨범" 찾기 (멤버가 1명인 개인 앨범)
               const myAlbum = albums.find((a) => a.name === "내 앨범" && a.memberCount === 1);
               if (!myAlbum) return;
               return getAlbumVideos(myAlbum.albumId);
             })
             .then((videos) => {
               if (!videos || videos.length === 0) return;
-              setUploadedAlbumVideoId(videos[0].albumVideoId);
+              // 🔥 SSE로 받은 videoId와 일치하는 영상을 정확히 찾음
+              const targetVideo = videos.find((v) => v.videoId === videoId);
+              if (targetVideo) {
+                setUploadedAlbumVideoId(targetVideo.albumVideoId);
+              } else {
+                // 만약 아직 리스트에 없다면 가장 최신 영상이라도 세팅 (폴백)
+                setUploadedAlbumVideoId(videos[0].albumVideoId);
+              }
             })
             .catch(() => {});
         }
