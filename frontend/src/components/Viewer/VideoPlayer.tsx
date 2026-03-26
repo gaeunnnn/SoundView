@@ -201,14 +201,13 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
 
     // 2. 나머지 데이터들 병렬 로드 (즉시 시작)
     const fetchOptions = {
-      cache: "no-store" as RequestCache,
-      headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+      cache: "no-store" as RequestCache
     };
 
     // 진동 데이터 로드
     const vibUrl = video.vibrationBinaryUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_vibration.bin`;
-    loadVibrationBin(vibUrl)
+    loadVibrationBin(`${vibUrl}?t=${Date.now()}`)
       .then((s) => { vibSamplesRef.current = s; })
       .catch(() => { vibSamplesRef.current = []; });
 

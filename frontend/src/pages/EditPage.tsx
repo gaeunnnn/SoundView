@@ -125,8 +125,7 @@ export default function EditPage() {
       setMediaTitle(res.video.title);
 
       const fetchOptions = {
-        cache: "no-store" as RequestCache,
-        headers: { "Pragma": "no-cache", "Cache-Control": "no-cache" }
+        cache: "no-store" as RequestCache
       };
 
       // --- 1. 모든 데이터 요청을 병렬로 시작 (비동기 처리) ---
@@ -134,7 +133,8 @@ export default function EditPage() {
       // A. 영상 다운로드 프로세스 (await 하지 않음)
       const videoPromise = (async () => {
         if (!res.video.videoUrl) return null;
-        const vRes = await fetch(res.video.videoUrl);
+        // 영상도 캐시 방지를 위해 쿼리 스트링 추가 및 fetchOptions 적용
+        const vRes = await fetch(`${res.video.videoUrl}?t=${Date.now()}`, fetchOptions);
         if (!vRes.ok) throw new Error("영상 다운로드 실패");
         
         const total = parseInt(vRes.headers.get("content-length") || "0", 10);
