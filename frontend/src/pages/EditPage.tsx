@@ -133,43 +133,44 @@ export default function EditPage() {
       // A. 영상 다운로드 프로세스 (await 하지 않음)
       const videoPromise = (async () => {
         if (!res.video.videoUrl) return null;
-        // 영상도 캐시 방지를 위해 쿼리 스트링 추가 및 fetchOptions 적용
-        const vRes = await fetch(`${res.video.videoUrl}?t=${Date.now()}`, fetchOptions);
-        if (!vRes.ok) throw new Error("영상 다운로드 실패");
-        
-        const total = parseInt(vRes.headers.get("content-length") || "0", 10);
-        let loaded = 0;
-        const reader = vRes.body?.getReader();
-        const chunks = [];
-        
-        if (reader) {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-            loaded += value.length;
-            if (total) setVideoDownloadProgress(Math.round((loaded / total) * 100));
+        try {
+          // 🔥 수정: 서명된 URL이므로 ?t=...를 붙이지 않고 그대로 요청 (403 방지)
+          const vRes = await fetch(res.video.videoUrl, fetchOptions);
+          if (!vRes.ok) throw new Error("영상 다운로드 실패");
+          
+          const total = parseInt(vRes.headers.get("content-length") || "0", 10);
+          let loaded = 0;
+          const reader = vRes.body?.getReader();
+          const chunks = [];
+          
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              chunks.push(value);
+              loaded += value.length;
+              if (total) setVideoDownloadProgress(Math.round((loaded / total) * 100));
+            }
+            const blob = new Blob(chunks, { type: "video/mp4" });
+            const localUrl = URL.createObjectURL(blob);
+            if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+            blobUrlRef.current = localUrl;
+            setMediaUrl(localUrl);
+            return localUrl;
           }
-          const blob = new Blob(chunks, { type: "video/mp4" });
-          const localUrl = URL.createObjectURL(blob);
-          if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
-          blobUrlRef.current = localUrl;
-          setMediaUrl(localUrl);
-          return localUrl;
+        } catch (e) {
+          console.error("Video Download Error:", e);
         }
         return null;
       })();
 
-      // B. 나머지 JSON 데이터들 로드 프로세스
+      // B. 나머지 JSON 데이터들 로드 프로세스 (진동 제거)
       const jsonPromises = Promise.allSettled([
         res.video.soundEventUrl 
           ? fetch(`${res.video.soundEventUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
           : Promise.resolve([]),
         res.video.subtitleUrl
           ? fetch(`${res.video.subtitleUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
-          : Promise.resolve([]),
-        res.video.vibrationUrl
-          ? fetch(`${res.video.vibrationUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
           : Promise.resolve([])
       ]);
 
@@ -178,12 +179,6 @@ export default function EditPage() {
         const results = await jsonPromises;
         const soundEvents = results[0].status === "fulfilled" ? (results[0].value as any[]) : [];
         const subtitleData = results[1].status === "fulfilled" ? (results[1].value as any[]) : [];
-        // vibrationData는 필요시 활용
-
-        // 무결성 확인: 데이터가 정말 하나도 없는 경우 (필수 아님, 사용자 알림용)
-        if (soundEvents.length === 0 && subtitleData.length === 0) {
-          console.warn("불러온 자막/소리 데이터가 비어있습니다. (정상일 수 있음)");
-        }
 
         setEvents(soundEvents.map((e: any, i: number) => ({
           id: i,
@@ -599,40 +594,41 @@ export default function EditPage() {
             onMouseMove={handleMouseMove}
             style={{ cursor: isFullscreen && !showControls ? "none" : "default" }}
           >
+            {/* 1. 다운로드 중일 때 (우선 순위) */}
+            {isLoadingData && (
+              <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
+                  <p className="text-sm font-medium text-white">
+                    영상을 다운로드 중입니다... ({videoDownloadProgress}%)
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* 2. 실제 영상 태그 (isLoadingData가 false여도 mediaUrl이 생기면 보임) */}
             {isRealFile ? (
-              <>
-                <video
-                  ref={videoRef}
-                  src={mediaUrl}
-                  className="h-full w-full object-contain cursor-pointer"
-                  onClick={handlePlayPause}
-                  playsInline
-                  preload="auto"
-                  onLoadedMetadata={(e) => {
-                    const sec = Math.floor(e.currentTarget.duration);
-                    setTotalSec(sec);
-                    setDuration(formatTime(sec));
-                    setCurrentSec(0);
-                  }}
-                  onTimeUpdate={(e) => {
-                    const t = e.currentTarget.currentTime;
-                    setCurrentSec(Math.floor(t));
-                    setCurrentTime(t);
-                  }}
-                  onEnded={() => setIsPlaying(false)}
-                  style={{ display: isLoadingData ? "none" : "block" }}
-                />
-                {isLoadingData && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="h-10 w-10 animate-spin rounded-full border-4 border-white/20 border-t-white" />
-                      <p className="text-sm font-medium text-white">
-                        영상을 다운로드 중입니다... ({videoDownloadProgress}%)
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </>
+              <video
+                ref={videoRef}
+                src={mediaUrl}
+                className="h-full w-full object-contain cursor-pointer"
+                onClick={handlePlayPause}
+                playsInline
+                preload="auto"
+                onLoadedMetadata={(e) => {
+                  const sec = Math.floor(e.currentTarget.duration);
+                  setTotalSec(sec);
+                  setDuration(formatTime(sec));
+                  setCurrentSec(0);
+                }}
+                onTimeUpdate={(e) => {
+                  const t = e.currentTarget.currentTime;
+                  setCurrentSec(Math.floor(t));
+                  setCurrentTime(t);
+                }}
+                onEnded={() => setIsPlaying(false)}
+                style={{ display: isLoadingData ? "none" : "block" }}
+              />
             ) : mediaUrl ? (
               <img
                 src={mediaUrl}
@@ -641,9 +637,12 @@ export default function EditPage() {
                 onClick={handlePlayPause}
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
-              </div>
+              /* URL이 아예 없을 때의 초기 상태 (이미 isLoadingData에서 처리되므로 거의 안 보임) */
+              !isLoadingData && (
+                <div className="flex h-full w-full items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+                </div>
+              )
             )}
 
             <PlayerOverlay isPlaying={isPlaying} showOverlay={showOverlay} onToggle={handlePlayPause} />
