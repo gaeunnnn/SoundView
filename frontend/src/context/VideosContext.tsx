@@ -21,38 +21,30 @@ function formatDuration(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-const DEMO_VIDEO: VideoItem = {
-  id: -1,
-  videoId: -1,
-  title: "데모 영상",
-  date: "2026.03.23",
-  duration: "0:24",
-  thumbnail: undefined,
-  uploaderName: "나",
-  videoUrl: "/demo/test.mp4",
-};
-
 export function VideosProvider({ children }: { children: React.ReactNode }) {
-  const [videos, setVideos] = useState<VideoItem[]>([DEMO_VIDEO]);
+  const [videos, setVideos] = useState<VideoItem[]>([]);
 
   // GET /api/albums/{albumId}/videos — 앨범 영상 목록을 불러와 상태에 저장
   const fetchVideos = async (albumId: number) => {
     if (!albumId || albumId <= 0 || !Number.isFinite(albumId)) return;
     try {
       const data = await getAlbumVideos(albumId);
-      const fetched = data.map((v) => ({
-        id: v.albumVideoId,
-        videoId: v.videoId ?? v.albumVideoId,
-        title: v.title,
-        thumbnail: v.thumbnailUrl ?? v.thumbnailS3Key ?? undefined,
-        duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
-        date: v.createdAt.slice(0, 10).replace(/-/g, "."),
-        uploaderName: v.uploaderName,
-      }));
-      setVideos([DEMO_VIDEO, ...fetched]);
+      const fetched = data
+        .slice()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .map((v) => ({
+          id: v.albumVideoId,
+          videoId: v.videoId ?? v.albumVideoId,
+          title: v.title,
+          thumbnail: v.thumbnailUrl ?? v.thumbnailS3Key ?? undefined,
+          duration: v.durationSec != null ? formatDuration(v.durationSec) : "",
+          date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+          uploaderName: v.uploaderName,
+        }));
+      setVideos(fetched);
     } catch (e) {
       console.error("[fetchVideos] 실패:", e);
-      setVideos([DEMO_VIDEO]);
+      setVideos([]);
     }
   };
 
