@@ -10,14 +10,17 @@ import { useEsp } from "../../context/EspContext";
 type VibrationSample = { timestamp: number; intensity_l: number; intensity_r: number };
 
 type SubtitleEntry = {
+  id: number;
   start: number;
   end: number;
   text: string;
   emotion: string;
   confidence: number;
+  enabled: boolean;
 };
 
 type SoundEventEntry = {
+  id: number;
   start: number;
   end: number;
   // 새 포맷
@@ -26,7 +29,16 @@ type SoundEventEntry = {
   // 구 포맷
   event?: string;
   event_en?: string;
-  enabled?: boolean;
+  enabled: boolean;
+};
+
+type ActiveOverlay = {
+  eventId: number | string;
+  type: "sound" | "speech";
+  emoji?: string;
+  text?: string;
+  triggeredAt: number;
+  endSec: number;
 };
 
 // ── 로더 ──────────────────────────────────────────────────
@@ -173,9 +185,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
 
   // 현재 시간 기준 활성 항목
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleEntry | null>(null);
-  // 스택에 표시 중인 이모지 — 소리 구간 종료 후 5초 유지
-  type DisplayEvent = SoundEventEntry & { _endSec: number };
-  const [displayEvents, setDisplayEvents] = useState<DisplayEvent[]>([]);
+  const [activeOverlays, setActiveOverlays] = useState<ActiveOverlay[]>([]);
 
   // ── 데이터 로드 ────────────────────────────────────────────
   useEffect(() => {
@@ -240,15 +250,33 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_subtitle.json`;
     fetch(`${subtitleUrl}?t=${Date.now()}`, fetchOptions)
       .then(r => r.json())
-      .then(setSubtitles)
+      .then((data: any[]) => {
+        const mapped = data.map((s, i) => ({
+          ...s,
+          id: i,
+          enabled: s.enabled !== false && String(s.enabled) !== "false"
+        })).filter(s => s.enabled);
+        setSubtitles(mapped);
+      })
       .catch(() => setSubtitles([]));
+
 
     // 효과음 로드
     const soundUrl = video.soundEventUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_sound_event.json`;
+      
     fetch(`${soundUrl}?t=${Date.now()}`, fetchOptions)
       .then(r => r.json())
-      .then(setSoundEvents)
+      .then((data: any[]) => {
+        // 👉 철벽 방어: 불리언 false든, 문자열 "false"든 무조건 걸러냅니다.
+        const validEvents = data.map((e, i) => ({
+          ...e,
+          id: i,
+          enabled: e.enabled !== false && String(e.enabled) !== "false"
+        })).filter(e => e.enabled);
+        
+        setSoundEvents(validEvents);
+      })
       .catch(() => setSoundEvents([]));
 
   }, [video.videoUrl, video.subtitleUrl, video.soundEventUrl, video.vibrationBinaryUrl]);
@@ -303,15 +331,41 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
     const t = currentSec;
     setCurrentSubtitle(subtitles.find((s) => t >= s.start && t < s.end) ?? null);
 
-    setDisplayEvents((prev) => {
-      // 새로 시작된 이벤트 추가
-      const nowActive = soundEvents.filter((e) => e.enabled !== false && t >= e.start && t < e.end);
-      const newItems: DisplayEvent[] = nowActive
-        .filter((e) => !prev.some((d) => d.start === e.start && d.end === e.end))
-        .map((e) => ({ ...e, _endSec: e.end }));
-      // end + 5초 지난 것 제거
-      return [...prev, ...newItems]
-        .filter((d) => t < d._endSec + 5)
+    setActiveOverlays((prev) => {
+      // 1. 현재 활성화된 소리 이벤트
+      const nowActiveSounds = soundEvents.filter(
+        (e) => e.enabled && t >= e.start && t < e.end
+      );
+      // 2. 현재 활성화된 자막 (사람 말)
+      const nowActiveSpeech = subtitles.filter(
+        (s) => s.enabled && t >= s.start && t < s.end
+      );
+
+      const newSounds: ActiveOverlay[] = nowActiveSounds
+        .filter((e) => !prev.some((ao) => ao.type === "sound" && ao.eventId === e.id))
+        .map((e) => ({
+          eventId: e.id,
+          type: "sound",
+          emoji: getEmoji(e),
+          text: getLabel(e),
+          triggeredAt: t,
+          endSec: e.end,
+        }));
+
+      const newSpeech: ActiveOverlay[] = nowActiveSpeech
+        .filter((s) => !prev.some((ao) => ao.type === "speech" && ao.eventId === s.id))
+        .map((s) => ({
+          eventId: s.id,
+          type: "speech",
+          emoji: "💬",
+          text: s.text,
+          triggeredAt: t,
+          endSec: s.end,
+        }));
+
+      return [...prev, ...newSounds, ...newSpeech]
+        // end 후 5초 지난 것 제거
+        .filter((ao) => t < ao.endSec + 5)
         .slice(-5); // 최신 5개 유지
     });
   }, [currentSec, subtitles, soundEvents]);
@@ -589,11 +643,11 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           </div>
         )}
 
-        {/* ── 효과음 오버레이 (상단 중앙, 리퀴드글라스) — emojiOn일 때 항상 DOM에 존재, 이벤트 없으면 invisible ── */}
+        {/* ── 효과음 오버레이 (상단 중앙, 원래 스타일) ── */}
         {emojiOn && (
           <div
-            className="absolute top-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-            style={{ visibility: displayEvents.length > 0 ? "visible" : "hidden" }}
+            className="absolute top-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
+            style={{ visibility: activeOverlays.some(ao => ao.type === "sound") ? "visible" : "hidden" }}
           >
             {/* SVG distortion filter — 항상 DOM에 유지 */}
             <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
@@ -615,32 +669,22 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
               </defs>
             </svg>
 
-            {/* 리퀴드글라스 컨테이너 */}
             <div
               className="relative flex overflow-hidden rounded-3xl"
               style={{ boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)" }}
             >
-              {/* Glass layer 1 — blur + distortion */}
-              <div
-                className="absolute inset-0 z-0 rounded-3xl overflow-hidden"
-                style={{ backdropFilter: "blur(3px)", filter: "url(#vp-glass-distortion)", isolation: "isolate" }}
-              />
-              {/* Glass layer 2 — white tint */}
+              {/* Glass Layers */}
+              <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl" style={{ backdropFilter: "blur(3px)", filter: "url(#vp-glass-distortion)", isolation: "isolate" }} />
               <div className="absolute inset-0 z-10 rounded-3xl" style={{ background: "rgba(255,255,255,0.18)" }} />
-              {/* Glass layer 3 — inner highlight */}
-              <div
-                className="absolute inset-0 z-20 rounded-3xl overflow-hidden"
-                style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }}
-              />
-              {/* 이모지 스택 — 최대 5개, 겹쳐 쌓임 */}
+              <div className="absolute inset-0 z-20 rounded-3xl overflow-hidden" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
+              
               <div className="relative z-30 flex items-center px-4 py-3">
-                {displayEvents.map((e, i) => {
-                  const isActive = currentSec < e._endSec;
-                  const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - e._endSec) / 5);
+                {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
+                  const isActive = currentSec < ao.endSec;
+                  const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ao.endSec) / 5);
                   return (
                     <span
-                      key={`${e.start}-${e.end}`}
-                      title={getLabel(e)}
+                      key={`${ao.type}-${ao.eventId}`}
                       className="select-none leading-none transition-opacity duration-700"
                       style={{
                         fontSize: "2rem",
@@ -657,7 +701,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
                         animationPlayState: isPlaying && isActive ? "running" : "paused",
                       }}
                     >
-                      {getEmoji(e)}
+                      {ao.emoji}
                     </span>
                   );
                 })}
@@ -700,25 +744,47 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
             >
               <div className="flex shrink-0 items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
                 <div className="h-2 w-2 rounded-full bg-[#10B981]" />
-                <span className="text-sm font-semibold text-white">인식된 소리</span>
+                <span className="text-sm font-semibold text-white">인식된 정보</span>
               </div>
-              {/* 효과음 목록 */}
-              <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-                {soundEvents.map((e, i) => (
-                  <div
-                    key={i}
-                    className={[
-                      "flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs transition-colors",
-                      currentSec >= e.start && currentSec < e.end
-                        ? "bg-[#10B981]/20 text-[#6EE7B7]"
-                        : "text-white/40",
-                    ].join(" ")}
-                  >
-                    <span>{getEmoji(e)}</span>
-                    <span className="truncate">{getLabel(e)}</span>
-                    <span className="ml-auto shrink-0 tabular-nums text-[10px]">{e.start.toFixed(1)}s</span>
-                  </div>
-                ))}
+              
+              <div className="flex-1 overflow-y-auto">
+                <div className="px-4 py-2.5 text-xs font-bold text-white/40 uppercase tracking-wider">소리 인식 결과</div>
+                <div className="px-3 py-1 space-y-1">
+                  {soundEvents.map((e) => (
+                    <div
+                      key={`sound-${e.id}`}
+                      className={[
+                        "flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] transition-colors",
+                        currentSec >= e.start && currentSec < e.end
+                          ? "bg-[#10B981]/20 text-[#6EE7B7]"
+                          : "text-white/40",
+                      ].join(" ")}
+                    >
+                      <span className="text-base">{getEmoji(e)}</span>
+                      <span className="truncate">{getLabel(e)}</span>
+                      <span className="ml-auto shrink-0 tabular-nums text-[11px] font-mono">{e.start.toFixed(1)}s</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6 px-4 py-2.5 text-xs font-bold text-white/40 uppercase tracking-wider">음성 인식 결과</div>
+                <div className="px-3 py-1 space-y-1">
+                  {subtitles.map((s) => (
+                    <div
+                      key={`speech-${s.id}`}
+                      className={[
+                        "flex items-center gap-2 rounded-lg px-2 py-1.5 text-[13px] transition-colors",
+                        currentSec >= s.start && currentSec < s.end
+                          ? "bg-[#3B82F6]/20 text-[#93C5FD]"
+                          : "text-white/40",
+                      ].join(" ")}
+                    >
+                      <span className="text-base">💬</span>
+                      <span className="truncate">{s.text}</span>
+                      <span className="ml-auto shrink-0 tabular-nums text-[11px] font-mono">{s.start.toFixed(1)}s</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

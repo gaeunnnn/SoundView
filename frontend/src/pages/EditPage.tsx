@@ -23,11 +23,13 @@ function formatTime(sec: number) {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-type ActiveEmoji = {
-  eventId: number;
-  emoji: string;
+type ActiveOverlay = {
+  eventId: number | string;
+  type: "sound" | "speech";
+  emoji?: string;
+  text?: string;
   triggeredAt: number;
-  endSec: number; // 소리 인식 종료 시각
+  endSec: number;
 };
 
 // 소리 이벤트 목록 - 체크박스 포함 (수정 페이지)
@@ -82,6 +84,58 @@ function EventList({
   );
 }
 
+// 자막 목록 - 체크박스 포함
+function SubtitleList({
+  subtitles,
+  isFullscreen,
+  onToggle,
+}: {
+  subtitles: { id: number; start: number; end: number; text: string; enabled: boolean }[];
+  isFullscreen: boolean;
+  onToggle: (id: number) => void;
+}) {
+  return (
+    <>
+      {subtitles.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          onClick={() => onToggle(s.id)}
+          className={[
+            "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors",
+            isFullscreen ? "hover:bg-white/10 text-white" : "hover:bg-[#F8FAFC]",
+            !s.enabled && "opacity-40",
+          ].join(" ")}
+        >
+          <div
+            className={[
+              "flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors",
+              s.enabled
+                ? "border-[#2563EB] bg-[#2563EB]"
+                : isFullscreen ? "border-white/40 bg-transparent" : "border-[#CBD5E1] bg-white",
+            ].join(" ")}
+          >
+            {s.enabled && (
+              <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                <path d="M1 3.5L3.2 5.5L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+          <span className="text-base leading-none shrink-0">💬</span>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className={["truncate text-sm font-medium", isFullscreen ? "text-white/90" : "text-[#1E293B]"].join(" ")}>
+              {s.text}
+            </span>
+            <span className={["font-mono text-[10px]", isFullscreen ? "text-[#60A5FA]" : "text-[#2563EB]"].join(" ")}>
+              {s.start.toFixed(1)}s ~ {s.end.toFixed(1)}s
+            </span>
+          </div>
+        </button>
+      ))}
+    </>
+  );
+}
+
 export default function EditPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -97,7 +151,7 @@ export default function EditPage() {
   const [mediaTitle, setMediaTitle] = useState("");
 
   // subtitle 상태
-  const [subtitles, setSubtitles] = useState<{ start: number; end: number; text: string; emotion: string; confidence: number }[]>([]);
+  const [subtitles, setSubtitles] = useState<{ id: number; start: number; end: number; text: string; emotion: string; confidence: number; enabled: boolean }[]>([]);
   // getVideoFull에서 받은 실제 videos.id (edit-save, PATCH에 사용)
   const [resolvedVideoId, setResolvedVideoId] = useState<number | null>(null);
 
@@ -192,7 +246,11 @@ export default function EditPage() {
           description: e.caption_label,
           enabled: e.enabled !== false,
         })));
-        setSubtitles(subtitleData);
+        setSubtitles(subtitleData.map((s: any, i: number) => ({
+          ...s,
+          id: i,
+          enabled: s.enabled !== false,
+        })));
 
         // 마지막으로 영상 다운로드 완료까지 대기 (이미 시작했으므로 나머지 시간만 기다림)
         await videoPromise;
@@ -225,7 +283,7 @@ export default function EditPage() {
   const [currentSec, setCurrentSec] = useState(0);
   const [subtitleOn, setSubtitleOn] = useState(true);
   const [emojiOn, setEmojiOn] = useState(true);
-  const [activeEmojis, setActiveEmojis] = useState<ActiveEmoji[]>([]);
+  const [activeOverlays, setActiveOverlays] = useState<ActiveOverlay[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidePanel, setShowSidePanel] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -343,29 +401,52 @@ export default function EditPage() {
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
 
-  // 이모지 오버레이 — start~end 범위 동안 표시 + end 후 5초 유지
+  // 오버레이 (이모지/텍스트) — start~end 범위 동안 표시 + end 후 5초 유지
   useEffect(() => {
     if (!emojiOn) return;
     startTransition(() => {
-      setActiveEmojis((prev) => {
-        // 새로 진입한 이모지 추가
-        const nowActive = events.filter(
+      setActiveOverlays((prev) => {
+        // 1. 현재 활성화된 소리 이벤트
+        const nowActiveSounds = events.filter(
           (ev) => ev.enabled && currentSec >= ev.timeSec && currentSec < (ev.endSec ?? ev.timeSec + 1)
         );
-        const newItems: ActiveEmoji[] = nowActive
-          .filter((ev) => !prev.some((ae) => ae.eventId === ev.id))
-          .map((ev) => ({ eventId: ev.id, emoji: ev.emoji, triggeredAt: currentSec, endSec: ev.endSec ?? ev.timeSec + 1 }));
+        // 2. 현재 활성화된 자막 (사람 말)
+        const nowActiveSpeech = subtitles.filter(
+          (s) => s.enabled && currentSec >= s.start && currentSec < s.end
+        );
 
-        return [...prev, ...newItems]
+        const newSounds: ActiveOverlay[] = nowActiveSounds
+          .filter((ev) => !prev.some((ao) => ao.type === "sound" && ao.eventId === ev.id))
+          .map((ev) => ({
+            eventId: ev.id,
+            type: "sound",
+            emoji: ev.emoji,
+            text: ev.description, // 소리는 설명을 텍스트로 사용
+            triggeredAt: currentSec,
+            endSec: ev.endSec ?? ev.timeSec + 1,
+          }));
+
+        const newSpeech: ActiveOverlay[] = nowActiveSpeech
+          .filter((s) => !prev.some((ao) => ao.type === "speech" && ao.eventId === s.id))
+          .map((s) => ({
+            eventId: s.id,
+            type: "speech",
+            emoji: "💬",
+            text: s.text,
+            triggeredAt: currentSec,
+            endSec: s.end,
+          }));
+
+        return [...prev, ...newSounds, ...newSpeech]
           // end 후 5초 지난 것 제거
-          .filter((ae) => currentSec < ae.endSec + 5)
-          .slice(0, 5);
+          .filter((ao) => currentSec < ao.endSec + 5)
+          .slice(-5); // 최신 5개 유지
       });
     });
-  }, [currentSec, emojiOn, events]);
+  }, [currentSec, emojiOn, events, subtitles]);
 
   useEffect(() => {
-    if (!emojiOn) startTransition(() => setActiveEmojis([]));
+    if (!emojiOn) startTransition(() => setActiveOverlays([]));
   }, [emojiOn]);
 
 
@@ -445,8 +526,14 @@ export default function EditPage() {
 
   const toggleEvent = (id: number) => {
     setEvents((prev) => prev.map((ev) => (ev.id === id ? { ...ev, enabled: !ev.enabled } : ev)));
-    // 비활성화 시 activeEmojis에서 즉시 제거
-    setActiveEmojis((prev) => prev.filter((ae) => ae.eventId !== id));
+    // 비활성화 시 activeOverlays에서 즉시 제거
+    setActiveOverlays((prev) => prev.filter((ao) => !(ao.type === "sound" && ao.eventId === id)));
+  };
+
+  const toggleSubtitle = (id: number) => {
+    setSubtitles((prev) => prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)));
+    // 비활성화 시 activeOverlays에서 즉시 제거
+    setActiveOverlays((prev) => prev.filter((ao) => !(ao.type === "speech" && ao.eventId === id)));
   };
 
   const handleNavigateAway = (target: string) => {
@@ -673,48 +760,31 @@ export default function EditPage() {
               </div>
             )}
 
-            {/* Liquid Glass 이모지 오버레이 — emojiOn일 때 항상 DOM에 존재, 이벤트 없으면 invisible */}
+            {/* Liquid Glass 이모지 오버레이 (환경음 전용) — 원래 스타일로 복구 */}
             {emojiOn && (
               <div
                 className="absolute top-5 left-1/2 z-30 -translate-x-1/2 pointer-events-none"
-                style={{ visibility: activeEmojis.length > 0 ? "visible" : "hidden" }}
+                style={{ visibility: activeOverlays.some(ao => ao.type === "sound") ? "visible" : "hidden" }}
               >
-                {/* Glass container */}
                 <div
                   className="relative overflow-hidden rounded-3xl"
                   style={{
                     boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)",
                   }}
                 >
-                  {/* Layer 1: distortion blur */}
-                  <div
-                    className="absolute inset-0 z-0 overflow-hidden rounded-3xl"
-                    style={{
-                      backdropFilter: "blur(3px)",
-                      filter: "url(#glass-distortion)",
-                      isolation: "isolate",
-                    }}
-                  />
-                  {/* Layer 2: white tint */}
-                  <div
-                    className="absolute inset-0 z-10 rounded-3xl"
-                    style={{ background: "rgba(255,255,255,0.25)" }}
-                  />
-                  {/* Layer 3: inset highlight */}
-                  <div
-                    className="absolute inset-0 z-20 rounded-3xl"
-                    style={{
-                      boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)",
-                    }}
-                  />
-                  {/* 이모지 스택 — 최대 5개, 겹쳐 쌓임 */}
+                  {/* Glass Layers */}
+                  <div className="absolute inset-0 z-0" style={{ backdropFilter: "blur(3px)", filter: "url(#glass-distortion)" }} />
+                  <div className="absolute inset-0 z-10" style={{ background: "rgba(255,255,255,0.25)" }} />
+                  <div className="absolute inset-0 z-20" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
+                  
+                  {/* 이모지 스택 */}
                   <div className="relative z-30 flex items-center px-4 py-3">
-                    {activeEmojis.slice(0, 5).map((ae, i) => {
-                      const isActive = currentSec < ae.endSec;
-                      const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ae.endSec) / 5);
+                    {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
+                      const isActive = currentSec < ao.endSec;
+                      const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ao.endSec) / 5);
                       return (
                         <span
-                          key={ae.eventId}
+                          key={`${ao.type}-${ao.eventId}`}
                           className="select-none leading-none transition-opacity duration-700"
                           style={{
                             fontSize: "2rem",
@@ -723,15 +793,19 @@ export default function EditPage() {
                             position: "relative",
                             filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
                             opacity: 1 - fadeProgress,
+<<<<<<< HEAD
                             animationName: "emoji-bounce",
                             animationDuration: "1.4s",
                             animationTimingFunction: "ease-in-out",
                             animationIterationCount: "infinite",
+=======
+                            animation: isPlaying && isActive ? "emoji-bounce 1.4s ease-in-out infinite" : "none",
+>>>>>>> origin/front-dev
                             animationDelay: `${i * 0.12}s`,
                             animationPlayState: isPlaying && isActive ? "running" : "paused",
                           }}
                         >
-                          {ae.emoji}
+                          {ao.emoji}
                         </span>
                       );
                     })}
@@ -785,12 +859,17 @@ export default function EditPage() {
                   >
                     <div className="flex items-center gap-2">
                       <div className="h-2 w-2 rounded-full bg-[#10B981]" />
-                      <span className="text-sm font-semibold text-white">인식된 소리</span>
-                      <span className="text-sm text-white/50">{enabledCount}/{events.length}</span>
+                      <span className="text-sm font-semibold text-white">인식된 정보</span>
+                      <span className="text-sm text-white/50">
+                        {enabledCount + subtitles.filter(s => s.enabled).length}/{events.length + subtitles.length}
+                      </span>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto">
+                    <div className="px-4 py-2.5 text-xs font-bold text-white/40 uppercase tracking-wider">소리 인식 결과</div>
                     <EventList events={events} isFullscreen={isFullscreen} onToggle={toggleEvent} />
+                    <div className="mt-6 px-4 py-2.5 text-xs font-bold text-white/40 uppercase tracking-wider">음성 인식 결과</div>
+                    <SubtitleList subtitles={subtitles} isFullscreen={isFullscreen} onToggle={toggleSubtitle} />
                   </div>
                 </div>
               </div>
@@ -840,15 +919,20 @@ export default function EditPage() {
           <div className="flex shrink-0 items-center justify-between border-b border-[#E8EDF4] px-4 py-3">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 rounded-full bg-[#10B981]" />
-              <span className="text-sm font-semibold text-[#111827]">인식된 소리</span>
-              <span className="text-sm text-[#94A3B8]">{enabledCount}/{events.length}</span>
+              <span className="text-sm font-semibold text-[#111827]">인식된 정보</span>
+              <span className="text-sm text-[#94A3B8]">
+                {enabledCount + subtitles.filter(s => s.enabled).length}/{events.length + subtitles.length}
+              </span>
             </div>
             <button type="button" className="text-[#94A3B8] hover:text-[#64748B] transition-colors">
               <ChevronRight size={16} />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
+            <div className="px-4 py-2.5 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">소리 인식 결과</div>
             <EventList events={events} isFullscreen={false} onToggle={toggleEvent} />
+            <div className="mt-6 px-4 py-2.5 text-xs font-bold text-[#94A3B8] uppercase tracking-wider">음성 인식 결과</div>
+            <SubtitleList subtitles={subtitles} isFullscreen={false} onToggle={toggleSubtitle} />
           </div>
         </div>
       </div>
