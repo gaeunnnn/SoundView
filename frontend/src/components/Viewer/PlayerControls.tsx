@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from "react";
 import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Settings } from "lucide-react";
 import type { SoundEvent } from "../../constants/edit";
 
+type EspStatus = "connecting" | "connected" | "disconnected" | "error";
+
 type PlayerControlsProps = {
   isPlaying: boolean;
   currentSec: number;
@@ -14,6 +16,7 @@ type PlayerControlsProps = {
   showVolume: boolean;
   subtitleOn: boolean;
   emojiOn: boolean;
+  espStatus: EspStatus;
   soundEvents?: SoundEvent[];
   progressRef: React.RefObject<HTMLDivElement | null>;
   onProgressClick: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -47,6 +50,7 @@ export default function PlayerControls({
   showVolume,
   subtitleOn,
   emojiOn,
+  espStatus,
   soundEvents = [],
   progressRef,
   onProgressClick,
@@ -178,6 +182,37 @@ export default function PlayerControls({
 
         {/* 우측 */}
         <div className="flex items-center gap-2 text-white/70">
+          {/* ESP32 연결 상태 */}
+          {{
+            connected: (
+              <div title="ESP32 연결됨" className="flex items-center gap-1 rounded-md px-1.5 py-1">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#10B981]" />
+                </span>
+                <span className="text-[10px] font-medium text-[#6EE7B7]">ESP</span>
+              </div>
+            ),
+            connecting: (
+              <div title="ESP32 연결 중..." className="flex items-center gap-1 rounded-md px-1.5 py-1">
+                <span className="h-2 w-2 rounded-full bg-[#F59E0B] animate-pulse" />
+                <span className="text-[10px] font-medium text-[#FCD34D]">ESP</span>
+              </div>
+            ),
+            disconnected: (
+              <div title="ESP32 연결 안 됨" className="flex items-center gap-1 rounded-md px-1.5 py-1">
+                <span className="h-2 w-2 rounded-full bg-white/25" />
+                <span className="text-[10px] font-medium text-white/30">ESP</span>
+              </div>
+            ),
+            error: (
+              <div title="ESP32 연결 오류" className="flex items-center gap-1 rounded-md px-1.5 py-1">
+                <span className="h-2 w-2 rounded-full bg-[#EF4444]" />
+                <span className="text-[10px] font-medium text-[#FCA5A5]">ESP</span>
+              </div>
+            ),
+          }[espStatus]}
+          <div className="w-px h-3.5 bg-white/20" />
           {/* 자막 - ON: 노란색 */}
           <button
             type="button"

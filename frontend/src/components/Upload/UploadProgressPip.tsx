@@ -1,14 +1,13 @@
 // 다른 페이지로 이동했을 때 떠있는 업로드 진행 PiP 팝업
 import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { X, Upload, Loader2 } from "lucide-react";
+import { useLocation } from "react-router-dom";
+import { X, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { useUpload } from "../../context/UploadContext";
 import { getVideoStatus } from "../../api/video";
 
 export default function UploadProgressPip() {
   const { status, progress, fileName, uploadedVideoId, doneUpload, resetUpload } = useUpload();
   const location = useLocation();
-  const navigate = useNavigate();
 
   // 드래그 상태
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -26,9 +25,6 @@ export default function UploadProgressPip() {
         if (videoStatus === "COMPLETED") {
           clearInterval(interval);
           doneUpload();
-          resetUpload();
-          // albumVideoId를 알 수 없으므로 SSE에서 받은 값 사용 (폴링 경로는 그대로)
-          navigate("/edit");
         } else if (videoStatus === "FAILED") {
           clearInterval(interval);
           resetUpload();
@@ -68,12 +64,13 @@ export default function UploadProgressPip() {
   }, []);
 
   const isVisible =
-    (status === "uploading" || status === "processing") &&
+    (status === "uploading" || status === "processing" || status === "done") &&
     location.pathname !== "/upload";
 
   if (!isVisible) return null;
 
   const isProcessing = status === "processing";
+  const isDone = status === "done";
 
   const posStyle = pos
     ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" }
@@ -91,8 +88,10 @@ export default function UploadProgressPip() {
         onMouseDown={handleMouseDown}
       >
         <div className="flex items-center gap-2">
-          <div className={["flex h-7 w-7 items-center justify-center rounded-lg", isProcessing ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"].join(" ")}>
-            {isProcessing
+          <div className={["flex h-7 w-7 items-center justify-center rounded-lg", isDone ? "bg-[#ECFDF5]" : isProcessing ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"].join(" ")}>
+            {isDone
+              ? <CheckCircle2 size={13} className="text-[#059669]" strokeWidth={2.5} />
+              : isProcessing
               ? <Loader2 size={13} className="animate-spin text-[#059669]" strokeWidth={2.5} />
               : <Upload size={13} className="text-[#2563EB]" strokeWidth={2.5} />
             }
@@ -101,8 +100,8 @@ export default function UploadProgressPip() {
             <p className="text-xs font-semibold text-[#111827] truncate max-w-[140px]">
               {fileName}
             </p>
-            <p className="text-[10px] text-[#94A3B8]">
-              {isProcessing ? "AI 자막·이모지·진동 생성 중" : "업로드 중..."}
+            <p className={["text-[10px]", isDone ? "text-[#059669] font-medium" : "text-[#94A3B8]"].join(" ")}>
+              {isDone ? "AI 처리 완료!" : isProcessing ? "AI 자막·이모지·진동 생성 중" : "업로드 중..."}
             </p>
           </div>
         </div>
@@ -118,32 +117,34 @@ export default function UploadProgressPip() {
         </div>
       </div>
 
-      {/* 진행률 */}
-      <div className="px-4 py-3">
-        {isProcessing ? (
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1">
-              {["🎬", "📝", "😊", "📳"].map((icon) => (
-                <span key={icon} className="text-sm">{icon}</span>
-              ))}
+      {/* 진행률 / 완료 */}
+      {!isDone && (
+        <div className="px-4 py-3">
+          {isProcessing ? (
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {["🎬", "📝", "😊", "📳"].map((icon) => (
+                  <span key={icon} className="text-sm">{icon}</span>
+                ))}
+              </div>
+              <span className="text-xs text-[#64748B]">처리 중...</span>
             </div>
-            <span className="text-xs text-[#64748B]">처리 중...</span>
-          </div>
-        ) : (
-          <>
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-xs text-[#64748B]">업로드 중...</span>
-              <span className="text-xs font-semibold text-[#2563EB]">{progress}%</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
-              <div
-                className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-          </>
-        )}
-      </div>
+          ) : (
+            <>
+              <div className="mb-1.5 flex items-center justify-between">
+                <span className="text-xs text-[#64748B]">업로드 중...</span>
+                <span className="text-xs font-semibold text-[#2563EB]">{progress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[#F1F5F9]">
+                <div
+                  className="h-full rounded-full bg-[#2563EB] transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

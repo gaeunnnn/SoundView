@@ -13,7 +13,7 @@ import { getVideoStatus } from "../api/video";
 export default function UploadPage() {
   const navigate = useNavigate();
   const { me } = useUser();
-  const { status, progress, uploadedVideoId, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, startProcessing, doneUpload, resetUpload } = useUpload();
+  const { status, progress, uploadedVideoId, uploadedAlbumVideoId, setUploadedVideo, setUploadedVideoId, setUploadedTitle, startUpload, updateProgress, finishUpload, startProcessing, doneUpload, resetUpload } = useUpload();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -85,7 +85,6 @@ export default function UploadPage() {
         if (videoStatus === "COMPLETED") {
           clearInterval(interval);
           doneUpload();
-          navigate("/edit");
         } else if (videoStatus === "FAILED") {
           clearInterval(interval);
           resetUpload();
@@ -293,24 +292,56 @@ export default function UploadPage() {
       </div>
 
       {/* 업로드 완료 팝업 */}
-      {showDoneModal && (
+      {(showDoneModal || isDone) && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => setShowDoneModal(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+          onClick={() => { setShowDoneModal(false); }}
         >
           <div
             className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex flex-col items-center gap-3 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#ECFDF5]">
-                <CheckCircle2 size={32} className="text-[#10B981]" strokeWidth={1.5} />
+              <div className={["flex h-14 w-14 items-center justify-center rounded-full", isDone ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"].join(" ")}>
+                {isDone
+                  ? <CheckCircle2 size={32} className="text-[#10B981]" strokeWidth={1.5} />
+                  : <Loader2 size={32} className="animate-spin text-[#2563EB]" strokeWidth={1.5} />
+                }
               </div>
-              <h2 className="text-lg font-bold text-[#111827]">업로드 완료!</h2>
+              <h2 className="text-lg font-bold text-[#111827]">
+                {isDone ? "영상 처리가 완료되었습니다!" : "업로드 완료!"}
+              </h2>
               <p className="text-sm text-[#64748B]">
-                AI가 자막·이모지·진동 데이터를 생성하고 있습니다.<br />
-                다른 화면으로 이동해도 백그라운드에서 계속 진행됩니다.
+                {isDone
+                  ? "AI 자막·이모지·진동 데이터 생성이 완료되었습니다."
+                  : <>AI가 자막·이모지·진동 데이터를 생성하고 있습니다.<br />다른 화면으로 이동해도 백그라운드에서 계속 진행됩니다.</>
+                }
               </p>
+              {isDone && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDoneModal(false);
+                    if (uploadedAlbumVideoId) {
+                      navigate("/edit");
+                    } else {
+                      navigate("/edit");
+                    }
+                  }}
+                  className="mt-1 w-full rounded-xl bg-[#2563EB] py-2.5 text-sm font-semibold text-white hover:bg-[#1D4ED8] transition-colors"
+                >
+                  편집 페이지로 이동
+                </button>
+              )}
+              {!isDone && (
+                <button
+                  type="button"
+                  onClick={() => setShowDoneModal(false)}
+                  className="mt-1 w-full rounded-xl bg-[#F1F5F9] py-2.5 text-sm font-medium text-[#475569] hover:bg-[#E2E8F0] transition-colors"
+                >
+                  닫기
+                </button>
+              )}
             </div>
           </div>
         </div>
