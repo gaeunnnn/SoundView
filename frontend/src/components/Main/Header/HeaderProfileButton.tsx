@@ -1,7 +1,7 @@
 // 상단 헤더 우측의 사용자 프로필 버튼과 드롭다운을 렌더링하는 컴포넌트 파일
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronDown, Copy, Settings, LogOut, Check } from "lucide-react";
+import { ChevronDown, Copy, LogOut, Check } from "lucide-react";
 import { logout } from "../../../api/auth";
 
 type HeaderProfileButtonProps = {
@@ -107,16 +107,8 @@ export default function HeaderProfileButton({
 
           <div className="my-1 border-t border-[#F1F5F9]" />
 
-          {/* 설정 / 로그아웃 */}
+          {/* 로그아웃 */}
           <div className="px-2">
-            <button
-              type="button"
-              onClick={() => { setIsOpen(false); }}
-              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-[#334155] transition-colors hover:bg-[#F8FAFC]"
-            >
-              <Settings size={15} className="text-[#64748B]" />
-              설정
-            </button>
             <button
               type="button"
               onClick={() => {
