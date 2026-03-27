@@ -793,14 +793,10 @@ export default function EditPage() {
                             position: "relative",
                             filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
                             opacity: 1 - fadeProgress,
-<<<<<<< HEAD
                             animationName: "emoji-bounce",
                             animationDuration: "1.4s",
                             animationTimingFunction: "ease-in-out",
                             animationIterationCount: "infinite",
-=======
-                            animation: isPlaying && isActive ? "emoji-bounce 1.4s ease-in-out infinite" : "none",
->>>>>>> origin/front-dev
                             animationDelay: `${i * 0.12}s`,
                             animationPlayState: isPlaying && isActive ? "running" : "paused",
                           }}
@@ -886,6 +882,7 @@ export default function EditPage() {
               showVolume={showVolume}
               subtitleOn={subtitleOn}
               emojiOn={emojiOn}
+              espStatus="disconnected"
               soundEvents={events}
               progressRef={progressRef}
               onProgressClick={handleProgressClick}
