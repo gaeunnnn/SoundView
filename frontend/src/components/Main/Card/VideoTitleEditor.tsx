@@ -27,6 +27,8 @@ export default function VideoTitleEditor({
     if (isEditing) inputRef.current?.focus();
   }, [isEditing]);
 
+  const MAX_LENGTH = 20;
+
   const handleCommit = () => {
     const trimmed = editTitle.trim();
     if (trimmed && trimmed !== title) {
@@ -44,17 +46,21 @@ export default function VideoTitleEditor({
 
   if (isEditing) {
     return (
-      <input
-        ref={inputRef}
-        value={editTitle}
-        onChange={(e) => setEditTitle(e.target.value)}
-        onBlur={handleCommit}
-        onKeyDown={handleKeyDown}
-        className="w-full rounded-lg border px-2 py-0.5 text-sm font-bold text-[#111827] outline-none ring-2"
-        style={{
-          borderColor: accentColor,
-        }}
-      />
+      <div className="relative w-full">
+        <input
+          ref={inputRef}
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value.slice(0, MAX_LENGTH))}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          maxLength={MAX_LENGTH}
+          className="w-full rounded-lg border px-2 py-0.5 text-sm font-bold text-[#111827] outline-none ring-2"
+          style={{ borderColor: accentColor }}
+        />
+        <span className={["absolute right-2 top-0.5 text-[10px]", editTitle.length >= MAX_LENGTH ? "text-red-400" : "text-[#94A3B8]"].join(" ")}>
+          {editTitle.length}/{MAX_LENGTH}
+        </span>
+      </div>
     );
   }
 

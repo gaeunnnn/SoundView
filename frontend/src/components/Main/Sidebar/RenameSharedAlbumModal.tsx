@@ -27,9 +27,11 @@ export default function RenameSharedAlbumModal({
 
   if (!isOpen) return null;
 
+  const isReserved = name.trim() === "내 앨범";
+
   const handleConfirm = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || isReserved) return;
     onConfirm(trimmed);
     onClose();
   };
@@ -62,7 +64,7 @@ export default function RenameSharedAlbumModal({
           </button>
         </div>
 
-        <div className="px-6 pb-4">
+        <div className="px-6 pb-4 flex flex-col gap-1.5">
           <input
             ref={inputRef}
             type="text"
@@ -73,8 +75,15 @@ export default function RenameSharedAlbumModal({
               if (e.key === "Escape") onClose();
             }}
             placeholder={currentName}
-            className="h-10 w-full rounded-xl border border-[#E2E8F0] px-3 text-sm text-[#1E293B] outline-none placeholder:text-[#CBD5E1] focus:border-[#059669] focus:ring-2 focus:ring-[#059669]/10"
+            className={["h-10 w-full rounded-xl border px-3 text-sm text-[#1E293B] outline-none placeholder:text-[#CBD5E1] focus:ring-2 transition",
+              isReserved
+                ? "border-[#EF4444] focus:border-[#EF4444] focus:ring-[#EF4444]/10"
+                : "border-[#E2E8F0] focus:border-[#059669] focus:ring-[#059669]/10",
+            ].join(" ")}
           />
+          {isReserved && (
+            <p className="text-xs text-[#EF4444]">'내 앨범'은 사용할 수 없는 이름입니다.</p>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 border-t border-[#F1F5F9] px-6 py-3">
@@ -88,7 +97,7 @@ export default function RenameSharedAlbumModal({
           <button
             type="button"
             onClick={handleConfirm}
-            disabled={!name.trim()}
+            disabled={!name.trim() || isReserved}
             className="rounded-xl bg-[#059669] px-5 py-2 text-sm font-medium text-white hover:bg-[#047857] disabled:opacity-40 disabled:pointer-events-none"
           >
             수정

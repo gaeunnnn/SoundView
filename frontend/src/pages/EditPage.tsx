@@ -165,12 +165,14 @@ export default function EditPage() {
       })();
 
       // B. 나머지 JSON 데이터들 로드 프로세스 (진동 제거)
+      console.log("[로드] soundEventUrl:", res.video.soundEventUrl);
+      console.log("[로드] subtitleUrl:", res.video.subtitleUrl);
       const jsonPromises = Promise.allSettled([
-        res.video.soundEventUrl 
-          ? fetch(`${res.video.soundEventUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
+        res.video.soundEventUrl
+          ? fetch(res.video.soundEventUrl, fetchOptions).then(r => { console.log("[로드] soundEvent fetch 응답:", r.status, r.headers.get("x-amz-version-id")); return r.json(); })
           : Promise.resolve([]),
         res.video.subtitleUrl
-          ? fetch(`${res.video.subtitleUrl}?t=${Date.now()}`, fetchOptions).then(r => r.json())
+          ? fetch(res.video.subtitleUrl, fetchOptions).then(r => r.json())
           : Promise.resolve([])
       ]);
 
@@ -476,22 +478,32 @@ export default function EditPage() {
           emoji: e.emoji,
           enabled: e.enabled,
         }));
+        console.log("[저장] soundEvent 업로드 데이터:", soundEventData);
+        console.log("[저장] soundEvent URL:", urls.soundEventUploadUrl);
         uploadPromises.push(
           fetch(urls.soundEventUploadUrl, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(soundEventData),
-          }).then((r) => { if (!r.ok) throw new Error(`soundEvent S3 업로드 실패: ${r.status}`); })
+          }).then((r) => {
+            console.log("[저장] soundEvent S3 응답:", r.status, r.ok);
+            if (!r.ok) throw new Error(`soundEvent S3 업로드 실패: ${r.status}`);
+          })
         );
       }
 
       if (urls?.subtitleUploadUrl && subtitles.length > 0) {
+        console.log("[저장] subtitle 업로드 데이터:", subtitles);
+        console.log("[저장] subtitle URL:", urls.subtitleUploadUrl);
         uploadPromises.push(
           fetch(urls.subtitleUploadUrl, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(subtitles),
-          }).then((r) => { if (!r.ok) throw new Error(`subtitle S3 업로드 실패: ${r.status}`); })
+          }).then((r) => {
+            console.log("[저장] subtitle S3 응답:", r.status, r.ok);
+            if (!r.ok) throw new Error(`subtitle S3 업로드 실패: ${r.status}`);
+          })
         );
       }
 
@@ -711,10 +723,12 @@ export default function EditPage() {
                             position: "relative",
                             filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
                             opacity: 1 - fadeProgress,
-                            animation: isPlaying && isActive
-                              ? "emoji-bounce 1.4s ease-in-out infinite"
-                              : "none",
+                            animationName: "emoji-bounce",
+                            animationDuration: "1.4s",
+                            animationTimingFunction: "ease-in-out",
+                            animationIterationCount: "infinite",
                             animationDelay: `${i * 0.12}s`,
+                            animationPlayState: isPlaying && isActive ? "running" : "paused",
                           }}
                         >
                           {ae.emoji}
@@ -868,12 +882,18 @@ export default function EditPage() {
               </div>
               <div className="px-5 py-5 flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-[#374151]">영상 이름</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-[#374151]">영상 이름</label>
+                    <span className={["text-xs", saveName.length >= 20 ? "text-red-400" : "text-[#94A3B8]"].join(" ")}>
+                      {saveName.length}/20
+                    </span>
+                  </div>
                   <input
                     type="text"
                     value={saveName}
-                    onChange={(e) => setSaveName(e.target.value)}
+                    onChange={(e) => setSaveName(e.target.value.slice(0, 20))}
                     onKeyDown={(e) => e.key === "Enter" && handleSave()}
+                    maxLength={20}
                     className="rounded-xl border border-[#E2E8F0] px-3.5 py-2.5 text-sm text-[#111827] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#2563EB]/20 transition"
                     placeholder="영상 이름을 입력하세요"
                     autoFocus

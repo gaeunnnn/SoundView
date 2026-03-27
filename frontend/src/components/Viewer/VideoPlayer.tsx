@@ -30,16 +30,35 @@ type SoundEventEntry = {
 };
 
 // ── 로더 ──────────────────────────────────────────────────
+// VIB1 파일 포맷:
+//   [0-3]   "VIB1" 매직 (헤더 총 16바이트)
+//   이후 frame_count × 2바이트: [uint8 intensity_l][uint8 intensity_r]
+//   timestamp는 프레임 인덱스 × SAMPLE_INTERVAL_MS 로 계산
+const VIB1_MAGIC = 0x31424956; // "VIB1" LE
+const VIB1_HEADER_SIZE = 16;
+const VIB1_FRAME_BYTES = 2;
+
 async function loadVibrationBin(url: string): Promise<VibrationSample[]> {
   const res = await fetch(url);
   const buf = await res.arrayBuffer();
   const view = new DataView(buf);
   const samples: VibrationSample[] = [];
-  for (let i = 0; i + 6 <= buf.byteLength; i += 6) {
+
+  const hasVib1Header =
+    buf.byteLength >= VIB1_HEADER_SIZE &&
+    view.getUint32(0, true) === VIB1_MAGIC;
+
+  const dataStart = hasVib1Header ? VIB1_HEADER_SIZE : 0;
+  const frameCount = Math.floor((buf.byteLength - dataStart) / VIB1_FRAME_BYTES);
+
+  console.log(`[VIB] 파일: ${buf.byteLength}바이트, VIB1헤더: ${hasVib1Header}, 프레임수: ${frameCount}`);
+
+  for (let i = 0; i < frameCount; i++) {
+    const offset = dataStart + i * VIB1_FRAME_BYTES;
     samples.push({
-      timestamp: view.getFloat32(i, true),
-      intensity_l: view.getUint8(i + 4),
-      intensity_r: view.getUint8(i + 5),
+      timestamp: (i * SAMPLE_INTERVAL_MS) / 1000,
+      intensity_l: view.getUint8(offset),
+      intensity_r: view.getUint8(offset + 1),
     });
   }
   return samples;
@@ -135,7 +154,7 @@ type VideoPlayerProps = {
 
 export default function VideoPlayer({ video }: VideoPlayerProps) {
   const totalSec = parseDuration(video.duration);
-  const { isConnected, send, sendAndFlush } = useEsp();
+  const { isConnected, status: espStatus, send, sendAndFlush } = useEsp();
   const [vibBuffering, setVibBuffering] = useState(false);
 
   // 영상 Blob 관련 상태
@@ -209,9 +228,12 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
     // 진동 데이터 로드
     const vibUrl = video.vibrationBinaryUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_vibration.bin`;
-    loadVibrationBin(`${vibUrl}?t=${Date.now()}`)
-      .then((s) => { vibSamplesRef.current = s; })
-      .catch(() => { vibSamplesRef.current = []; });
+    loadVibrationBin(vibUrl)
+      .then((s) => {
+        vibSamplesRef.current = s;
+        console.log(`[VIB] 로드 완료: ${s.length}프레임, ${s.length * 6}바이트 (raw bin), 패킷 총 ${2 + s.length * FRAME_SIZE}바이트`);
+      })
+      .catch((e) => { console.error("[VIB] 로드 실패:", e); vibSamplesRef.current = []; });
 
     // 자막 로드
     const subtitleUrl = video.subtitleUrl
@@ -424,7 +446,12 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
       if (samples.length && !vibSentRef.current) {
         setVibBuffering(true);
         try {
-          await sendAndFlush(buildFullPacket(samples));
+          const packet = buildFullPacket(samples);
+          console.log("orig bin bytes =", samples.length * 6);
+          console.log("esp packet bytes =", packet.byteLength);
+          console.log("esp frames =", (packet.byteLength - 2) / 16);
+          console.log("prefix =", packet[0], packet[1]);
+          await sendAndFlush(packet);
           vibSentRef.current = true;
         } finally {
           setVibBuffering(false);
@@ -440,7 +467,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
     }
 
     setIsPlaying(nextPlaying);
-  }, [isPlaying, isConnected, vibSentRef, sendAndFlush, send, resetOverlayTimer, resetControlsTimer]);
+  }, [isPlaying, isConnected, vibSentRef, send, sendAndFlush, resetOverlayTimer, resetControlsTimer]);
 
   // handlePlayPauseRef 항상 최신 함수 참조 유지
   useEffect(() => {
@@ -622,8 +649,12 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
                         position: "relative",
                         filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
                         opacity: 1 - fadeProgress,
-                        animation: isPlaying && isActive ? "emoji-bounce 1.4s ease-in-out infinite" : "none",
+                        animationName: "emoji-bounce",
+                        animationDuration: "1.4s",
+                        animationTimingFunction: "ease-in-out",
+                        animationIterationCount: "infinite",
                         animationDelay: `${i * 0.12}s`,
+                        animationPlayState: isPlaying && isActive ? "running" : "paused",
                       }}
                     >
                       {getEmoji(e)}
@@ -715,6 +746,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           soundEvents={soundEventDots}
           onSubtitleToggle={() => setSubtitleOn((v) => !v)}
           onEmojiToggle={() => setEmojiOn((v) => !v)}
+          espStatus={espStatus}
           showControls={showControls}
           isFullscreen={isFullscreen}
           onFullscreen={handleFullscreen}
