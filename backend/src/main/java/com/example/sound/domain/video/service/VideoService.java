@@ -152,6 +152,57 @@ public class VideoService {
     }
 
     /**
+     * 통짜 업로드 (서버 경유 방식 - 성능 비교용)
+     */
+    @Transactional
+    public Long uploadVideoMonolithic(Long userId, MultipartFile file, String title) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("유저 없음"));
+
+        // 1. S3 Key 생성
+        String s3Key = s3UploadService.generateS3Key(file.getOriginalFilename());
+        String thumbKey = s3UploadService.generateThumbnailKey(s3Key);
+
+        // 2. S3에 직접 업로드 (서버가 파일을 받아서 전달)
+        s3UploadService.uploadMultipartFile(file, s3Key);
+
+        // 3. DB 저장 (이미 업로드가 완료되었으므로 바로 PROCESSING 상태)
+        Video video = Video.builder()
+                .uploader(user)
+                .title(title)
+                .videoS3Key(s3Key)
+                .thumbnailS3Key(thumbKey)
+                .originalFileName(file.getOriginalFilename())
+                .status(VideoStatus.PROCESSING)
+                .build();
+
+        videoRepository.save(video);
+
+        // 4. 내 앨범에 자동 추가
+        albumRepository.findByOwnerIdAndName(userId, "내 앨범").ifPresent(album -> {
+            AlbumVideo albumVideo = AlbumVideo.builder()
+                    .album(album)
+                    .video(video)
+                    .build();
+            albumVideoRepository.save(albumVideo);
+        });
+
+        // 5. MQ 발행 (AI 처리 요청)
+        VideoProcessMessage message = VideoProcessMessage.builder()
+                .videoId(video.getId())
+                .objectKey(video.getVideoS3Key())
+                .build();
+
+        rabbitTemplate.convertAndSend(
+                RabbitMQConfig.EXCHANGE,
+                RabbitMQConfig.REQUEST_KEY,
+                message
+        );
+
+        return video.getId();
+    }
+
+    /**
      * S3 멀티파트 업로드 시작 로직
      */
     @Transactional

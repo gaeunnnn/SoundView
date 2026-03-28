@@ -109,6 +109,7 @@ public class SecurityConfig {
                                 "/oauth2/**",
                                 "/api/auth/reissue",
                                 "/api/auth/logout",
+                                "/api/videos/upload/monolithic",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html"

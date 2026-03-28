@@ -4,8 +4,12 @@ import com.example.sound.domain.video.dto.VideoUploadCompleteRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
+
+import java.io.IOException;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
@@ -27,6 +31,23 @@ public class S3UploadService {
 
     @Value("${spring.cloud.aws.s3.bucket}")
     private String bucket;
+
+    /**
+     * 단일 파일을 S3에 직접 업로드 (통짜 업로드 방식)
+     */
+    public void uploadMultipartFile(MultipartFile file, String s3Key) {
+        try {
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(s3Key)
+                    .contentType(file.getContentType())
+                    .build();
+
+            s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+        } catch (IOException e) {
+            throw new RuntimeException("S3 업로드 중 오류 발생", e);
+        }
+    }
 
     /**
      * S3 멀티파트 업로드 완료 (병합)

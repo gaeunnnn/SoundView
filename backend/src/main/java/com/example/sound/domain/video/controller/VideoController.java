@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -67,6 +68,19 @@ public class VideoController {
             @AuthenticationPrincipal CustomUserPrincipal principal
     ) {
         return videoService.generateEditSaveUrls(videoId, principal.getId());
+    }
+
+    @Operation(summary = "통짜 업로드 (서버 경유 - 성능 비교용)")
+    @PostMapping(value = "/videos/upload/monolithic", consumes = "multipart/form-data")
+    public Long uploadMonolithic(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("title") String title,
+            @RequestParam(value = "userId", required = false) Long userId,
+            @AuthenticationPrincipal CustomUserPrincipal principal
+    ) {
+        // 인가가 없을 경우 파라미터로 받은 userId 사용, 그것도 없으면 1번 유저(테스트용) 사용
+        Long effectiveUserId = (userId != null) ? userId : (principal != null ? principal.getId() : 1L);
+        return videoService.uploadVideoMonolithic(effectiveUserId, file, title);
     }
 
     @Operation(summary = "S3 멀티파트 업로드 시작 (Presigned URL 발급)")
