@@ -1,9 +1,10 @@
 // 로그인 페이지 v2 — 캐릭터 중심 서비스 소개
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { kakaoLogin } from "../api/auth";
 import LogoIcon from "../assets/images/LogoIcon.png";
 import loginBeforeImage from "../assets/images/login(before).png";
 import loginAfterImage from "../assets/images/login.png";
+import kakaoLoginIcon from "../assets/icons/login_kakao.png";
 
 const FEATURES = [
   {
@@ -36,7 +37,7 @@ const FEATURES = [
   {
     emoji: "🎞️",
     title: "공유 앨범",
-    desc: "소중한 순간을 친구·가족과 함께 나누고 이모지로 함께 반응해요.",
+    desc: "소중한 순간을 친구·가족과 나누고, 이모지로 반응해요",
     color: "#8B5CF6",
     lightBg: "#F5F3FF",
     tag: "Album",
@@ -71,8 +72,21 @@ function RevealSection({ children, delay = 0, className = "" }: { children: Reac
 }
 
 export default function LoginPage2() {
+  const [scrollOpacity, setScrollOpacity] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      setScrollOpacity(Math.max(0, 1 - el.scrollTop / 120));
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
-    <div className="lp2 w-full h-screen overflow-y-auto bg-[#F8FAFF]">
+    <div ref={containerRef} className="lp2 w-full h-screen overflow-y-auto bg-[#F8FAFF]">
 
       {/* ── Hero 섹션 ── */}
       <section className="relative flex min-h-screen flex-col items-center justify-center px-6 text-center overflow-hidden">
@@ -161,13 +175,13 @@ export default function LoginPage2() {
               className="mt-8 inline-flex h-[52px] items-center gap-2.5 rounded-full bg-[#F7E548] px-8 text-[15px] font-bold text-[#2A1D00] transition-all hover:scale-105 active:scale-100"
               style={{ boxShadow: "0 8px 30px rgba(247,229,72,0.4)" }}
             >
-              <span className="text-[18px]">💬</span>
+              <img src={kakaoLoginIcon} alt="" className="w-5 h-5" />
               카카오로 시작하기
             </button>
           </div>
         </div>
 
-        <div className="absolute bottom-8 flex flex-col items-center gap-1.5 text-slate-400 animate-bounce pointer-events-none z-10">
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-slate-400 animate-bounce pointer-events-none z-50 transition-opacity duration-300" style={{ opacity: scrollOpacity }}>
           <span className="text-[10px] tracking-widest uppercase font-medium">Scroll</span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
             <path d="M12 5v14M5 12l7 7 7-7" />
@@ -307,7 +321,7 @@ export default function LoginPage2() {
             <span className="text-[18px]">💬</span>
             카카오로 시작하기
           </button>
-          <p className="text-xs text-slate-300">© 2025 SoundView. All rights reserved.</p>
+          <p className="text-xs text-slate-300">© 2026 SoundView. All rights reserved.</p>
         </RevealSection>
       </section>
 

@@ -622,20 +622,20 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
         {subtitleOn && currentSubtitle && (
           <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 pointer-events-none">
             {/* 감정 이모지 */}
-            <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
-              <span className="text-base leading-none">
+            <div className="flex items-center gap-2 rounded-full bg-black/50 px-4 py-1.5 backdrop-blur-sm">
+              <span className="text-xl leading-none">
                 {EMOTION_EMOJI[currentSubtitle.emotion] ?? "😐"}
               </span>
-              <span className="text-[11px] font-medium text-white/80">
+              <span className="text-sm font-medium text-white/80">
                 {currentSubtitle.emotion.match(/\((.+?)\)/)?.[1] ?? currentSubtitle.emotion}
               </span>
-              <span className="text-[10px] text-white/50">
+              <span className="text-xs text-white/50">
                 {currentSubtitle.confidence.toFixed(0)}%
               </span>
             </div>
             {/* 자막 텍스트 */}
             <div
-              className="rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-lg"
+              className="rounded-xl px-5 py-2 text-base font-semibold text-white shadow-lg"
               style={{ background: "rgba(0,0,0,0.7)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
             >
               {currentSubtitle.text}
@@ -678,16 +678,16 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
               <div className="absolute inset-0 z-10 rounded-3xl" style={{ background: "rgba(255,255,255,0.18)" }} />
               <div className="absolute inset-0 z-20 rounded-3xl overflow-hidden" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
               
-              <div className="relative z-30 flex items-center px-4 py-3">
+              <div className="relative z-30 flex items-center px-6 py-4">
                 {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
                   const isActive = currentSec < ao.endSec;
-                  const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ao.endSec) / 5);
+                  const fadeProgress = isActive ? 0 : Math.min(1, Math.max(0, (currentSec - ao.endSec - 5) / 1));
                   return (
                     <span
                       key={`${ao.type}-${ao.eventId}`}
                       className="select-none leading-none transition-opacity duration-700"
                       style={{
-                        fontSize: "2rem",
+                        fontSize: "3rem",
                         marginLeft: i === 0 ? 0 : "-0.5rem",
                         zIndex: i + 1,
                         position: "relative",

@@ -233,7 +233,7 @@ export default function MainPage() {
   };
 
   const handleCreateAlbum = async (friends: { id: number; name: string; code: string; avatarColor: string }[]) => {
-    const albumName = friends.map((f) => f.name).join(", ");
+    const albumName = [me?.nickname ?? "", ...friends.map((f) => f.name)].filter(Boolean).join(", ");
     const res = await createAlbum({
       name: albumName,
       memberCodes: friends.map((f) => f.code),
