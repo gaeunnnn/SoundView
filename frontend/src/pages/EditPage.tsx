@@ -12,10 +12,21 @@ import { useLocation } from "react-router-dom";
 import { useUser } from "../context/UserContext";
 import PlayerOverlay from "../components/Viewer/PlayerOverlay";
 import PlayerControls from "../components/Viewer/PlayerControls";
+import SoundEmojiOverlay from "../components/Viewer/SoundEmojiOverlay";
 import type { SoundEvent } from "../constants/edit";
 import { useUpload } from "../context/UploadContext";
 import { updateVideoTitle, getVideoFull, getEditSaveUrls } from "../api/video";
 import type { VideoItem } from "../types/video";
+
+const EMOTION_EMOJI: Record<string, string> = {
+  "Happy (행복)": "😄",
+  "Sad (슬픔)": "😢",
+  "Angry (분노)": "😠",
+  "Fear (불안)": "😨",
+  "Surprise (당황)": "😮",
+  "Disgust (혐오)": "🤢",
+  "Neutral (중립)": "😐",
+};
 
 function formatTime(sec: number) {
   const m = Math.floor(sec / 60);
@@ -750,9 +761,22 @@ export default function EditPage() {
 
             {/* 자막 오버레이 */}
             {subtitleOn && currentSubtitle && (
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 pointer-events-none">
+                {/* 감정 배지 */}
+                <div className="flex items-center gap-2 rounded-[2rem] bg-black/50 px-5 py-2 backdrop-blur-sm">
+                  <span className="text-xl leading-none">
+                    {EMOTION_EMOJI[currentSubtitle.emotion] ?? "😐"}
+                  </span>
+                  <span className="text-lg font-medium text-white/80">
+                    {currentSubtitle.emotion.match(/\((.+?)\)/)?.[1] ?? currentSubtitle.emotion}
+                  </span>
+                  <span className="text-sm text-white/50">
+                    {currentSubtitle.confidence.toFixed(0)}%
+                  </span>
+                </div>
+                {/* 자막 텍스트 */}
                 <div
-                  className="rounded-xl px-4 py-1.5 text-sm font-semibold text-white shadow-lg"
+                  className="rounded-xl px-6 py-3 text-xl font-semibold text-white shadow-lg"
                   style={{ background: "rgba(0,0,0,0.7)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
                 >
                   {currentSubtitle.text}
@@ -760,53 +784,17 @@ export default function EditPage() {
               </div>
             )}
 
-            {/* Liquid Glass 이모지 오버레이 (환경음 전용) — 원래 스타일로 복구 */}
+            {/* 효과음 오버레이 */}
             {emojiOn && (
               <div
                 className="absolute top-5 left-1/2 z-30 -translate-x-1/2 pointer-events-none"
                 style={{ visibility: activeOverlays.some(ao => ao.type === "sound") ? "visible" : "hidden" }}
               >
-                <div
-                  className="relative overflow-hidden rounded-3xl"
-                  style={{
-                    boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)",
-                  }}
-                >
-                  {/* Glass Layers */}
-                  <div className="absolute inset-0 z-0" style={{ backdropFilter: "blur(3px)", filter: "url(#glass-distortion)" }} />
-                  <div className="absolute inset-0 z-10" style={{ background: "rgba(255,255,255,0.25)" }} />
-                  <div className="absolute inset-0 z-20" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
-                  
-                  {/* 이모지 스택 */}
-                  <div className="relative z-30 flex items-center px-4 py-3">
-                    {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
-                      const isActive = currentSec < ao.endSec;
-                      const fadeProgress = isActive ? 0 : Math.min(1, (currentSec - ao.endSec) / 5);
-                      return (
-                        <span
-                          key={`${ao.type}-${ao.eventId}`}
-                          className="select-none leading-none transition-opacity duration-700"
-                          style={{
-                            fontSize: "2rem",
-                            marginLeft: i === 0 ? 0 : "-0.5rem",
-                            zIndex: i + 1,
-                            position: "relative",
-                            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-                            opacity: 1 - fadeProgress,
-                            animationName: "emoji-bounce",
-                            animationDuration: "1.4s",
-                            animationTimingFunction: "ease-in-out",
-                            animationIterationCount: "infinite",
-                            animationDelay: `${i * 0.12}s`,
-                            animationPlayState: isPlaying && isActive ? "running" : "paused",
-                          }}
-                        >
-                          {ao.emoji}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
+                <SoundEmojiOverlay
+                  overlays={activeOverlays}
+                  currentSec={currentSec}
+                  isPlaying={isPlaying}
+                />
               </div>
             )}
 
