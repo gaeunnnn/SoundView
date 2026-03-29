@@ -17,7 +17,10 @@ const SAMPLE_FRAMES: VibrationFrameInput[] = [
   { seq: 5, timestampMs: 570, soundClass: 3, vibType: 2, frequency: 60,  intensityL: 30,  intensityR: 20,  durationMs: 80  },
 ];
 
-const DEFAULT_WS_URL = "ws://10.134.85.88:81";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const WS_PROTOCOL = window.location.protocol === "https:" ? "wss://" : "ws://";
+const DOMAIN = BASE_URL.replace("https://", "").replace("http://", "");
+const DEFAULT_WS_URL = `${WS_PROTOCOL}${DOMAIN}/api/ws`;
 
 type DebugRow = ReturnType<typeof debugFrames>[number];
 
