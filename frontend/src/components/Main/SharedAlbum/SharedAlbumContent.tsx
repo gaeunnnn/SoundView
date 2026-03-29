@@ -7,8 +7,8 @@ import type { SharedAlbumDetail, SharedVideoItem } from "../../../types/sharedAl
 import type { VideoItem } from "../../../types/video";
 import SharedVideoCard from "./SharedVideoCard";
 import ImportVideoModal from "./ImportVideoModal";
-import { getMyAlbumVideos, addVideosToAlbum } from "../../../api/album";
-import { addVideoReaction, deleteVideoReaction, updateVideoTitle } from "../../../api/video";
+import { getMyAlbumVideos, addVideosToAlbum, getAlbumVideos, getAlbumMembers } from "../../../api/album";
+import { addVideoReaction, deleteVideoReaction, updateVideoTitle, getVideoReactions } from "../../../api/video";
 import { removeAlbumVideo } from "../../../api/albumVideo";
 import { useUser } from "../../../context/UserContext";
 import EspVibrationButton from "../../Esp32/EspVibrationButton";
@@ -129,19 +129,46 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     if (video) navigate("/edit", { state: { video } });
   };
 
+  const COLORS = ["#8B5CF6", "#3B82F6", "#EC4899", "#F59E0B", "#10B981", "#EF4444"];
+
   const handleImport = async (selected: VideoItem[]) => {
-    // videos.id(videoId)로 앨범에 추가 — albumVideoId(id)가 아님
     const videoIds = selected.map((v) => v.videoId);
     await addVideosToAlbum(album.id, videoIds).catch(() => {});
-    const now = new Date().toISOString();
-    const newSharedVideos: SharedVideoItem[] = selected.map((v) => ({
-      ...v,
-      createdAt: now,
-      uploadedBy: meParticipant ?? { id: 0, name: "나", avatarColor: "#8B5CF6", isMe: true },
-      reactions: [],
-      commentCount: 0,
-    }));
-    setVideos((prev) => [...prev, ...newSharedVideos]);
+    try {
+      const [members, updatedVideos] = await Promise.all([
+        getAlbumMembers(album.id),
+        getAlbumVideos(album.id),
+      ]);
+      const reactionsList = await Promise.all(
+        updatedVideos.map((v) => getVideoReactions(v.videoId ?? v.albumVideoId).catch(() => ({ videoId: v.videoId, reactions: [] })))
+      );
+      const meParticipant = members.find((m) => m.isMe);
+      setVideos(updatedVideos.map((v, i) => {
+        const uploader = v.uploaderId
+          ? members.find((m) => m.userId === v.uploaderId)
+          : members.find((m) => m.nickname === v.uploaderName);
+        const isMe = v.isMe !== undefined ? v.isMe : uploader ? uploader.isMe : !!(me && me.nickname === v.uploaderName);
+        const rawReactions = reactionsList[i]?.reactions ?? [];
+        return {
+          id: v.albumVideoId,
+          videoId: v.videoId ?? v.albumVideoId,
+          title: v.title,
+          thumbnail: v.thumbnailUrl ?? undefined,
+          duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(Math.floor(v.durationSec % 60)).padStart(2, "0")}` : "",
+          date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+          createdAt: v.createdAt,
+          uploadedBy: {
+            id: uploader?.userId ?? (isMe ? (meParticipant?.userId ?? 0) : 0),
+            name: v.uploaderName,
+            avatarColor: uploader ? COLORS[uploader.userId % COLORS.length] : isMe && meParticipant ? COLORS[meParticipant.userId % COLORS.length] : "#94A3B8",
+            profileImageUrl: uploader?.profileImageUrl ?? null,
+            isMe,
+          },
+          reactions: rawReactions.map((r) => ({ emoji: r.emoji, count: r.count, reacted: r.selected })),
+          commentCount: v.commentCount,
+        };
+      }));
+    } catch {}
   };
 
   const isMyVideo = (v: typeof videos[number]) =>
