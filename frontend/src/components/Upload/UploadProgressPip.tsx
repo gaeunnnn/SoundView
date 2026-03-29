@@ -4,23 +4,40 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { X, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { useUpload } from "../../context/UploadContext";
 import { getVideoStatus } from "../../api/video";
+import { getAlbums, getAlbumVideos } from "../../api/album";
 
 export default function UploadProgressPip() {
-  const { status, progress, fileName, uploadedVideoId, uploadedAlbumVideoId, doneUpload, resetUpload } = useUpload();
+  const { status, progress, fileName, uploadedVideoId, uploadedAlbumVideoId, setUploadedAlbumVideoId, doneUpload, resetUpload } = useUpload();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const skipNavigateRef = useRef(false);
-
-  const handleDoneClick = () => {
-    if (skipNavigateRef.current) {
-      skipNavigateRef.current = false;
+  const handleDoneClick = async () => {
+    if (uploadedAlbumVideoId) {
+      resetUpload();
+      navigate("/edit");
       return;
     }
+    // albumVideoId 없으면 uploadedVideoId로 정확히 매칭
+    try {
+      const albums = await getAlbums();
+      const myAlbum = albums.find((a) => a.memberCount === 1) ?? albums[0];
+      if (myAlbum) {
+        const videos = await getAlbumVideos(myAlbum.albumId);
+        if (videos.length > 0) {
+          const target = uploadedVideoId
+            ? videos.find((v) => v.videoId === uploadedVideoId)
+            : undefined;
+          setUploadedAlbumVideoId((target ?? videos[0]).albumVideoId);
+        }
+      }
+    } catch {}
     resetUpload();
-    if (uploadedAlbumVideoId) {
-      navigate("/edit");
-    }
+    navigate("/edit");
+  };
+
+  const handleClose = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    resetUpload();
   };
 
   // 드래그 상태
@@ -141,7 +158,7 @@ export default function UploadProgressPip() {
           <button
             type="button"
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => { e.stopPropagation(); skipNavigateRef.current = true; resetUpload(); }}
+            onClick={handleClose}
             className={["flex h-5 w-5 items-center justify-center rounded-full", isDone ? "text-[#059669] hover:bg-[#A7F3D0]" : "text-[#94A3B8] hover:bg-[#F1F5F9]"].join(" ")}
           >
             <X size={12} />
@@ -154,8 +171,8 @@ export default function UploadProgressPip() {
         <button
           type="button"
           onMouseDown={(e) => e.stopPropagation()}
-          onClick={handleDoneClick}
-          className="w-full px-4 py-3 flex items-center gap-2 hover:bg-[#BBF7D0]/50 transition-colors rounded-b-2xl"
+          onClick={(e) => { e.stopPropagation(); handleDoneClick(); }}
+          className="w-full px-4 py-3 flex items-center gap-2 hover:bg-[#BBF7D0]/50 transition-colors rounded-b-2xl cursor-pointer"
         >
           {["🎬", "📝", "😊", "📳"].map((icon, i) => (
             <span

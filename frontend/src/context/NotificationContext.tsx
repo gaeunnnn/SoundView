@@ -69,7 +69,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           getAlbums()
             .then((albums) => {
               // "내 앨범" 찾기 (멤버가 1명인 개인 앨범)
-              const myAlbum = albums.find((a) => a.name === "내 앨범" && a.memberCount === 1);
+              const myAlbum = albums.find((a) => a.memberCount === 1) ?? albums[0];
               if (!myAlbum) return;
               return getAlbumVideos(myAlbum.albumId);
             })

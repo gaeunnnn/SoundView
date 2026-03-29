@@ -654,7 +654,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           />
         ) : (
           <div className="flex flex-col items-center gap-3 cursor-wait">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+            <div className="h-8 w-8 animate-spin rounded-[2rem] border-2 border-white/20 border-t-white/80" />
             <p className="text-xs text-white/50">영상 불러오는 중...</p>
           </div>
         )}
@@ -674,9 +674,9 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
         {vibBuffering && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
             <div className="flex gap-1.5 mb-3">
-              <span className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce [animation-delay:0ms]" />
-              <span className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce [animation-delay:150ms]" />
-              <span className="h-2 w-2 rounded-full bg-[#7C3AED] animate-bounce [animation-delay:300ms]" />
+              <span className="h-2 w-2 rounded-[2rem] bg-[#7C3AED] animate-bounce [animation-delay:0ms]" />
+              <span className="h-2 w-2 rounded-[2rem] bg-[#7C3AED] animate-bounce [animation-delay:150ms]" />
+              <span className="h-2 w-2 rounded-[2rem] bg-[#7C3AED] animate-bounce [animation-delay:300ms]" />
             </div>
             <p className="text-xs font-medium text-white/80">진동 데이터 전송 중...</p>
           </div>
@@ -695,7 +695,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
             } : { bottom: "80px", left: "50%", transform: "translateX(-50%)" }}
           >
             {/* 감정 이모지 */}
-            <div className="flex items-center gap-2 rounded-full bg-black/50 px-5 py-2 backdrop-blur-sm">
+            <div className="flex items-center gap-2 rounded-[2rem] bg-black/50 px-5 py-2 backdrop-blur-sm">
               <span className="text-xl leading-none">
                 {EMOTION_EMOJI[currentSubtitle.emotion] ?? "😐"}
               </span>
@@ -750,13 +750,13 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
             </svg>
 
             <div
-              className="relative flex overflow-hidden rounded-3xl"
+              className="relative flex overflow-hidden rounded-[2rem]"
               style={{ boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)" }}
             >
               {/* Glass Layers */}
-              <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl" style={{ backdropFilter: "blur(12px) saturate(180%)", WebkitBackdropFilter: "blur(12px) saturate(180%)", isolation: "isolate" }} />
-              <div className="absolute inset-0 z-10 rounded-3xl" style={{ background: "rgba(255,255,255,0.08)" }} />
-              <div className="absolute inset-0 z-20 rounded-3xl overflow-hidden" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
+              <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]" style={{ backdropFilter: "blur(12px) saturate(180%)", WebkitBackdropFilter: "blur(12px) saturate(180%)", isolation: "isolate" }} />
+              <div className="absolute inset-0 z-10 rounded-[2rem]" style={{ background: "rgba(255,255,255,0.08)" }} />
+              <div className="absolute inset-0 z-20 rounded-[2rem] overflow-hidden" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
               
               <div className="relative z-30 flex items-end gap-3 px-6 py-4">
                 {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
@@ -830,7 +830,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
               }}
             >
               <div className="flex shrink-0 items-center gap-2 px-4 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-                <div className="h-2 w-2 rounded-full bg-[#10B981]" />
+                <div className="h-2 w-2 rounded-[2rem] bg-[#10B981]" />
                 <span className="text-sm font-semibold text-white">인식된 정보</span>
               </div>
               
