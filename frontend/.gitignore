@@ -1,5 +1,6 @@
 # 추가
 .env
+.claude
 
 # Logs
 logs
