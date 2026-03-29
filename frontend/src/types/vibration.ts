@@ -11,6 +11,20 @@ export type VibrationFrameInput = {
   durationMs: number;   // uint16 0~65535
 };
 
+export interface VibrationFrame {
+  timeline: number; // seconds
+  frame: number;
+  dBL: number;      // 0~255
+  dBR: number;      // 0~255
+}
+
+export interface VibrationFileData {
+  duration: number;
+  fps: number;
+  total_frames: number;
+  frames: VibrationFrame[];
+}
+
 export type FrameValidationError = {
   field: keyof VibrationFrameInput;
   value: number;

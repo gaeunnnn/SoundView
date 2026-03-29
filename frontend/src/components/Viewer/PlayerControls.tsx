@@ -1,6 +1,6 @@
 // 프로그레스 바와 재생 컨트롤 버튼 영역 컴포넌트 파일
 import { useState, useRef, useEffect } from "react";
-import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Settings } from "lucide-react";
+import { Volume2, VolumeX, Maximize2, Minimize2, Subtitles, Smile, Settings, Activity } from "lucide-react";
 import type { SoundEvent } from "../../constants/edit";
 
 type EspStatus = "connecting" | "connected" | "disconnected" | "error";
@@ -16,6 +16,7 @@ type PlayerControlsProps = {
   showVolume: boolean;
   subtitleOn: boolean;
   emojiOn: boolean;
+  vibrationOn: boolean;
   espStatus: EspStatus;
   soundEvents?: SoundEvent[];
   progressRef: React.RefObject<HTMLDivElement | null>;
@@ -28,6 +29,7 @@ type PlayerControlsProps = {
   onReset: () => void;
   onSubtitleToggle: () => void;
   onEmojiToggle: () => void;
+  onVibrationToggle: () => void;
   showControls: boolean;
   isFullscreen: boolean;
   onFullscreen: () => void;
@@ -50,6 +52,7 @@ export default function PlayerControls({
   showVolume,
   subtitleOn,
   emojiOn,
+  vibrationOn,
   espStatus,
   soundEvents = [],
   progressRef,
@@ -61,6 +64,7 @@ export default function PlayerControls({
   onShowVolumeChange,
   onSubtitleToggle,
   onEmojiToggle,
+  onVibrationToggle,
   showControls,
   isFullscreen,
   onFullscreen,
@@ -240,6 +244,20 @@ export default function PlayerControls({
             ].join(" ")}
           >
             <Smile size={16} />
+          </button>
+          {/* 진동 시각화 - ON: Cyan */}
+          <button
+            type="button"
+            onClick={onVibrationToggle}
+            title="진동 시각화"
+            className={[
+              "flex items-center justify-center rounded-md p-1.5 transition-all",
+              vibrationOn
+                ? "bg-[#00FBFF]/20 text-[#00FBFF] shadow-sm"
+                : "text-white/60 hover:bg-white/10 hover:text-white",
+            ].join(" ")}
+          >
+            <Activity size={16} />
           </button>
           <div className="w-px h-3.5 bg-white/20" />
           <div ref={shortcutsRef} className="relative">
