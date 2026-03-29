@@ -114,6 +114,7 @@ export default function MainPage() {
                   thumbnail: v.thumbnailUrl ?? undefined,
                   duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(Math.floor(v.durationSec % 60)).padStart(2, "0")}` : "",
                   date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+                  createdAt: v.createdAt,
                   uploadedBy: {
                     id: uploader?.userId ?? (isMe ? (meParticipant?.userId ?? 0) : 0),
                     name: v.uploaderName,
@@ -189,6 +190,7 @@ export default function MainPage() {
               thumbnail: v.thumbnailUrl ?? undefined,
               duration: v.durationSec != null ? `${Math.floor(v.durationSec / 60)}:${String(Math.floor(v.durationSec % 60)).padStart(2, "0")}` : "",
               date: v.createdAt.slice(0, 10).replace(/-/g, "."),
+              createdAt: v.createdAt,
               uploadedBy: {
                 id: uploader?.userId ?? (isMe ? (meParticipant?.userId ?? 0) : 0),
                 name: v.uploaderName,

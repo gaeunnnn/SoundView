@@ -19,6 +19,7 @@ export type SharedVideoItem = {
   videoId: number; // videos.id — 삭제, 제목 수정용
   title: string;
   date: string;
+  createdAt: string; // 정렬용 원본 타임스탬프
   duration: string;
   thumbnail?: string;
   uploadedBy: Participant;

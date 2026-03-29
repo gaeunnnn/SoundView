@@ -133,8 +133,10 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     // videos.id(videoId)로 앨범에 추가 — albumVideoId(id)가 아님
     const videoIds = selected.map((v) => v.videoId);
     await addVideosToAlbum(album.id, videoIds).catch(() => {});
+    const now = new Date().toISOString();
     const newSharedVideos: SharedVideoItem[] = selected.map((v) => ({
       ...v,
+      createdAt: now,
       uploadedBy: meParticipant ?? { id: 0, name: "나", avatarColor: "#8B5CF6", isMe: true },
       reactions: [],
       commentCount: 0,
@@ -157,11 +159,11 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     })
     .sort((a, b) => {
       switch (sortOption) {
-        case "oldest": return (a.date ?? "").localeCompare(b.date ?? "");
+        case "oldest": return a.id - b.id;
         case "title":  return a.title.localeCompare(b.title, "ko");
         case "uploader": return a.uploadedBy.name.localeCompare(b.uploadedBy.name, "ko");
         case "latest":
-        default:       return (b.date ?? "").localeCompare(a.date ?? "");
+        default:       return b.id - a.id;
       }
     });
 
