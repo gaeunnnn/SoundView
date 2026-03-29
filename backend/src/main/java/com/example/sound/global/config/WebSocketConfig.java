@@ -16,9 +16,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // "/ws" 엔드포인트로 들어오는 웹소켓 요청을 simpleRelayHandler가 처리하도록 등록합니다.
+        // "/api/ws" 엔드포인트로 들어오는 웹소켓 요청을 simpleRelayHandler가 처리하도록 등록합니다.
         // 모든 오리진(CORS)에서의 접속을 허용합니다.
-        registry.addHandler(simpleRelayHandler, "/ws")
+        registry.addHandler(simpleRelayHandler, "/api/ws")
                 .setAllowedOrigins("*");
     }
 }
