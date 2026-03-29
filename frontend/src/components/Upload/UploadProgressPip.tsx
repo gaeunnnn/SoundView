@@ -174,6 +174,7 @@ export default function UploadProgressPip() {
       <div
         className={["flex items-center justify-between px-4 py-3 cursor-grab active:cursor-grabbing", isDone ? "" : "border-b border-[#F1F5F9]"].join(" ")}
         onMouseDown={handleMouseDown}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2">
           <div className={["flex h-7 w-7 items-center justify-center rounded-lg", isDone ? "bg-[#D1FAE5]" : isProcessing ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"].join(" ")}>
@@ -198,9 +199,9 @@ export default function UploadProgressPip() {
             type="button"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={handleClose}
-            className={["flex h-5 w-5 items-center justify-center rounded-full", isDone ? "text-[#059669] hover:bg-[#A7F3D0]" : "text-[#94A3B8] hover:bg-[#F1F5F9]"].join(" ")}
+            className={["flex h-8 w-8 items-center justify-center rounded-full", isDone ? "text-[#059669] hover:bg-[#A7F3D0]" : "text-[#94A3B8] hover:bg-[#F1F5F9]"].join(" ")}
           >
-            <X size={12} />
+            <X size={18} />
           </button>
         </div>
       </div>

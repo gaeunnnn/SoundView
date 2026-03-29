@@ -1,7 +1,7 @@
 // 영상 업로드 페이지
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, CloudUpload, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, CloudUpload, CheckCircle2, Loader2, X } from "lucide-react";
 import HeaderActionGroup from "../components/Main/Header/HeaderActionGroup";
 import HeaderProfileButton from "../components/Main/Header/HeaderProfileButton";
 import { useUpload } from "../context/UploadContext";
@@ -295,12 +295,21 @@ export default function UploadPage() {
       {(showDoneModal || isDone) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-          onClick={() => { setShowDoneModal(false); }}
+          onClick={() => { setShowDoneModal(false); if (isDone) resetUpload(); }}
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl mx-4"
+            className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl mx-4"
             onClick={(e) => e.stopPropagation()}
           >
+            {isDone && (
+              <button
+                type="button"
+                onClick={() => { setShowDoneModal(false); resetUpload(); }}
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569] transition-colors"
+              >
+                <X size={20} />
+              </button>
+            )}
             <div className="flex flex-col items-center gap-3 text-center">
               <div className={["flex h-14 w-14 items-center justify-center rounded-full", isDone ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"].join(" ")}>
                 {isDone

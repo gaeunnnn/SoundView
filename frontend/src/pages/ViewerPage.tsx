@@ -26,6 +26,16 @@ export default function ViewerPage() {
   const [reactions, setReactions] = useState<EmojiReaction[]>(PRESET_EMOJIS);
   const [comments, setComments] = useState<CommentItem[]>([]);
 
+  // 브라우저 뒤로가기 시 공유 앨범으로 복귀
+  useEffect(() => {
+    if (!fromAlbumId) return;
+    const handlePopState = () => {
+      navigate("/main", { state: { openAlbumId: fromAlbumId }, replace: true });
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [fromAlbumId, navigate]);
+
   useEffect(() => {
     if (!initialVideo) return;
     setVideo(initialVideo);
