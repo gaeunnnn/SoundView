@@ -10,7 +10,14 @@ export default function UploadProgressPip() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const skipNavigateRef = useRef(false);
+
   const handleDoneClick = () => {
+    if (skipNavigateRef.current) {
+      skipNavigateRef.current = false;
+      return;
+    }
+    resetUpload();
     if (uploadedAlbumVideoId) {
       navigate("/edit");
     }
@@ -92,10 +99,11 @@ export default function UploadProgressPip() {
           ? "border border-[#6EE7B7] shadow-[0_0_0_4px_rgba(16,185,129,0.15),0_8px_32px_rgba(16,185,129,0.25)]"
           : "border border-[#E2E8F0] bg-white shadow-2xl",
       ].join(" ")}
+      onClick={isDone ? handleDoneClick : undefined}
       style={{
         ...posStyle,
         position: "fixed",
-        ...(isDone ? { background: "linear-gradient(135deg, #ECFDF5 0%, #F0FDF9 60%, #D1FAE5 100%)" } : {}),
+        ...(isDone ? { background: "linear-gradient(135deg, #ECFDF5 0%, #F0FDF9 60%, #D1FAE5 100%)", cursor: "pointer" } : {}),
         animation: isDone ? "pip-done-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both" : undefined,
       }}
     >
@@ -133,7 +141,7 @@ export default function UploadProgressPip() {
           <button
             type="button"
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={resetUpload}
+            onClick={(e) => { e.stopPropagation(); skipNavigateRef.current = true; resetUpload(); }}
             className={["flex h-5 w-5 items-center justify-center rounded-full", isDone ? "text-[#059669] hover:bg-[#A7F3D0]" : "text-[#94A3B8] hover:bg-[#F1F5F9]"].join(" ")}
           >
             <X size={12} />

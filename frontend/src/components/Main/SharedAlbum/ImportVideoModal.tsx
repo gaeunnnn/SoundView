@@ -70,7 +70,7 @@ export default function ImportVideoModal({
 
         {/* 영상 목록 */}
         <div className="max-h-[400px] overflow-y-auto px-3">
-          {myVideos.map((video, idx) => {
+          {[...myVideos].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((video, idx) => {
             const isChecked = selected.includes(video.id);
             return (
               <button

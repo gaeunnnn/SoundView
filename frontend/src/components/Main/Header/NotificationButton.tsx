@@ -7,6 +7,7 @@ import type { Notification } from "../../../api/notification";
 import { useUpload } from "../../../context/UploadContext";
 import { useNotification } from "../../../context/NotificationContext";
 import { getVideoFull } from "../../../api/video";
+import { getAlbums, getAlbumVideos } from "../../../api/album";
 import type { ViewerVideo } from "../../../types/viewer";
 
 function timeAgo(createdAt: string): string {
@@ -22,7 +23,7 @@ export default function NotificationButton() {
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { setUploadedAlbumVideoId, uploadedAlbumVideoId } = useUpload();
-  const { notifications, unreadCount, markRead, markAllRead } = useNotification();
+  const { notifications, unreadCount, markRead } = useNotification();
 
   // 외부 클릭 시 드롭다운 닫기
   useEffect(() => {
@@ -34,11 +35,8 @@ export default function NotificationButton() {
     return () => document.removeEventListener("mousedown", handle);
   }, [isOpen]);
 
-  // 아이콘 클릭 시 열기 — 드롭다운 열릴 때 전체 읽음처리
   const handleOpen = () => {
-    const next = !isOpen;
-    setIsOpen(next);
-    if (next) markAllRead();
+    setIsOpen((prev) => !prev);
   };
 
   const isCompletedNotification = (item: Notification) =>
@@ -47,18 +45,42 @@ export default function NotificationButton() {
   const handleNotificationClick = async (item: Notification) => {
     markNotificationRead(item.id).catch(() => {});
     markRead(item.id);
-    setIsOpen(false);
 
     // VIDEO_COMPLETED → 편집 페이지
     if (isCompletedNotification(item)) {
-      const albumVideoId = item.albumVideoId ?? uploadedAlbumVideoId;
-      if (albumVideoId) setUploadedAlbumVideoId(albumVideoId);
+      setIsOpen(false);
+      // SSE 수신 시 세팅된 albumVideoId가 있으면 바로 사용
+      if (item.albumVideoId) {
+        setUploadedAlbumVideoId(item.albumVideoId);
+        navigate("/edit");
+        return;
+      }
+      // Context에 이미 세팅된 albumVideoId가 있으면 사용
+      if (uploadedAlbumVideoId) {
+        navigate("/edit");
+        return;
+      }
+      // 없으면 내 앨범 최신 영상으로 폴백
+      try {
+        const albums = await getAlbums();
+        const myAlbum = albums.find((a) => a.memberCount === 1) ?? albums[0];
+        if (myAlbum) {
+          const videos = await getAlbumVideos(myAlbum.albumId);
+          if (videos.length > 0) {
+            const target = item.videoId
+              ? (videos.find((v) => v.videoId === item.videoId) ?? videos[0])
+              : videos[0];
+            setUploadedAlbumVideoId(target.albumVideoId);
+          }
+        }
+      } catch {}
       navigate("/edit");
       return;
     }
 
     // VIDEO_COMMENT → 해당 영상 재생 화면
     if (item.type === "VIDEO_COMMENT" && item.videoId) {
+      setIsOpen(false);
       try {
         const res = await getVideoFull(item.videoId);
         const video: ViewerVideo = {
@@ -81,9 +103,12 @@ export default function NotificationButton() {
 
     // ALBUM_INVITE, ALBUM_VIDEO_ADDED → 메인 페이지 해당 공유앨범 열기
     if ((item.type === "ALBUM_INVITE" || item.type === "ALBUM_VIDEO_ADDED") && item.albumId) {
+      setIsOpen(false);
       navigate("/main", { state: { openAlbumId: item.albumId } });
       return;
     }
+
+    setIsOpen(false);
   };
 
   return (
