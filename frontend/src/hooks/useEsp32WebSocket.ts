@@ -1,6 +1,11 @@
 import { useEffect, useRef, useCallback } from "react";
 
-const ESP32_WS_URL = "ws://192.168.137.71:81";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const WS_PROTOCOL = window.location.protocol === "https:" ? "wss://" : "ws://";
+// "https://j14e203.p.ssafy.io/dev" -> "j14e203.p.ssafy.io/dev"
+const DOMAIN = BASE_URL.replace("https://", "").replace("http://", "");
+const ESP32_WS_URL = `${WS_PROTOCOL}${DOMAIN}/api/ws`;
+
 const RECONNECT_DELAY_MS = 2000;
 
 type Status = "connecting" | "connected" | "disconnected" | "error";
