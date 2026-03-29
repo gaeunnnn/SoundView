@@ -12,17 +12,17 @@ export default function UploadProgressPip() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenEl, setFullscreenEl] = useState<Element | null>(null);
   const [sparkle, setSparkle] = useState(false);
   const prevStatus = useRef(status);
 
-  // 전체화면 감지
+  // 전체화면 감지 — state 대신 ref도 함께 관리해 렌더 타이밍 문제 방지
+  const isFullscreenRef = useRef(false);
   useEffect(() => {
     const onChange = () => {
       const el = document.fullscreenElement;
-      setIsFullscreen(!!el);
-      setFullscreenEl(el);
+      isFullscreenRef.current = !!el;
+      setFullscreenEl(el ?? null);
     };
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
@@ -30,12 +30,12 @@ export default function UploadProgressPip() {
 
   // status가 done으로 바뀌는 순간 반짝 애니메이션 트리거
   useEffect(() => {
-    if (prevStatus.current !== "done" && status === "done" && !isFullscreen) {
+    if (prevStatus.current !== "done" && status === "done" && !isFullscreenRef.current) {
       setSparkle(true);
       setTimeout(() => setSparkle(false), 1600);
     }
     prevStatus.current = status;
-  }, [status, isFullscreen]);
+  }, [status]);
 
   const handleDoneClick = async () => {
     if (uploadedAlbumVideoId) {
@@ -69,6 +69,7 @@ export default function UploadProgressPip() {
   // 드래그 상태
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
+  const didDrag = useRef(false); // 실제 이동이 있었는지 추적
   const dragOffset = useRef({ x: 0, y: 0 });
   const pipRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +90,7 @@ export default function UploadProgressPip() {
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!pipRef.current) return;
     dragging.current = true;
+    didDrag.current = false;
     const rect = pipRef.current.getBoundingClientRect();
     dragOffset.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     e.preventDefault();
@@ -97,6 +99,7 @@ export default function UploadProgressPip() {
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragging.current || !pipRef.current) return;
+      didDrag.current = true;
       const { offsetWidth: w, offsetHeight: h } = pipRef.current;
       const x = Math.min(Math.max(0, e.clientX - dragOffset.current.x), window.innerWidth - w);
       const y = Math.min(Math.max(0, e.clientY - dragOffset.current.y), window.innerHeight - h);
@@ -111,12 +114,22 @@ export default function UploadProgressPip() {
     };
   }, []);
 
+  const handlePipClick = () => {
+    if (didDrag.current) {
+      didDrag.current = false;
+      return;
+    }
+    handleDoneClick();
+  };
+
   const isVisible =
     (status === "uploading" || status === "processing" || status === "done") &&
     location.pathname !== "/upload";
 
-  // 전체화면 중 done이 아니면 숨김 (uploading/processing은 전체화면에서 안 보임)
   if (!isVisible) return null;
+
+  // 전체화면 중 done이 아니면 숨김 — state 대신 fullscreenEl 직접 체크로 타이밍 문제 방지
+  const isFullscreen = !!fullscreenEl || !!document.fullscreenElement;
   if (isFullscreen && status !== "done") return null;
 
   const isProcessing = status === "processing";
@@ -135,7 +148,7 @@ export default function UploadProgressPip() {
           ? "border border-[#6EE7B7]"
           : "border border-[#E2E8F0] bg-white shadow-2xl",
       ].join(" ")}
-      onClick={isDone ? handleDoneClick : undefined}
+      onClick={isDone ? handlePipClick : undefined}
       style={{
         ...posStyle,
         position: "fixed",
@@ -197,7 +210,11 @@ export default function UploadProgressPip() {
         <button
           type="button"
           onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); handleDoneClick(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (didDrag.current) { didDrag.current = false; return; }
+            handleDoneClick();
+          }}
           className="w-full px-4 py-3 flex items-center gap-2 hover:bg-[#BBF7D0]/50 transition-colors rounded-b-2xl cursor-pointer"
         >
           {["🎬", "📝", "😊", "📳"].map((icon, i) => (

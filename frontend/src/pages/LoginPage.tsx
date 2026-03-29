@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { kakaoLogin } from "../api/auth";
 import LogoIcon from "../assets/images/LogoIcon.png";
-import baseImage from "../assets/images/image.png";
+import baseImage from "../assets/images/login.png";
 import kakaoLoginIcon from "../assets/icons/login_kakao.png";
 
 export default function LoginPage() {
