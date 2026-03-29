@@ -5,6 +5,8 @@ import type { ViewerVideo, EmojiReaction } from "../../types/viewer";
 import PlayerOverlay from "./PlayerOverlay";
 import PlayerControls from "./PlayerControls";
 import { useEsp } from "../../context/EspContext";
+import { VibrationModal } from "./Vibration/VibrationModal";
+import type { VibrationFileData } from "../../types/vibration";
 
 // ── 타입 ──────────────────────────────────────────────────
 type VibrationSample = { timestamp: number; intensity_l: number; intensity_r: number };
@@ -182,6 +184,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   // 자막 / 효과음 데이터
   const [subtitles, setSubtitles] = useState<SubtitleEntry[]>([]);
   const [soundEvents, setSoundEvents] = useState<SoundEventEntry[]>([]);
+  const [vibrationJson, setVibrationJson] = useState<VibrationFileData | null>(null);
 
   // 현재 시간 기준 활성 항목
   const [currentSubtitle, setCurrentSubtitle] = useState<SubtitleEntry | null>(null);
@@ -235,7 +238,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
       cache: "no-store" as RequestCache
     };
 
-    // 진동 데이터 로드
+    // 진동 데이터 로드 (Binary for ESP32)
     const vibUrl = video.vibrationBinaryUrl
       ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_vibration.bin`;
     loadVibrationBin(vibUrl)
@@ -244,6 +247,19 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
         console.log(`[VIB] 로드 완료: ${s.length}프레임, ${s.length * 6}바이트 (raw bin), 패킷 총 ${2 + s.length * FRAME_SIZE}바이트`);
       })
       .catch((e) => { console.error("[VIB] 로드 실패:", e); vibSamplesRef.current = []; });
+
+    // 진동 JSON 데이터 로드 (Visualizer용)
+    const vibJsonUrl = video.vibrationBinaryUrl?.replace(".bin", ".json")
+      ?? `${video.videoUrl.replace(/\/([^/]+)\.[^.]+$/, "")}/test_vibration.json`;
+    fetch(vibJsonUrl, fetchOptions)
+      .then(r => r.json())
+      .then((data: VibrationFileData) => {
+        setVibrationJson(data);
+        console.log(`[VIB JSON] 로드 완료: ${data.total_frames}프레임`);
+      })
+      .catch((e) => {
+        console.warn("[VIB JSON] 로드 실패:", e);
+      });
 
     // 자막 로드
     const subtitleUrl = video.subtitleUrl
@@ -313,6 +329,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   const [showOverlay, setShowOverlay] = useState(true);
   const [subtitleOn, setSubtitleOn] = useState(true);
   const [emojiOn, setEmojiOn] = useState(true);
+  const [vibrationOn, setVibrationOn] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [showSidePanel, setShowSidePanel] = useState(true);
@@ -606,6 +623,16 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
 
         <PlayerOverlay isPlaying={isPlaying} showOverlay={showOverlay} onToggle={handlePlayPause} />
 
+        {vibrationJson && (
+          <VibrationModal
+            isOpen={vibrationOn}
+            onClose={() => setVibrationOn(false)}
+            frames={vibrationJson.frames}
+            currentTime={currentSec}
+            isPlaying={isPlaying}
+          />
+        )}
+
         {vibBuffering && (
           <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/60 pointer-events-none">
             <div className="flex gap-1.5 mb-3">
@@ -812,6 +839,8 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           soundEvents={soundEventDots}
           onSubtitleToggle={() => setSubtitleOn((v) => !v)}
           onEmojiToggle={() => setEmojiOn((v) => !v)}
+          vibrationOn={vibrationOn}
+          onVibrationToggle={() => setVibrationOn((v) => !v)}
           espStatus={espStatus}
           showControls={showControls}
           isFullscreen={isFullscreen}
