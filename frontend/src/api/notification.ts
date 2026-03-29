@@ -38,36 +38,65 @@ type SseHandlers = {
 
 // GET /api/notifications/subscribe — SSE 실시간 알림 구독, 반환값은 구독 해제 함수
 export const subscribeNotifications = ({ onNotification, onVideoCompleted }: SseHandlers): () => void => {
-  const es = new EventSource(`${BASE_URL}/api/notifications/subscribe`, { withCredentials: true });
+  let es: EventSource | null = null;
+  let retryTimer: ReturnType<typeof setTimeout> | null = null;
+  let retryCount = 0;
+  let destroyed = false;
 
-  es.addEventListener("ALBUM_INVITE", (e) => {
-    try {
-      const data = JSON.parse((e as MessageEvent).data) as { albumId: number; albumName: string; inviterName: string };
-      onNotification?.({ id: Date.now(), type: "ALBUM_INVITE", message: `${data.inviterName}님이 '${data.albumName}' 앨범에 초대했습니다.`, isRead: false, createdAt: new Date().toISOString(), albumId: data.albumId });
-    } catch {}
-  });
+  const attach = (instance: EventSource) => {
+    instance.addEventListener("ALBUM_INVITE", (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data) as { albumId: number; albumName: string; inviterName: string };
+        onNotification?.({ id: Date.now(), type: "ALBUM_INVITE", message: `${data.inviterName}님이 '${data.albumName}' 앨범에 초대했습니다.`, isRead: false, createdAt: new Date().toISOString(), albumId: data.albumId });
+      } catch {}
+    });
 
-  es.addEventListener("ALBUM_VIDEO_ADDED", (e) => {
-    try {
-      const data = JSON.parse((e as MessageEvent).data) as { albumId: number; albumName: string; uploaderName: string };
-      onNotification?.({ id: Date.now(), type: "ALBUM_VIDEO_ADDED", message: `${data.uploaderName}님이 '${data.albumName}'에 영상을 추가했습니다.`, isRead: false, createdAt: new Date().toISOString(), albumId: data.albumId });
-    } catch {}
-  });
+    instance.addEventListener("ALBUM_VIDEO_ADDED", (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data) as { albumId: number; albumName: string; uploaderName: string };
+        onNotification?.({ id: Date.now(), type: "ALBUM_VIDEO_ADDED", message: `${data.uploaderName}님이 '${data.albumName}'에 영상을 추가했습니다.`, isRead: false, createdAt: new Date().toISOString(), albumId: data.albumId });
+      } catch {}
+    });
 
-  es.addEventListener("VIDEO_COMMENT", (e) => {
-    try {
-      const data = JSON.parse((e as MessageEvent).data) as { videoId: number; commenterName: string };
-      onNotification?.({ id: Date.now(), type: "VIDEO_COMMENT", message: `${data.commenterName}님이 댓글을 남겼습니다.`, isRead: false, createdAt: new Date().toISOString(), videoId: data.videoId });
-    } catch {}
-  });
+    instance.addEventListener("VIDEO_COMMENT", (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data) as { videoId: number; commenterName: string };
+        onNotification?.({ id: Date.now(), type: "VIDEO_COMMENT", message: `${data.commenterName}님이 댓글을 남겼습니다.`, isRead: false, createdAt: new Date().toISOString(), videoId: data.videoId });
+      } catch {}
+    });
 
-  es.addEventListener("VIDEO_COMPLETED", (e) => {
-    try {
-      const data = JSON.parse((e as MessageEvent).data) as { videoId: number; albumVideoId?: number; status: string };
-      if (data.status === "COMPLETED") onVideoCompleted?.(data.videoId, data.albumVideoId);
-    } catch {}
-  });
+    instance.addEventListener("VIDEO_COMPLETED", (e) => {
+      try {
+        const data = JSON.parse((e as MessageEvent).data) as { videoId: number; albumVideoId?: number; status: string };
+        if (data.status === "COMPLETED") onVideoCompleted?.(data.videoId, data.albumVideoId);
+      } catch {}
+    });
 
-  es.onerror = () => es.close();
-  return () => es.close();
+    instance.onerror = () => {
+      instance.close();
+      if (destroyed) return;
+      // 지수 백오프: 1s → 2s → 4s → 8s → 최대 30s
+      const delay = Math.min(1000 * 2 ** retryCount, 30_000);
+      retryCount += 1;
+      retryTimer = setTimeout(connect, delay);
+    };
+
+    instance.addEventListener("open", () => {
+      retryCount = 0;
+    });
+  };
+
+  const connect = () => {
+    if (destroyed) return;
+    es = new EventSource(`${BASE_URL}/api/notifications/subscribe`, { withCredentials: true });
+    attach(es);
+  };
+
+  connect();
+
+  return () => {
+    destroyed = true;
+    if (retryTimer !== null) clearTimeout(retryTimer);
+    es?.close();
+  };
 };
