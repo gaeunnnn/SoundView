@@ -1,0 +1,58 @@
+### [GET] /api/videos/{videoId}/edit-save 명세서
+
+| HTTP URL | `/api/videos/{videoId}/edit-save` |
+| --- | --- |
+| HTTP Method | GET |
+| 상세 설명 | 수정된 자막 및 사운드 이벤트 JSON 파일을 S3에 직접 덮어쓰기 위한 Presigned URL을 발급합니다. |
+
+### Request (Path Variable)
+
+| key | 설명 | value 타입 | 옵션 | Nullable | 예시 |
+| --- | --- | --- | --- | --- | --- |
+| videoId | 대상 영상의 ID | Long | 필수 | No | 58 |
+
+**Example(json)**
+(GET 요청이므로 별도의 Request Body가 없습니다.)
+```json
+{}
+```
+
+### Response
+
+| key | 설명 | value 타입 | 옵션 | Nullable | 예시 |
+| --- | --- | --- | --- | --- | --- |
+| subtitleUploadUrl | 자막 JSON 업로드용 Presigned URL | String | 필수 | No | "https://s3.ap-northeast-2..." |
+| soundEventUploadUrl | 사운드 이벤트 JSON 업로드용 Presigned URL | String | 필수 | No | "https://s3.ap-northeast-2..." |
+
+**Example(json)**
+```json
+{
+    "subtitleUploadUrl": "https://s3.ap-northeast-2.amazonaws.com/bucket/results/58_subtitle.json?X-Amz-Algorithm=AWS4-HMAC-SHA256...",
+    "soundEventUploadUrl": "https://s3.ap-northeast-2.amazonaws.com/bucket/results/58_sound_event.json?X-Amz-Algorithm=AWS4-HMAC-SHA256..."
+}
+```
+
+### Status
+
+| status | response content |
+| --- | --- |
+| 200 | 성공적으로 업로드용 URL이 발급됨 |
+| 400 | 잘못된 요청 (존재하지 않는 영상 ID 등) |
+| 403 | 수정 권한 없음 (영상 업로더가 아닌 경우) |
+| 500 | 서버 내부 오류 (S3 연동 실패 등) |
+
+---
+
+### 💡 프론트엔드 추가 가이드 (필수 준수 사항)
+
+**S3 업로드 시 주의사항**
+- **Method**: 무조건 `PUT` 방식을 사용해야 합니다.
+- **Header**: `Content-Type: application/json`을 반드시 설정해야 합니다. (설정하지 않을 시 AWS에서 403 에러 발생)
+
+**Axios 코드 예시**
+```javascript
+// 발급받은 URL로 데이터 전송
+await axios.put(subtitleUploadUrl, subtitleJsonData, {
+  headers: { 'Content-Type': 'application/json' }
+});
+```

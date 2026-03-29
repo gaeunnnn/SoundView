@@ -112,7 +112,8 @@ public class SecurityConfig {
                                 "/api/videos/upload/monolithic",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/ws/**"
                         ).permitAll()
 
                         .requestMatchers("/api/users/me").authenticated()
