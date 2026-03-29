@@ -14,6 +14,7 @@ import { useUser } from "../../../context/UserContext";
 import EspVibrationButton from "../../Esp32/EspVibrationButton";
 
 type Tab = "all" | "mine";
+type SortOption = "latest" | "oldest" | "title" | "uploader";
 
 type SharedAlbumContentProps = {
   album: SharedAlbumDetail;
@@ -27,6 +28,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
   const [myVideos, setMyVideos] = useState<VideoItem[]>([]);
   const [activeTab, setActiveTab] = useState<Tab>("all");
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [sortOption, setSortOption] = useState<SortOption>("latest");
   const [showParticipants, setShowParticipants] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [copiedId, setCopiedId] = useState<number | null>(null);
@@ -39,6 +41,7 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     setVideos(album.videos);
     setActiveTab("all");
     setSearchKeyword("");
+    setSortOption("latest");
   }, [album.id]);
 
   // 참여자 팝오버 외부 클릭 닫기
@@ -144,13 +147,23 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
     (meParticipant !== undefined && v.uploadedBy.id === meParticipant.id) ||
     (me !== null && v.uploadedBy.name === me.nickname);
 
-  const filtered = videos.filter((v) => {
-    const matchesTab = activeTab === "all" || (activeTab === "mine" && isMyVideo(v));
-    const normalizedKeyword = searchKeyword.replace(/\s/g, "").toLowerCase();
-    const matchesSearch = !normalizedKeyword ||
-      v.title.replace(/\s/g, "").toLowerCase().includes(normalizedKeyword);
-    return matchesTab && matchesSearch;
-  });
+  const filtered = videos
+    .filter((v) => {
+      const matchesTab = activeTab === "all" || (activeTab === "mine" && isMyVideo(v));
+      const normalizedKeyword = searchKeyword.replace(/\s/g, "").toLowerCase();
+      const matchesSearch = !normalizedKeyword ||
+        v.title.replace(/\s/g, "").toLowerCase().includes(normalizedKeyword);
+      return matchesTab && matchesSearch;
+    })
+    .sort((a, b) => {
+      switch (sortOption) {
+        case "oldest": return (a.date ?? "").localeCompare(b.date ?? "");
+        case "title":  return a.title.localeCompare(b.title, "ko");
+        case "uploader": return a.uploadedBy.name.localeCompare(b.uploadedBy.name, "ko");
+        case "latest":
+        default:       return (b.date ?? "").localeCompare(a.date ?? "");
+      }
+    });
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
@@ -333,13 +346,19 @@ export default function SharedAlbumContent({ album, myAlbumId }: SharedAlbumCont
               />
             </div>
             {/* 정렬 */}
-            <button
-              type="button"
-              className="flex h-9 items-center gap-1.5 rounded-xl border border-[#E2E8F0] bg-white px-3 text-sm text-[#475569] shadow-sm transition-colors hover:bg-[#F0F4FF] hover:border-[#C7D7FD] hover:text-[#2563EB]"
-            >
-              <SlidersHorizontal size={14} />
-              최신순
-            </button>
+            <div className="relative">
+              <select
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value as SortOption)}
+                className="h-9 appearance-none rounded-xl border border-[#E2E8F0] bg-white pl-8 pr-3 text-sm text-[#475569] shadow-sm transition-colors hover:bg-[#F0F4FF] hover:border-[#C7D7FD] hover:text-[#2563EB] cursor-pointer outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/10"
+              >
+                <option value="latest">최신순</option>
+                <option value="oldest">오래된순</option>
+                <option value="title">제목순</option>
+                <option value="uploader">작성자순</option>
+              </select>
+              <SlidersHorizontal size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#475569]" />
+            </div>
           </div>
         </div>
 
