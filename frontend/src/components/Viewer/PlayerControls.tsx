@@ -16,7 +16,7 @@ type PlayerControlsProps = {
   showVolume: boolean;
   subtitleOn: boolean;
   emojiOn: boolean;
-  vibrationOn: boolean;
+  vibrationOn?: boolean; // 선택적으로 변경
   espStatus: EspStatus;
   soundEvents?: SoundEvent[];
   progressRef: React.RefObject<HTMLDivElement | null>;
@@ -29,7 +29,7 @@ type PlayerControlsProps = {
   onReset: () => void;
   onSubtitleToggle: () => void;
   onEmojiToggle: () => void;
-  onVibrationToggle: () => void;
+  onVibrationToggle?: () => void; // 선택적으로 변경
   showControls: boolean;
   isFullscreen: boolean;
   onFullscreen: () => void;
