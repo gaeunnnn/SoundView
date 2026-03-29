@@ -1,142 +1,243 @@
-import { useCallback, useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { kakaoLogin } from "../api/auth";
 import LogoIcon from "../assets/images/LogoIcon.png";
-import loginBeforeImage from "../assets/images/login(before).png";
-import loginAfterImage from "../assets/images/login.png";
+import baseImage from "../assets/images/image.png";
 import kakaoLoginIcon from "../assets/icons/login_kakao.png";
-import { ImageComparison } from "../components/ui/image-comparison-slider";
 
 export default function LoginPage() {
-  const [pos, setPos] = useState(0);
-  const handlePosChange = useCallback((p: number) => setPos(p), []);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const stickyRef = useRef<HTMLDivElement>(null);
 
-  const showRipple = pos > 60;
-  const isAfterFull = pos > 95;
-  const isTransitioning = pos > 5 && pos < 95;
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      if (!stickyRef.current) return;
+      const rect = stickyRef.current.getBoundingClientRect();
+      const progress = Math.min(1, Math.max(0, (el.scrollTop - (rect.top + el.scrollTop)) / (rect.height - window.innerHeight)));
+      setScrollProgress(progress);
+    };
+    el.addEventListener("scroll", handleScroll, { passive: true });
+    return () => el.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // 💥 자막 데이터
+  const burstCaptions = useMemo(() => [
+    { text: "정말 대단해요!", emoji: "🤩", x: -70, y: -60, rot: -20, delay: 0.15, color: "#3B82F6" },
+    { text: "🎷 [재즈 선율]", emoji: "", x: 75, y: -55, rot: 25, delay: 0.25, color: "#F59E0B" },
+    { text: "🐦 [지저귀는 소리]", emoji: "", x: -80, y: 10, rot: -10, delay: 0.2, color: "#10B981" },
+    { text: "🎻 [오케스트라]", emoji: "", x: 10, y: -80, rot: 5, delay: 0.35, color: "#8B5CF6" },
+    { text: "👏 [박수 소리]", emoji: "", x: 80, y: 25, rot: 35, delay: 0.3, color: "#EC4899" },
+    { text: "정말 감동적입니다", emoji: "😭", x: -75, y: -25, rot: -30, delay: 0.4, color: "#FF4D4D" },
+  ], []);
+
+  // ── 수치 계산 ──
+  const scale = 0.6 + (scrollProgress * 0.2);
+  const wipePos = Math.min(1, scrollProgress / 0.8) * 100;
+  const shiftProgress = Math.pow(Math.max(0, (scrollProgress - 0.85) / 0.15), 1.2); 
+  const translateX = shiftProgress * -320;
+  
+  const burstOpacity = Math.min(1, Math.max(0, (0.95 - scrollProgress) * 20));
+  const finalContentOpacity = Math.max(0, (scrollProgress - 0.9) * 10);
 
   return (
-    <div
-      className="relative flex h-screen w-full flex-col items-center justify-center overflow-hidden"
-      style={{ background: "radial-gradient(ellipse 100% 60% at 50% 0%, #E0E7FF 0%, transparent 55%), #F8FAFF" }}
-    >
-      {/* 배경 블롭 */}
-      <div className="pointer-events-none absolute -top-40 -left-40 w-[560px] h-[560px] rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(165,180,252,0.4) 0%, transparent 70%)", animation: "blob 14s ease-in-out infinite" }} />
-      <div className="pointer-events-none absolute -bottom-32 -right-32 w-[460px] h-[460px] rounded-full blur-3xl"
-        style={{ background: "radial-gradient(circle, rgba(196,181,253,0.3) 0%, transparent 70%)", animation: "blob 18s ease-in-out 5s infinite reverse" }} />
-
-      {/* 로고 */}
-      <div className="absolute top-5 left-6 flex items-center gap-3 z-10" style={{ animation: "fadeUp 0.5s ease both" }}>
-        <img src={LogoIcon} alt="" className="w-11 h-11" />
-        <span className="text-lg font-black tracking-wide text-slate-900">SoundView</span>
-      </div>
-
-      {/* 우상단 — 상태 pill */}
-      <div className="absolute top-6 right-6 z-10 flex items-center gap-2 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-all duration-700"
-        style={{
-          background: isAfterFull ? "rgba(30,158,244,0.1)" : "rgba(148,163,184,0.1)",
-          border: `1px solid ${isAfterFull ? "rgba(30,158,244,0.3)" : "rgba(148,163,184,0.2)"}`,
-          color: isAfterFull ? "#1E9EF4" : "#94A3B8",
-        }}>
-        <span className="w-1.5 h-1.5 rounded-full inline-block"
-          style={{ background: isAfterFull ? "#1E9EF4" : "#94A3B8", animation: isAfterFull ? "pulse 1.5s ease-in-out infinite" : "none" }} />
-        {isAfterFull ? "SoundView 적용됨" : isTransitioning ? "변환 중..." : "적용 전"}
-      </div>
-
-      {/* 콘텐츠 */}
-      <div className="relative z-10 flex w-full max-w-4xl flex-col items-center gap-4 px-6">
-
-        {/* 헤드라인 */}
-        <div className="text-center" style={{ animation: "fadeUp 0.6s ease 0.1s both" }}>
-          <p className="mb-2 text-[11px] font-semibold tracking-widest uppercase text-blue-400">
-            청각장애인을 위한 영상 경험
-          </p>
-          <h1 style={{
-            fontFamily: "'Inter', sans-serif",
-            fontSize: "clamp(1.9rem, 4.5vw, 2.8rem)",
-            fontWeight: 700,
-            letterSpacing: "-0.02em",
-            lineHeight: 1.2,
-            color: "#334155",
-          }}>
-            소리를{" "}
-            <span style={{ color: "#1E9EF4", fontWeight: 800 }}>눈</span>
-            과{" "}
-            <span style={{ color: "#1E9EF4", fontWeight: 800 }}>손</span>
-            으로 느끼다
-          </h1>
-        </div>
-
-        {/* 이미지 */}
-        <div className="relative w-full" style={{ animation: "fadeUp 0.6s ease 0.2s both" }}>
-
-          {/* 파동 */}
-          {showRipple && [0, 1, 2, 3].map((n) => (
-            <div key={n} className="pointer-events-none absolute rounded-full"
+    <div ref={containerRef} className="lp-ultimate-refined-compact w-full h-screen overflow-y-auto overflow-x-hidden bg-white scroll-smooth">
+      
+      {/* ── Section 1: Hero ── */}
+      <section className="relative h-screen w-full flex flex-col items-center justify-center text-center px-6 z-10">
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 50% 50%, #F0F9FF 0%, #FFFFFF 100%)" }} />
+        {/* 초음파 이펙트 */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          {[0, 1, 2, 3].map(n => (
+            <div key={n} className="absolute rounded-full border-[3px] border-blue-400/40"
               style={{
-                top: "50%", left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 10, height: 10,
-                border: "3px solid #1E9EF4",
-                boxShadow: "0 0 12px rgba(30,158,244,0.6)",
-                animation: `rippleGrow 2.8s ease-out ${n * 0.6}s infinite`,
+                width: '120px', height: '120px',
+                animation: `heroRipple 2.8s cubic-bezier(0.2,0.6,0.4,1) ${n * 0.65}s infinite`,
               }} />
           ))}
-
-          <ImageComparison
-            beforeImage={loginBeforeImage}
-            afterImage={loginAfterImage}
-            altBefore="SoundView 적용 전"
-            altAfter="SoundView 적용 후"
-            onPosChange={handlePosChange}
-          />
-
-          {/* 하단 타이머 바 */}
-          <div className="absolute -bottom-2 inset-x-0 h-0.5 rounded-full bg-slate-200 overflow-hidden">
-            <div className="h-full rounded-full transition-none"
-              style={{
-                width: `${pos}%`,
-                background: "linear-gradient(90deg, #93C5FD, #1E9EF4)",
-              }} />
+        </div>
+        <div className="relative z-10 space-y-6" style={{ animation: "fadeUp 1.2s ease both" }}>
+          <img src={LogoIcon} alt="Logo" className="w-28 h-28 mx-auto drop-shadow-xl" />
+          <div className="space-y-3">
+            <h1 className="text-6xl sm:text-8xl font-[1000] text-slate-900 tracking-tighter leading-none">
+              Sound<span className="text-blue-500 italic">View</span>
+            </h1>
+            <p className="text-slate-500 text-xl sm:text-3xl font-[900] tracking-tight">
+              소리를 <span className="text-blue-500">눈</span>과 <span className="text-blue-500">손</span>으로 느끼다
+            </p>
           </div>
         </div>
-
-        {/* 카카오 버튼 */}
-        <div className="flex flex-col items-center gap-2" style={{ animation: "fadeUp 0.6s ease 0.3s both" }}>
-          <button
-            type="button"
-            onClick={() => kakaoLogin()}
-            className="inline-flex h-12 items-center gap-2.5 rounded-full px-8 text-sm font-bold text-[#1A0F00] transition-all hover:scale-105 hover:brightness-95 active:scale-100"
-            style={{ background: "#F7E548", boxShadow: "0 6px 24px rgba(247,229,72,0.45)" }}
-          >
-            {/* live 점 */}
-            <span className="w-2 h-2 rounded-full bg-yellow-600/50 animate-pulse" />
-            <img src={kakaoLoginIcon} alt="" className="w-5 h-5" />
-            카카오로 시작하기
-          </button>
+        {/* 스크롤 다운 표시 */}
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2" style={{ animation: "fadeUp 1.2s ease 0.6s both" }}>
+          <span className="text-slate-400 text-sm font-semibold tracking-widest uppercase">Scroll Down</span>
+          <div className="w-6 h-10 rounded-full border-2 border-slate-300 flex items-start justify-center p-1">
+            <div className="w-1.5 h-2.5 bg-slate-400 rounded-full" style={{ animation: "scrollDot 1.8s ease-in-out infinite" }} />
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* ── Section 2: Awakening Build-up ── */}
+      <section ref={stickyRef} className="relative h-[900vh] w-full bg-white">
+        <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
+          
+          <div className="absolute inset-0 transition-all duration-1000 -z-10"
+            style={{ background: `radial-gradient(circle at 50% 50%, rgba(186, 230, 253, ${scrollProgress * 0.7}) 0%, #FFFFFF 100%)` }} />
+
+          {/* 💻 메인 통합 컨테이너 💻 */}
+          <div className="relative w-full max-w-[1400px] h-full flex items-center justify-center overflow-visible">
+            
+            {/* 1. 모니터 */}
+            <div className="relative shrink-0 transition-transform duration-75 ease-out flex items-center justify-center"
+              style={{
+                width: '100%',
+                maxWidth: '740px',
+                transform: `perspective(2000px) rotateY(${shiftProgress * 15}deg) scale(${scale}) translateX(${translateX}px)`,
+                zIndex: 50
+              }}>
+              
+              <div className="relative w-full rounded-[2.5rem] bg-gradient-to-br from-slate-100 to-slate-300 p-[6px] shadow-2xl border border-white/50 overflow-visible">
+                <div className="relative rounded-[2.2rem] bg-black p-2 overflow-hidden aspect-video">
+                  
+                  {/* 🌊 초음파 파동 🌊 */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-0">
+                    {[1, 2, 3].map(n => (
+                      <div key={n} className="absolute rounded-full border-[6px] border-blue-500/20 shadow-[0_0_50px_rgba(59,130,246,0.3)]"
+                        style={{ 
+                          width: `${250 + n * 150}px`, height: `${250 + n * 150}px`, 
+                          animation: `echoRipple 4s ease-out ${(n * 0.8)}s infinite`,
+                          opacity: (scrollProgress > 0.2 && scrollProgress < 0.95) ? 1 : 0
+                        }} />
+                    ))}
+                  </div>
+
+                  {/* 와이프 베이스 */}
+                  <img src={baseImage} alt="Base" className="absolute inset-0 w-full h-full object-cover" 
+                    style={{ filter: `grayscale(1) brightness(0.6) contrast(1.1)` }} />
+                  
+                  <div className="absolute inset-0 overflow-hidden" 
+                    style={{ clipPath: `inset(0 ${100 - wipePos}% 0 0)`, transition: 'none' }}>
+                    <img src={baseImage} alt="After" className="absolute inset-0 w-full h-full object-cover" />
+                  </div>
+
+                  {/* 와이프 라인 */}
+                  <div className="absolute top-0 bottom-0 w-2 bg-white z-20 shadow-[0_0_40px_white] transition-opacity"
+                    style={{ left: `${wipePos}%`, opacity: scrollProgress > 0.85 ? 0 : 1 }}>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-2xl border-[6px] border-blue-500">
+                      <div className="w-3 h-3 bg-blue-500 rounded-full animate-ping" />
+                    </div>
+                  </div>
+                  
+                  {/* 📡 한국어 햅틱 상태 📡 */}
+                  {scrollProgress > 0.1 && (
+                    <div className="absolute top-5 right-5 z-40 bg-black/80 backdrop-blur-md px-5 py-3 rounded-2xl border border-white/20 flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full shrink-0 ${scrollProgress > 0.5 ? 'bg-[#10B981] animate-ping' : 'bg-[#F59E0B] animate-pulse'}`} />
+                      <span className="text-white text-sm font-black tracking-wider">
+                        {scrollProgress > 0.5 ? "햅틱 IoT 연동 완료" : "햅틱 IoT 탐색 중"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* 🎯 최종 UI 🎯 */}
+                  <div className="absolute inset-0 z-30 p-6 flex flex-col justify-end gap-3 transition-opacity duration-1000"
+                    style={{ opacity: finalContentOpacity }}>
+                    <div className="flex items-center gap-3 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl border-l-[6px] border-blue-600 self-start shadow-xl">
+                      <span className="text-blue-600 text-base font-black italic">🎷 [리드미컬한 연주]</span>
+                      <div className="flex gap-1 items-end h-5">
+                        {[1, 2, 3].map(n => <div key={n} className="w-1 bg-blue-400 rounded-full animate-vibrateBar" style={{ animationDelay: `${n * 0.1}s` }} />)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white/95 backdrop-blur-md px-5 py-2.5 rounded-2xl border-l-[6px] border-indigo-600 self-start shadow-xl translate-x-8">
+                      <span className="text-slate-900 text-base font-black">"오늘 무대 정말 최고였어요!" 😊</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. 우측 서비스 소개 (스크롤 끝) */}
+            <div className="absolute top-0 bottom-0 flex flex-col items-start justify-center text-left space-y-10 transition-all duration-1000 px-8"
+              style={{
+                opacity: finalContentOpacity,
+                transform: `translateX(${(1 - shiftProgress) * 60}px)`,
+                pointerEvents: scrollProgress > 0.9 ? 'auto' : 'none',
+                right: '18%',
+                width: '380px',
+              }}>
+              <div className="space-y-6">
+                <h2 className="text-7xl sm:text-8xl font-[1000] text-slate-900 tracking-tighter leading-none">
+                  Sound<span className="text-blue-600 italic">View</span>
+                </h2>
+                <div className="space-y-3">
+                  <p className="text-slate-500 text-2xl sm:text-3xl font-black">장벽 없는 새로운 영상 경험</p>
+                  <p className="text-slate-500 text-lg font-bold leading-relaxed">
+                    <span className="text-blue-600 font-black text-xl">AI 자막</span>과{" "}
+                    <span className="text-indigo-600 font-black text-xl" style={{ display: 'inline-block', animation: 'hapticShake 1.8s linear infinite' }}>햅틱 기술</span>로 완성되는<br />혁신적인 감각의 확장을 만나보세요.
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => kakaoLogin()}
+                className="group relative flex h-14 items-center gap-4 rounded-full bg-[#F7E548] px-8 text-base font-black text-slate-900 shadow-lg transition-all hover:scale-105 active:scale-95 overflow-hidden self-start">
+                <div className="absolute top-0 -left-full w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-[-25deg] group-hover:left-[200%] transition-all duration-1000" />
+                <img src={kakaoLoginIcon} alt="" className="w-5 h-5" />
+                카카오로 시작하기
+              </button>
+            </div>
+
+          </div>
+
+          {/* 💥 자막 폭발 레이어 💥 */}
+          <div className="fixed inset-0 pointer-events-none z-[9999]" style={{ opacity: burstOpacity }}>
+            {burstCaptions.map((el, i) => {
+              const isActive = scrollProgress > el.delay;
+              const travelProgress = Math.min(1, Math.max(0, (scrollProgress - el.delay) / (0.9 - el.delay)));
+              const eased = Math.pow(travelProgress, 0.85);
+              return isActive ? (
+                <div key={i} className="absolute top-1/2 left-1/2"
+                  style={{
+                    transform: `translate(calc(-50% + ${el.x * eased}vw), calc(-50% + ${el.y * eased}vh)) scale(${0.4 + eased * 1.4}) rotate(${el.rot * eased}deg)`,
+                    opacity: 1 - Math.pow(eased, 15),
+                  }}>
+                  <div className="flex items-center gap-3 bg-white/95 backdrop-blur-2xl px-6 py-3 rounded-2xl border-2 shadow-2xl" style={{ borderColor: el.color }}>
+                    <span className="text-3xl">{el.emoji}</span>
+                    <span className="text-lg font-[1000] text-slate-800 whitespace-nowrap">{el.text}</span>
+                  </div>
+                </div>
+              ) : null;
+            })}
+          </div>
+
+        </div>
+      </section>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@700;800&display=swap');
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(18px); }
-          to   { opacity: 1; transform: translateY(0); }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900;1000&display=swap');
+        .lp-ultimate-refined-compact { font-family: 'Inter', sans-serif; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes echoRipple {
+          0% { transform: scale(0.8) translate(-50%, -50%); opacity: 0; }
+          30% { opacity: 0.5; }
+          100% { transform: scale(2.2) translate(-50%, -50%); opacity: 0; }
         }
-        @keyframes blob {
-          0%, 100% { transform: translate(0,0) scale(1); }
-          33%  { transform: translate(30px,-20px) scale(1.05); }
-          66%  { transform: translate(-20px,15px) scale(0.97); }
+        @keyframes vibrateBar { 0%, 100% { height: 8px; } 50% { height: 20px; } }
+        @keyframes heroRipple {
+          0%   { transform: scale(1);   opacity: 0.7; }
+          60%  { opacity: 0.3; }
+          100% { transform: scale(4.5); opacity: 0; }
         }
-        @keyframes rippleGrow {
-          0%   { width: 10px;  height: 10px;  opacity: 1; }
-          40%  { opacity: 0.7; }
-          100% { width: 900px; height: 900px; opacity: 0; }
+        @keyframes hapticShake {
+          0%    { transform: translateX(0px); }
+          4%    { transform: translateX(-3px); }
+          8%    { transform: translateX(3px); }
+          12%   { transform: translateX(-3px); }
+          16%   { transform: translateX(3px); }
+          20%   { transform: translateX(-2px); }
+          24%   { transform: translateX(2px); }
+          28%   { transform: translateX(0px); }
+          100%  { transform: translateX(0px); }
         }
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.3; }
-        }
+        @keyframes scrollDot { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(14px); opacity: 0.3; } }
+        .lp-ultimate-refined-compact::-webkit-scrollbar { width: 0; }
       `}</style>
     </div>
   );
