@@ -54,6 +54,7 @@ class AudioService:
             "-acodec", "pcm_s16le",   # 오디오 코덱: 16bit PCM (범용 포맷)
             "-ar", str(self.SAMPLE_RATE),  # 샘플링 레이트 16000Hz
             "-ac", "1",               # 모노 채널
+            "-af", "aresample=async=1:first_pts=0", # [FIX] 오디오 시작점을 0으로 강제하고 공백을 무음(패딩) 처리
             "-f", "s16le",            # stdout으로 출력할 raw PCM 포맷
             "-loglevel", "error",     # ffmpeg stderr 로그 최소화
             "pipe:1",                 # stdout으로 출력

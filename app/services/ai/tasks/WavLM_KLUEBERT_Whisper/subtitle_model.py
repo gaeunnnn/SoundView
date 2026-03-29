@@ -92,7 +92,7 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         logger.info("[SubtitleModel] 초기화 완료.")
 
     # 세그먼트 최소 길이(1초): 이보다 짧으면 WavLM 입력 부족으로 분류가 불안정합니다.
-    MIN_SEGMENT_SEC: float = 1.0
+    MIN_SEGMENT_SEC: float = 1.2
 
     def _predict_emotion_for_segment(
         self,
@@ -148,14 +148,27 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
         segments_generator, info = self.whisper_model.transcribe(
             vocal_array,
             language="ko",
-            vad_filter=False,            # Silero VAD로 앞뒤 침묵 제거
-            vad_parameters=dict(min_silence_duration_ms=500) # 0.5초 이상 침묵이면 분리
+            word_timestamps=True,       # [FIX] 단어 단위의 정밀한 타임스탬프 활성화 (소리가 시작되는 정확한 시점 추출용)
+            vad_filter=True,            # [FIX] Silero VAD로 앞뒤 침묵 제거하여 타임스탬프 밀림 방지
+            vad_parameters=dict(
+                threshold=0.3,                 # [TUNE] 0.5 -> 0.3으로 낮춰서 작은/모호한 소리도 음성으로 캡처
+                min_silence_duration_ms=1500,  # [TUNE] 기존 500ms는 너무 짧아 문장 도중 짤림.
+                speech_pad_ms=500              # [TUNE] 음성 앞뒤로 0.5초 여유를 두어 끝의 단어가 씹히는 현상 방지
+            )
         )
         
         chunks = []
         for segment in segments_generator:
+            # word_timestamps=True 상태에서는 실제 단어가 발음된 정밀한 시점을 취득 가능
+            if getattr(segment, "words", None) and len(segment.words) > 0:
+                start = segment.words[0].start
+                end = segment.words[-1].end
+            else:
+                start = segment.start
+                end = segment.end
+                
             chunks.append({
-                "timestamp": (segment.start, segment.end),
+                "timestamp": (start, end),
                 "text": segment.text
             })
             
