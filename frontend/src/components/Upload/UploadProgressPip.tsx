@@ -1,5 +1,6 @@
 // 다른 페이지로 이동했을 때 떠있는 업로드 진행 PiP 팝업
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import { X, Upload, Loader2, CheckCircle2 } from "lucide-react";
 import { useUpload } from "../../context/UploadContext";
@@ -11,13 +12,37 @@ export default function UploadProgressPip() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [fullscreenEl, setFullscreenEl] = useState<Element | null>(null);
+  const [sparkle, setSparkle] = useState(false);
+  const prevStatus = useRef(status);
+
+  // 전체화면 감지
+  useEffect(() => {
+    const onChange = () => {
+      const el = document.fullscreenElement;
+      setIsFullscreen(!!el);
+      setFullscreenEl(el);
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  // status가 done으로 바뀌는 순간 반짝 애니메이션 트리거
+  useEffect(() => {
+    if (prevStatus.current !== "done" && status === "done" && !isFullscreen) {
+      setSparkle(true);
+      setTimeout(() => setSparkle(false), 1600);
+    }
+    prevStatus.current = status;
+  }, [status, isFullscreen]);
+
   const handleDoneClick = async () => {
     if (uploadedAlbumVideoId) {
       resetUpload();
       navigate("/edit");
       return;
     }
-    // albumVideoId 없으면 uploadedVideoId로 정확히 매칭
     try {
       const albums = await getAlbums();
       const myAlbum = albums.find((a) => a.memberCount === 1) ?? albums[0];
@@ -38,6 +63,7 @@ export default function UploadProgressPip() {
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
     resetUpload();
+    setSparkle(false);
   };
 
   // 드래그 상태
@@ -49,22 +75,13 @@ export default function UploadProgressPip() {
   // processing 상태에서 uploadedVideoId 기반 폴링
   useEffect(() => {
     if (status !== "processing" || !uploadedVideoId) return;
-
     const interval = setInterval(async () => {
       try {
         const videoStatus = await getVideoStatus(uploadedVideoId);
-        if (videoStatus === "COMPLETED") {
-          clearInterval(interval);
-          doneUpload();
-        } else if (videoStatus === "FAILED") {
-          clearInterval(interval);
-          resetUpload();
-        }
-      } catch {
-        // 폴링 실패 시 계속 시도
-      }
+        if (videoStatus === "COMPLETED") { clearInterval(interval); doneUpload(); }
+        else if (videoStatus === "FAILED") { clearInterval(interval); resetUpload(); }
+      } catch {}
     }, 5000);
-
     return () => clearInterval(interval);
   }, [status, uploadedVideoId]);
 
@@ -98,7 +115,9 @@ export default function UploadProgressPip() {
     (status === "uploading" || status === "processing" || status === "done") &&
     location.pathname !== "/upload";
 
+  // 전체화면 중 done이 아니면 숨김 (uploading/processing은 전체화면에서 안 보임)
   if (!isVisible) return null;
+  if (isFullscreen && status !== "done") return null;
 
   const isProcessing = status === "processing";
   const isDone = status === "done";
@@ -107,13 +126,13 @@ export default function UploadProgressPip() {
     ? { left: pos.x, top: pos.y, bottom: "auto", right: "auto" }
     : { bottom: 20, right: 20 };
 
-  return (
+  const pipContent = (
     <div
       ref={pipRef}
       className={[
-        "fixed z-50 w-72 rounded-2xl select-none transition-all duration-500",
+        "fixed z-50 w-72 rounded-2xl select-none",
         isDone
-          ? "border border-[#6EE7B7] shadow-[0_0_0_4px_rgba(16,185,129,0.15),0_8px_32px_rgba(16,185,129,0.25)]"
+          ? "border border-[#6EE7B7]"
           : "border border-[#E2E8F0] bg-white shadow-2xl",
       ].join(" ")}
       onClick={isDone ? handleDoneClick : undefined}
@@ -121,16 +140,23 @@ export default function UploadProgressPip() {
         ...posStyle,
         position: "fixed",
         ...(isDone ? { background: "linear-gradient(135deg, #ECFDF5 0%, #F0FDF9 60%, #D1FAE5 100%)", cursor: "pointer" } : {}),
-        animation: isDone ? "pip-done-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) both" : undefined,
+        animation: sparkle ? "pip-sparkle 1.6s ease-out both" : isDone ? "pip-done-in 0.4s cubic-bezier(0.34,1.56,0.64,1) both" : undefined,
       }}
     >
       <style>{`
-        @keyframes pip-done-pop {
-          from { transform: scale(0.92); opacity: 0; }
-          to   { transform: scale(1);    opacity: 1; }
+        @keyframes pip-done-in {
+          from { transform: scale(0.95); opacity: 0.7; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes pip-sparkle {
+          0%   { transform: translateY(0)   scale(1);    box-shadow: 0 0 0 0 rgba(16,185,129,0.8); }
+          15%  { transform: translateY(-10px) scale(1.08); box-shadow: 0 0 0 10px rgba(16,185,129,0.5), 0 12px 36px rgba(16,185,129,0.4); }
+          30%  { transform: translateY(0)   scale(1);    box-shadow: 0 0 0 16px rgba(16,185,129,0.2), 0 8px 28px rgba(16,185,129,0.3); }
+          50%  { transform: translateY(-6px) scale(1.05); box-shadow: 0 0 0 10px rgba(16,185,129,0.3), 0 10px 32px rgba(16,185,129,0.25); }
+          70%  { transform: translateY(0)   scale(1);    box-shadow: 0 0 0 6px rgba(16,185,129,0.1); }
+          100% { transform: translateY(0)   scale(1);    box-shadow: 0 0 0 4px rgba(16,185,129,0.15), 0 8px 32px rgba(16,185,129,0.2); }
         }
       `}</style>
-
       {/* 헤더 — 드래그 영역 */}
       <div
         className={["flex items-center justify-between px-4 py-3 cursor-grab active:cursor-grabbing", isDone ? "" : "border-b border-[#F1F5F9]"].join(" ")}
@@ -175,11 +201,7 @@ export default function UploadProgressPip() {
           className="w-full px-4 py-3 flex items-center gap-2 hover:bg-[#BBF7D0]/50 transition-colors rounded-b-2xl cursor-pointer"
         >
           {["🎬", "📝", "😊", "📳"].map((icon, i) => (
-            <span
-              key={icon}
-              className="text-base"
-              style={{ animation: `pip-done-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) ${0.1 + i * 0.07}s both` }}
-            >
+            <span key={icon} className="text-base" style={{ animationDelay: `${i * 0.07}s` }}>
               {icon}
             </span>
           ))}
@@ -217,4 +239,8 @@ export default function UploadProgressPip() {
       )}
     </div>
   );
+
+  return isFullscreen && fullscreenEl
+    ? createPortal(pipContent, fullscreenEl)
+    : pipContent;
 }

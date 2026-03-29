@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { ViewerVideo, EmojiReaction } from "../../types/viewer";
 import PlayerOverlay from "./PlayerOverlay";
 import PlayerControls from "./PlayerControls";
+import SoundEmojiOverlay from "./SoundEmojiOverlay";
 import { useEsp } from "../../context/EspContext";
 import { VibrationModal } from "./Vibration/VibrationModal";
 import type { VibrationFileData } from "../../types/vibration";
@@ -716,7 +717,7 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
           </div>
         )}
 
-        {/* ── 효과음 오버레이 (상단 중앙, 원래 스타일) ── */}
+        {/* ── 효과음 오버레이 ── */}
         {emojiOn && (
           <div
             className="absolute z-30 pointer-events-none flex justify-center"
@@ -729,71 +730,11 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
               } : { top: 20, left: "50%", transform: "translateX(-50%)" }),
             }}
           >
-            {/* SVG distortion filter — 항상 DOM에 유지 */}
-            <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
-              <defs>
-                <filter id="vp-glass-distortion" x="0%" y="0%" width="100%" height="100%" filterUnits="objectBoundingBox">
-                  <feTurbulence type="fractalNoise" baseFrequency="0.001 0.005" numOctaves="1" seed="17" result="turbulence" />
-                  <feComponentTransfer in="turbulence" result="mapped">
-                    <feFuncR type="gamma" amplitude="1" exponent="10" offset="0.5" />
-                    <feFuncG type="gamma" amplitude="0" exponent="1" offset="0" />
-                    <feFuncB type="gamma" amplitude="0" exponent="1" offset="0.5" />
-                  </feComponentTransfer>
-                  <feGaussianBlur in="turbulence" stdDeviation="3" result="softMap" />
-                  <feSpecularLighting in="softMap" surfaceScale="5" specularConstant="1" specularExponent="100" lightingColor="white" result="specLight">
-                    <fePointLight x="-200" y="-200" z="300" />
-                  </feSpecularLighting>
-                  <feComposite in="specLight" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="litImage" />
-                  <feDisplacementMap in="SourceGraphic" in2="softMap" scale="200" xChannelSelector="R" yChannelSelector="G" />
-                </filter>
-              </defs>
-            </svg>
-
-            <div
-              className="relative flex overflow-hidden rounded-[2rem]"
-              style={{ boxShadow: "0 6px 6px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)" }}
-            >
-              {/* Glass Layers */}
-              <div className="absolute inset-0 z-0 overflow-hidden rounded-[2rem]" style={{ backdropFilter: "blur(12px) saturate(180%)", WebkitBackdropFilter: "blur(12px) saturate(180%)", isolation: "isolate" }} />
-              <div className="absolute inset-0 z-10 rounded-[2rem]" style={{ background: "rgba(255,255,255,0.08)" }} />
-              <div className="absolute inset-0 z-20 rounded-[2rem] overflow-hidden" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
-              
-              <div className="relative z-30 flex items-end gap-3 px-6 py-4">
-                {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
-                  const isActive = currentSec < ao.endSec;
-                  const fadeProgress = isActive ? 0 : Math.min(1, Math.max(0, (currentSec - ao.endSec - 5) / 1));
-                  return (
-                    <div
-                      key={`${ao.type}-${ao.eventId}`}
-                      className="flex flex-col items-center transition-opacity duration-700"
-                      style={{ opacity: 1 - fadeProgress }}
-                    >
-                      {/* 이모지: scale 기준점을 bottom으로 고정해서 커져도 텍스트 안 밀림 */}
-                      <span
-                        className="select-none leading-none"
-                        style={{
-                          fontSize: "3rem",
-                          display: "block",
-                          transformOrigin: "bottom center",
-                          filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-                          animationName: "emoji-bounce",
-                          animationDuration: "1.4s",
-                          animationTimingFunction: "ease-in-out",
-                          animationIterationCount: "infinite",
-                          animationDelay: `${i * 0.12}s`,
-                          animationPlayState: isPlaying && isActive ? "running" : "paused",
-                        }}
-                      >
-                        {ao.emoji}
-                      </span>
-                      <span className="text-[10px] font-medium text-white/80 leading-none tracking-wide drop-shadow mt-1">
-                        {(ao.text ?? "").replace(/\s*소리\s*$/, "")}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <SoundEmojiOverlay
+              overlays={activeOverlays}
+              currentSec={currentSec}
+              isPlaying={isPlaying}
+            />
           </div>
         )}
 
