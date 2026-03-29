@@ -23,6 +23,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import java.util.Arrays;
 
 @Configuration
@@ -35,6 +36,12 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final OAuthCookieRepository oAuthCookieRepository; // 보관함 주입
+
+    // 💡 [추가] 웹소켓 엔드포인트는 보안 필터 자체를 아예 거치지 않도록 설정합니다.
+    @Bean
+    public WebSecurityCustomizer webSecurityCustomizer() {
+        return (web) -> web.ignoring().requestMatchers("/api/ws/**", "/ws/**");
+    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
