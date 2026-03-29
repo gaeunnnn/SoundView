@@ -154,7 +154,10 @@ class SubtitleModel(BaseAIModel[str, List[Dict[str, Any]]]):
                 threshold=0.3,                 # [TUNE] 0.5 -> 0.3으로 낮춰서 작은/모호한 소리도 음성으로 캡처
                 min_silence_duration_ms=1500,  # [TUNE] 기존 500ms는 너무 짧아 문장 도중 짤림.
                 speech_pad_ms=500              # [TUNE] 음성 앞뒤로 0.5초 여유를 두어 끝의 단어가 씹히는 현상 방지
-            )
+            ),
+            # --- [2차 방어막: 거대 잡음 처리 (환각 억제)] ---
+            condition_on_previous_text=False,  # 이전 문맥을 참고하지 않게 하여 "감사합니다"가 무한 반복되는 환각 루프 차단
+            no_speech_threshold=0.4           # 소리가 '사람 목소리가 아닐 확률'이 40%만 넘어도 번역을 포기(버림) (기본값 0.6)
         )
         
         chunks = []

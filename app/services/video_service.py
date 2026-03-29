@@ -54,11 +54,21 @@ class VideoService:
             tracks = await self.voice_sep.separate(audio_array)
 
             # 4. AI 추론 — 세 모델을 병렬 실행 (하나라도 실패 시 전체 예외 발생)
-            #    SubtitleModel : 원본 오디오 사용 (배경음 포함 원본, AI 자체 노이즈 캔슬링/VAD 최적화)
             #    VibrationModel: VoiceSeparator에서 분리된 전체 4-stem 딕셔너리 사용
             #    SoundEventModel: 배경음 전용 분류 분석 (no_vocals)
+            
+            # [사전 방어막] Demucs가 추출한 목소리 트랙의 RMS 볼륨을 계산하여 사람이 말하는 소리가 있는지 확인
+            vocal_rms = float(np.sqrt(np.mean(tracks["vocals"]**2)))
+            if vocal_rms < 0.001:
+                logger.warning(f"[VideoService] 보컬 RMS 볼륨({vocal_rms:.6f})이 낮아 무음/노이즈 영상으로 판단. 자막(STT) 모델 호출을 스킵합니다.")
+                async def skip_subtitle(): return []
+                subtitle_task = skip_subtitle()
+            else:
+                # SubtitleModel : 원본 오디오 사용 (배경음 포함 원본, AI 자체 노이즈 캔슬링/VAD 최적화)
+                subtitle_task = self.subtitle_model.predict(tracks["vocals"])
+
             subtitle_result, vibration_result, sound_event_result = await asyncio.gather(
-                self.subtitle_model.predict(audio_array),
+                subtitle_task,
                 self.vibration_model.predict(tracks),
                 self.sound_event_model.predict(tracks["no_vocals"])
             )
