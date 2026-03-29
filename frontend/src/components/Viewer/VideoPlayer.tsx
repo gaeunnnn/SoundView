@@ -337,6 +337,44 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
   const progressRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // 실제 영상 렌더링 영역 (letterbox/pillarbox 제외)
+  const [videoRect, setVideoRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    const calcVideoRect = () => {
+      const v = videoRef.current;
+      const p = playerRef.current;
+      if (!v || !p || !v.videoWidth || !v.videoHeight) return;
+      const playerRect = p.getBoundingClientRect();
+      const videoAspect = v.videoWidth / v.videoHeight;
+      const playerAspect = playerRect.width / playerRect.height;
+      let w: number, h: number;
+      if (videoAspect > playerAspect) {
+        w = playerRect.width;
+        h = playerRect.width / videoAspect;
+      } else {
+        h = playerRect.height;
+        w = playerRect.height * videoAspect;
+      }
+      setVideoRect({
+        top: (playerRect.height - h) / 2,
+        left: (playerRect.width - w) / 2,
+        width: w,
+        height: h,
+      });
+    };
+    calcVideoRect();
+    const ro = new ResizeObserver(calcVideoRect);
+    if (playerRef.current) ro.observe(playerRef.current);
+    videoRef.current?.addEventListener("loadedmetadata", calcVideoRect);
+    videoRef.current?.addEventListener("resize", calcVideoRect);
+    return () => {
+      ro.disconnect();
+      videoRef.current?.removeEventListener("loadedmetadata", calcVideoRect);
+      videoRef.current?.removeEventListener("resize", calcVideoRect);
+    };
+  }, []);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -647,22 +685,30 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
 
         {/* ── 자막 오버레이 ── */}
         {subtitleOn && currentSubtitle && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex flex-col items-center gap-1 pointer-events-none">
+          <div
+            className="absolute z-30 flex flex-col items-center gap-1 pointer-events-none"
+            style={videoRect ? {
+              left: videoRect.left,
+              width: videoRect.width,
+              top: videoRect.top + videoRect.height - 20,
+              transform: "translateY(-100%)",
+            } : { bottom: "80px", left: "50%", transform: "translateX(-50%)" }}
+          >
             {/* 감정 이모지 */}
-            <div className="flex items-center gap-2 rounded-full bg-black/50 px-4 py-1.5 backdrop-blur-sm">
+            <div className="flex items-center gap-2 rounded-full bg-black/50 px-5 py-2 backdrop-blur-sm">
               <span className="text-xl leading-none">
                 {EMOTION_EMOJI[currentSubtitle.emotion] ?? "😐"}
               </span>
-              <span className="text-sm font-medium text-white/80">
+              <span className="text-lg font-medium text-white/80">
                 {currentSubtitle.emotion.match(/\((.+?)\)/)?.[1] ?? currentSubtitle.emotion}
               </span>
-              <span className="text-xs text-white/50">
+              <span className="text-sm text-white/50">
                 {currentSubtitle.confidence.toFixed(0)}%
               </span>
             </div>
             {/* 자막 텍스트 */}
             <div
-              className="rounded-xl px-5 py-2 text-base font-semibold text-white shadow-lg"
+              className="rounded-xl px-6 py-3 text-xl font-semibold text-white shadow-lg"
               style={{ background: "rgba(0,0,0,0.7)", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
             >
               {currentSubtitle.text}
@@ -673,8 +719,15 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
         {/* ── 효과음 오버레이 (상단 중앙, 원래 스타일) ── */}
         {emojiOn && (
           <div
-            className="absolute top-5 left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-            style={{ visibility: activeOverlays.some(ao => ao.type === "sound") ? "visible" : "hidden" }}
+            className="absolute z-30 pointer-events-none flex justify-center"
+            style={{
+              visibility: activeOverlays.some(ao => ao.type === "sound") ? "visible" : "hidden",
+              ...(videoRect ? {
+                left: videoRect.left,
+                width: videoRect.width,
+                top: videoRect.top + 20,
+              } : { top: 20, left: "50%", transform: "translateX(-50%)" }),
+            }}
           >
             {/* SVG distortion filter — 항상 DOM에 유지 */}
             <svg style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
@@ -705,31 +758,38 @@ export default function VideoPlayer({ video }: VideoPlayerProps) {
               <div className="absolute inset-0 z-10 rounded-3xl" style={{ background: "rgba(255,255,255,0.08)" }} />
               <div className="absolute inset-0 z-20 rounded-3xl overflow-hidden" style={{ boxShadow: "inset 2px 2px 1px 0 rgba(255,255,255,0.5), inset -1px -1px 1px 1px rgba(255,255,255,0.5)" }} />
               
-              <div className="relative z-30 flex items-center px-6 py-4">
+              <div className="relative z-30 flex items-end gap-3 px-6 py-4">
                 {activeOverlays.filter(ao => ao.type === "sound").map((ao, i) => {
                   const isActive = currentSec < ao.endSec;
                   const fadeProgress = isActive ? 0 : Math.min(1, Math.max(0, (currentSec - ao.endSec - 5) / 1));
                   return (
-                    <span
+                    <div
                       key={`${ao.type}-${ao.eventId}`}
-                      className="select-none leading-none transition-opacity duration-700"
-                      style={{
-                        fontSize: "3rem",
-                        marginLeft: i === 0 ? 0 : "-0.5rem",
-                        zIndex: i + 1,
-                        position: "relative",
-                        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-                        opacity: 1 - fadeProgress,
-                        animationName: "emoji-bounce",
-                        animationDuration: "1.4s",
-                        animationTimingFunction: "ease-in-out",
-                        animationIterationCount: "infinite",
-                        animationDelay: `${i * 0.12}s`,
-                        animationPlayState: isPlaying && isActive ? "running" : "paused",
-                      }}
+                      className="flex flex-col items-center transition-opacity duration-700"
+                      style={{ opacity: 1 - fadeProgress }}
                     >
-                      {ao.emoji}
-                    </span>
+                      {/* 이모지: scale 기준점을 bottom으로 고정해서 커져도 텍스트 안 밀림 */}
+                      <span
+                        className="select-none leading-none"
+                        style={{
+                          fontSize: "3rem",
+                          display: "block",
+                          transformOrigin: "bottom center",
+                          filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+                          animationName: "emoji-bounce",
+                          animationDuration: "1.4s",
+                          animationTimingFunction: "ease-in-out",
+                          animationIterationCount: "infinite",
+                          animationDelay: `${i * 0.12}s`,
+                          animationPlayState: isPlaying && isActive ? "running" : "paused",
+                        }}
+                      >
+                        {ao.emoji}
+                      </span>
+                      <span className="text-[10px] font-medium text-white/80 leading-none tracking-wide drop-shadow mt-1">
+                        {(ao.text ?? "").replace(/\s*소리\s*$/, "")}
+                      </span>
+                    </div>
                   );
                 })}
               </div>

@@ -37,8 +37,16 @@ export default function CommentSection({ videoId, initialComments, reactions, on
   const [commentInput, setCommentInput] = useState("");
 
   useEffect(() => {
-    setComments(initialComments);
-  }, [initialComments]);
+    setComments(
+      initialComments.map((c) => {
+        const name = c.userNickname ?? c.nickname ?? "";
+        if (name === myNickname && me?.profileImageUrl && !c.profileImageUrl) {
+          return { ...c, profileImageUrl: me.profileImageUrl };
+        }
+        return c;
+      })
+    );
+  }, [initialComments, me]);
 
   const handleSend = async () => {
     const trimmed = commentInput.trim();
@@ -46,7 +54,10 @@ export default function CommentSection({ videoId, initialComments, reactions, on
     setCommentInput("");
     try {
       const created = await addComment(videoId, trimmed);
-      setComments((prev) => [created, ...prev]);
+      const withProfile = me?.profileImageUrl && !created.profileImageUrl
+        ? { ...created, profileImageUrl: me.profileImageUrl }
+        : created;
+      setComments((prev) => [withProfile, ...prev]);
     } catch {}
   };
 
@@ -146,12 +157,20 @@ export default function CommentSection({ videoId, initialComments, reactions, on
 
         {/* 댓글 입력창 */}
         <div className="flex items-center gap-2 px-3 pb-3 pt-1">
-          <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
-            style={{ backgroundColor: myColor }}
-          >
-            {myInitial}
-          </div>
+          {me?.profileImageUrl ? (
+            <img
+              src={me.profileImageUrl}
+              alt={myNickname}
+              className="h-7 w-7 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white"
+              style={{ backgroundColor: myColor }}
+            >
+              {myInitial}
+            </div>
+          )}
           <input
             type="text"
             placeholder="댓글 남기기..."
