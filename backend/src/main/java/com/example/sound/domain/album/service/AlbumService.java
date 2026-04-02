@@ -96,7 +96,7 @@ public class AlbumService {
                         member.getId(),
                         album.getId(),
                         album.getName(),
-                        owner.getNickname()
+                        owner.getId()
                 );
             }
         }
@@ -205,7 +205,7 @@ public class AlbumService {
                     memberId,
                     album.getId(),
                     album.getName(),
-                    uploader.getNickname()
+                    userId
             );
         }
 

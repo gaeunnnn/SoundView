@@ -72,20 +72,22 @@ public class NotificationService {
         }
     }
 
-    public void notifyAlbumInvite(Long userId, Long albumId, String albumName, String inviterName){
+    public void notifyAlbumInvite(Long userId, Long albumId, String albumName, Long senderId){
 
         User user = userRepository.findById(userId).orElseThrow();
+        User sender = userRepository.findById(senderId).orElseThrow();
 
         Notification notification = Notification.builder()
                 .user(user)
+                .sender(sender)
                 .type(NotificationType.ALBUM_INVITE)
-                .message(inviterName + "님이 공유 앨범에 초대했습니다")
+                .message("님이 공유 앨범에 초대했습니다")
                 .targetId(albumId)
                 .build();
 
         notificationRepository.save(notification);
 
-        sendAlbumInvite(userId, albumId, albumName, inviterName);
+        sendAlbumInvite(userId, albumId, albumName, sender.getNickname());
     }
 
     // 공유 앨범 영상 추가 알림
@@ -112,20 +114,22 @@ public class NotificationService {
         }
     }
 
-    public void notifyAlbumVideoAdded(Long userId, Long albumId, String albumName, String uploaderName){
+    public void notifyAlbumVideoAdded(Long userId, Long albumId, String albumName, Long senderId){
 
         User user = userRepository.findById(userId).orElseThrow();
+        User sender = userRepository.findById(senderId).orElseThrow();
 
         Notification notification = Notification.builder()
                 .user(user)
+                .sender(sender)
                 .type(NotificationType.ALBUM_VIDEO_ADDED)
-                .message(uploaderName + "님이 영상을 추가했습니다")
+                .message("님이 영상을 추가했습니다")
                 .targetId(albumId)
                 .build();
 
         notificationRepository.save(notification);
 
-        sendAlbumVideoAdded(userId, albumId, albumName, uploaderName);
+        sendAlbumVideoAdded(userId, albumId, albumName, sender.getNickname());
     }
 
     // 댓글 알림
@@ -151,20 +155,22 @@ public class NotificationService {
         }
     }
 
-    public void notifyVideoComment(Long userId, Long videoId, String commenterName){
+    public void notifyVideoComment(Long userId, Long videoId, Long senderId){
 
         User user = userRepository.findById(userId).orElseThrow();
+        User sender = userRepository.findById(senderId).orElseThrow();
 
         Notification notification = Notification.builder()
                 .user(user)
+                .sender(sender)
                 .type(NotificationType.VIDEO_COMMENT)
-                .message(commenterName + "님이 댓글을 남겼습니다")
+                .message("님이 댓글을 남겼습니다")
                 .targetId(videoId)
                 .build();
 
         notificationRepository.save(notification);
 
-        sendVideoComment(userId, videoId, commenterName);
+        sendVideoComment(userId, videoId, sender.getNickname());
     }
 
     // Heartbeat (연결 유지)

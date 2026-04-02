@@ -49,7 +49,7 @@ public class VideoCommentService {
             notificationService.notifyVideoComment(
                     ownerId,
                     albumVideo.getVideo().getId(),
-                    user.getNickname()
+                    userId
             );
         }
 
