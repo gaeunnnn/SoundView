@@ -1,0 +1,50 @@
+.idea/
+.gemini/
+
+
+# 4. 보안 및 환경 변수 (절대 올라가면 안 되는 파일)
+.env
+*.pem
+secrets.json
+
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+
+# 확장자 기반 대용량 모델 파일 전면 차단
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.h5
+*.ckpt
+*.onnx
+
+# 특정 테스트 파일
+dummy_video.wav
+test_ai_models.py
+test_local_pipeline.py
+
+# 미디어 파일 (오디오, 비디오, 이미지 등 용량 큰 데이터)
+*.wav
+*.mp3
+*.mp4
+*.avi
+*.jpg
+*.png
+
+
+# 테스트용 결과파일
+results/
+
+# github clone 파일
+PretrainedSED/
