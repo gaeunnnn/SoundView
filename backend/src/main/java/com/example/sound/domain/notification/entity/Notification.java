@@ -23,6 +23,11 @@ public class Notification {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    // 알림 보낸 사용자 (추가)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sender_id")
+    private User sender;
+
     // 알림 타입
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

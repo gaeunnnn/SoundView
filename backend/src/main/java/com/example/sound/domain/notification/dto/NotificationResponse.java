@@ -17,10 +17,14 @@ public class NotificationResponse {
     private LocalDateTime createdAt;
 
     public static NotificationResponse from(Notification notification){
+        String fullMessage = (notification.getSender() != null)
+                ? notification.getSender().getNickname() + notification.getMessage()
+                : notification.getMessage();
+
         return NotificationResponse.builder()
                 .id(notification.getId())
                 .type(notification.getType().name())
-                .message(notification.getMessage())
+                .message(fullMessage)
                 .isRead(notification.isRead())
                 .createdAt(notification.getCreatedAt())
                 .build();
