@@ -1,0 +1,10 @@
+# Local environment files (never commit secrets)
+.env
+.env.local
+.env.*.local
+.env_local*
+*.pem
+*.key
+
+# Allow example/template env files
+!.env.example
