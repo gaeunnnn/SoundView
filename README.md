@@ -12,7 +12,7 @@
 
 <p align="center">
   AI가 영상의 음성·감정·배경음을 분석하고<br/>
-  <b>Subtitle + Haptic 기반 접근성 비디오 서비스</b>
+  <b>AI 자막과 햅틱 피드백을 결합한 접근성 비디오 서비스</b>
 </p>
 
 <br/>
@@ -29,16 +29,6 @@
 <p align="center">
   <img src="./assets/images/soundview-login.png" width="800" alt="SoundView 로그인 화면"/>
 </p>
-
-## 🚀 프로젝트 정보
-
-- 프로젝트명 : SoundView
-- 플랫폼 : Web, IoT Device
-- 개발 인원 : 6명
-- 핵심 가치 : 영상의 소리를 자막, 감정, 효과음, 진동으로 변환해 접근성 높은 시청 경험 제공
-- 주요 구성 : Frontend, Backend, AI Server, ESP32 Haptic Device
-
----
 
 ## 💡 기획 배경
 
@@ -58,6 +48,16 @@ SoundView는 영상 속 음성을 텍스트로 변환하는 것을 넘어, AI가
 | 변환 결과를 다시 편집하거나 공유하기 어려움 | 자막/배경음 편집, 개인/공유 앨범 기능 제공 |
 
 </div>
+
+---
+
+## 🚀 프로젝트 정보
+
+- 프로젝트명 : SoundView
+- 플랫폼 : Web, IoT Device
+- 개발 인원 : 6명
+- 핵심 가치 : 영상의 소리를 자막, 감정, 효과음, 진동으로 변환해 접근성 높은 시청 경험 제공
+- 주요 구성 : Frontend, Backend, AI Server, ESP32 Haptic Device
 
 ---
 
@@ -446,7 +446,7 @@ SoundView의 상세 기획 및 설계 문서는 아래에서 확인하실 수 �
 
 ---
 
-## 🗃 Data Modeling
+<h2 align="center">🗃 Data Modeling</h2>
 
 <p align="center">
   <img src="./assets/images/soundview-erd.png" width="95%" alt="SoundView ERD"/>
@@ -460,7 +460,7 @@ SoundView의 상세 기획 및 설계 문서는 아래에서 확인하실 수 �
 
 ---
 
-## 🏗 System Architecture
+<h2 align="center">🏗 System Architecture</h2>
 
 <p align="center">
   <img src="./assets/images/architecture.png" width="95%" alt="SoundView 시스템 아키텍처"/>
@@ -471,6 +471,10 @@ SoundView의 상세 기획 및 설계 문서는 아래에서 확인하실 수 �
 </p>
 
 <br/>
+
+---
+
+<h2 align="center">🔄 AI 처리 파이프라인</h2>
 
 <p align="center">
   <img src="./assets/images/영상 처리 및 AI 분석 파이프라인.png" width="95%" alt="영상 처리 및 AI 분석 파이프라인"/>
