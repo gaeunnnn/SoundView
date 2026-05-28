@@ -303,7 +303,7 @@ ESP32 WebSocket 클라이언트 및 진동 싱크 UI 개발
 | Category | Spec |
 |:--:|:--|
 | Language | TypeScript 5.9.3 |
-| Runtime | Node.js 24.12.0 |
+| Runtime | Node.js 24.x (Docker `node:24-alpine`) |
 | Framework | React 19.2.0, React Router DOM 7.13.1 |
 | 3D/Visual | Three.js 0.183.2, React Three Fiber 9.5.0, Drei 10.7.7 |
 | Styling | Tailwind CSS 4.2.1 |
@@ -351,7 +351,8 @@ ESP32 WebSocket 클라이언트 및 진동 싱크 UI 개발
 
 | Category | Spec |
 |:--:|:--|
-| API | FastAPI 0.128.8, Uvicorn |
+| Runtime | Python 3.9 |
+| API | FastAPI 0.128.8, Uvicorn 0.39.0 |
 | Async Pipeline | asyncio, aio-pika, aioboto3 |
 | Speech/Subtitles | Faster-Whisper, WavLM, KLUE-BERT |
 | Sound Event | ATST-F 기반 효과음 분류 |
