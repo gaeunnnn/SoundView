@@ -468,17 +468,3 @@ SoundView의 상세 기획 및 설계 문서는 아래에서 확인하실 수 �
 <br/>
 
 ---
-
-<h2 align="center">🔄 AI 처리 파이프라인</h2>
-
-<p align="center">
-  <img src="./assets/images/영상 처리 및 AI 분석 파이프라인.png" width="95%" alt="영상 처리 및 AI 분석 파이프라인"/>
-</p>
-
-<p align="center">
-  <sub>FastAPI AI Server - 영상 처리 및 AI 분석 파이프라인</sub>
-</p>
-
-<br/><br/>
-
----
